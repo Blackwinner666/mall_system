@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Database (auto-created on first run)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+server.log
+server_error.log
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Uploaded media (large binary files)
+static/uploads/
+
+# Server-specific temp copies
+app_server.py
+publish_server.html
+template_editor_server.html
+
+# WorkBuddy internal
+.workbuddy/
