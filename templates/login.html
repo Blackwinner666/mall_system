@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录/注册 - 百货商城</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+}
+.login-container {
+  width: 400px; background: #fff; border-radius: 12px; padding: 48px 40px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.logo-area {
+  text-align: center; margin-bottom: 32px;
+}
+.logo-placeholder {
+  width: 64px; height: 64px; border-radius: 12px; background: #eeedfe;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 16px; position: relative; overflow: hidden;
+}
+.logo-placeholder svg { width: 36px; height: 36px; fill: #534ab7; }
+.logo-placeholder img { width: 100%; height: 100%; object-fit: cover; }
+.logo-area h1 { font-size: 22px; font-weight: 600; color: #1a1a1a; }
+/* Tab切换 */
+.tab-switch {
+  display: flex; margin-bottom: 28px; border-bottom: 2px solid #f0f0f0;
+}
+.tab-btn {
+  flex: 1; text-align: center; padding: 10px 0; font-size: 15px; color: #999;
+  cursor: pointer; border: none; background: none; transition: all .2s; font-weight: 500;
+  position: relative;
+}
+.tab-btn.active { color: #534ab7; }
+.tab-btn.active::after {
+  content: ''; position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
+  width: 40px; height: 2px; background: #534ab7; border-radius: 1px;
+}
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 8px; font-weight: 500; }
+.form-group input {
+  width: 100%; height: 44px; border: 1px solid #e0e0e0; border-radius: 8px;
+  padding: 0 14px; font-size: 14px; color: #333; outline: none; transition: border-color .2s;
+}
+.form-group input:focus { border-color: #534ab7; }
+.form-group input::placeholder { color: #ccc; }
+.btn-submit {
+  width: 100%; height: 44px; background: #534ab7; color: #fff; border: none;
+  border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer;
+  margin-top: 8px; transition: background .2s;
+}
+.btn-submit:hover { background: #3c3489; }
+.btn-submit:disabled { background: #ccc; cursor: not-allowed; }
+.msg-box {
+  color: #e24b4a; font-size: 13px; text-align: center; margin-top: 12px; min-height: 20px; transition: color .2s;
+}
+.msg-box.success { color: #3a8f3d; }
+.register-panel { display: none; }
+.login-panel { display: none; }
+.login-panel.active, .register-panel.active { display: block; }
+.hint-text { font-size: 12px; color: #bbb; text-align: center; margin-top: 16px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="login-container">
+  <div class="logo-area">
+    <div class="logo-placeholder" id="logoPreview">
+      <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+    </div>
+    <h1 id="storeTitle">百货商城</h1>
+  </div>
+
+  <div class="tab-switch">
+    <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">登录</button>
+    <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">注册</button>
+  </div>
+
+  <!-- 登录面板 -->
+  <div class="login-panel active" id="loginPanel">
+    <div class="form-group">
+      <label>手机号/邮箱/账号</label>
+      <input type="text" id="loginUsername" placeholder="请输入手机号、邮箱或用户名" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="off">
+    </div>
+    <button class="btn-submit" id="btnLogin" onclick="doLogin()">登 录</button>
+  </div>
+
+  <!-- 注册面板 -->
+  <div class="register-panel" id="registerPanel">
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" id="regUsername" placeholder="不填则默认用手机号" maxlength="20" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>手机号</label>
+      <input type="tel" id="regPhone" placeholder="与邮箱至少填一项" maxlength="11" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>邮箱</label>
+      <input type="email" id="regEmail" placeholder="与手机号至少填一项" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>密码 <span style="color:#e24b4a;">*</span></label>
+      <input type="password" id="regPassword" placeholder="至少6个字符" autocomplete="off">
+    </div>
+    <button class="btn-submit" id="btnRegister" onclick="doRegister()">注 册</button>
+  </div>
+
+  <div class="msg-box" id="msgBox"></div>
+  <div class="hint-text" id="hintText">系统将自动识别您的身份并跳转</div>
+</div>
+
+<script>
+var currentTab = 'login';
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('msgBox').textContent = '';
+  document.getElementById('msgBox').className = 'msg-box';
+
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('loginPanel').classList.toggle('active', tab === 'login');
+  document.getElementById('registerPanel').classList.toggle('active', tab === 'register');
+  document.getElementById('hintText').style.display = tab === 'login' ? 'block' : 'none';
+}
+
+function showMsg(msg, isSuccess) {
+  var el = document.getElementById('msgBox');
+  el.textContent = msg;
+  el.className = 'msg-box' + (isSuccess ? ' success' : '');
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+  const btn = document.getElementById('btnLogin');
+
+  if (!username || !password) { showMsg('请输入用户名和密码', false); return; }
+
+  btn.disabled = true; btn.textContent = '登录中...'; showMsg('', false);
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (data.user.role === 'admin') {
+        window.location.href = '/admin';
+      } else {
+        window.location.href = '/';
+      }
+    } else {
+      showMsg(data.message || '登录失败', false);
+    }
+  } catch (e) {
+    showMsg('网络错误，请稍后重试', false);
+  }
+  btn.disabled = false; btn.textContent = '登 录';
+}
+
+async function doRegister() {
+  const username = document.getElementById('regUsername').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value.trim();
+  const btn = document.getElementById('btnRegister');
+
+  if (!phone && !email) { showMsg('请至少填写手机号或邮箱', false); return; }
+  if (phone && !/^1[3-9]\d{9}$/.test(phone)) { showMsg('请输入正确的手机号', false); return; }
+  if (email && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) { showMsg('请输入正确的邮箱地址', false); return; }
+  if (!password) { showMsg('请设置密码', false); return; }
+  if (password.length < 6) { showMsg('密码至少6个字符', false); return; }
+
+  // 用户名不填则默认用手机号（有手机号时），否则用邮箱前缀
+  const finalUsername = username || phone || email.split('@')[0];
+  const displayName = username || phone || email.split('@')[0];
+
+  btn.disabled = true; btn.textContent = '注册中...'; showMsg('', false);
+
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: finalUsername,
+        password, phone, email,
+        display_name: displayName
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showMsg('注册成功！正在跳转...', true);
+      document.getElementById('loginUsername').value = finalUsername;
+      document.getElementById('loginPassword').value = password;
+      setTimeout(function() {
+        switchTab('login');
+        showMsg('注册成功，请登录', true);
+      }, 800);
+    } else {
+      showMsg(data.message || '注册失败', false);
+    }
+  } catch (e) {
+    showMsg('网络错误，请稍后重试', false);
+  }
+  btn.disabled = false; btn.textContent = '注 册';
+}
+
+// 回车键事件
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    if (currentTab === 'login') {
+      doLogin();
+    } else {
+      doRegister();
+    }
+  }
+});
+
+// 加载商城名称和Logo
+fetch('/api/settings').then(r => r.json()).then(d => {
+  if (d.success && d.data) {
+    if (d.data.store_name) {
+      document.getElementById('storeTitle').textContent = d.data.store_name;
+    }
+    if (d.data.store_logo) {
+      document.getElementById('logoPreview').innerHTML = '<img src="' + d.data.store_logo + '" alt="Logo">';
+    }
+  }
+});
+</script>
+</body>
+</html>
