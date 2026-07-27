@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>售后管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#333}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;flex-shrink:0}
+.sidebar-header{padding:20px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:36px;height:36px;background:#4a6cf7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.sidebar-header .name{font-size:15px;font-weight:600}
+.nav-group{padding:0 12px;margin-bottom:8px}
+.nav-group-title{font-size:11px;color:rgba(255,255,255,.4);padding:8px 12px;letter-spacing:1px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:14px;transition:.2s;cursor:pointer;margin:2px 0}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:#4a6cf7;color:#fff}
+.nav-item .icon{width:20px;text-align:center;font-size:15px}
+.main{flex:1;overflow-y:auto}
+.topbar{background:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8}
+.topbar .breadcrumb{font-size:13px;color:#999}
+.topbar .user-info{display:flex;align-items:center;gap:10px;font-size:13px}
+.topbar .logout-btn{background:none;border:1px solid #ddd;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;color:#666}
+.content{padding:24px}
+.tabs{display:flex;gap:0;background:#fff;border-radius:12px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.tab{padding:12px 24px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;transition:.2s;font-weight:500}
+.tab:hover{color:#4a6cf7}
+.tab.active{color:#4a6cf7;border-bottom-color:#4a6cf7}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden;margin-bottom:16px}
+.panel-header{padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.panel-header h3{font-size:15px;font-weight:600}
+.panel-body{padding:20px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:6px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#4a6cf7;box-shadow:0 0 0 3px rgba(74,108,247,.1)}
+.form-group textarea{resize:vertical;min-height:80px}
+.filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filters select{padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none}
+.btn{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:.2s}
+.btn-primary{background:#4a6cf7;color:#fff}
+.btn-primary:hover{background:#3b5de7}
+.btn-cancel{background:#f5f5f5;color:#666}
+.btn-success{background:#ecfdf5;color:#059669}
+.btn-danger{background:#fef2f2;color:#dc2626}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid #f0f0f0}
+th{font-weight:600;color:#555;font-size:12px;background:#f8f9fc}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px}
+.tag-pending{background:#fef3c7;color:#d97706}
+.tag-processing{background:#dbeafe;color:#2563eb}
+.tag-completed{background:#d1fae5;color:#059669}
+.tag-rejected{background:#fee2e2;color:#dc2626}
+.status-tabs{display:flex;gap:4px;padding:16px 20px;border-bottom:1px solid #f0f0f0;flex-wrap:wrap}
+.status-tab{padding:6px 16px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid #e8e8e8;background:#fff;transition:.2s}
+.status-tab:hover{border-color:#4a6cf7;color:#4a6cf7}
+.status-tab.active{background:#4a6cf7;color:#fff;border-color:#4a6cf7}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{padding:16px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border:none;background:#f5f5f5;border-radius:8px;cursor:pointer;font-size:18px;color:#999}
+.modal-body{padding:20px 24px}
+.pagination{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.pagination button{padding:6px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
+.pagination button.active{background:#4a6cf7;color:#fff;border-color:#4a6cf7}
+.empty{text-align:center;padding:40px;color:#999}
+.loading{text-align:center;padding:40px;color:#999}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat-card{background:#f8f9fc;border-radius:10px;padding:16px;text-align:center}
+.stat-card .stat-val{font-size:24px;font-weight:700;color:#1a1a2e}
+.stat-card .stat-lbl{font-size:12px;color:#999;margin-top:4px}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.mt-2{margin-top:8px}
+.mt-3{margin-top:12px}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">售后管理</div>
+      <div class="user-info"><span id="displayName"></span><button class="logout-btn" onclick="doLogout()">退出登录</button></div>
+    </div>
+    <div class="content">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="after-sales">售后处理</button>
+        <button class="tab" data-tab="appeals">申诉管理</button>
+      </div>
+
+      <!-- Tab 1: 售后处理 -->
+      <div class="tab-panel active" id="tab-after-sales"><div id="afterSalesView"><div class="loading">加载中...</div></div></div>
+
+      <!-- Tab 2: 申诉管理 -->
+      <div class="tab-panel" id="tab-appeals"><div id="appealsView"><div class="loading">加载中...</div></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+renderSidebar();
+function renderSidebar(){
+  document.getElementById('sidebar').innerHTML=`<div class="sidebar-header"><div class="logo">M</div><div class="name" id="storeName">百货商城</div></div>
+    <nav style="padding:12px 0">
+      <div class="nav-group"><a class="nav-item" href="/admin"><span class="icon">◆</span>首页</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/store"><span class="icon">◇</span>店铺管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/products"><span class="icon">☆</span>商品管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/orders"><span class="icon">☑</span>订单管理</a></div>
+      <div class="nav-group"><a class="nav-item active" href="/admin/after-sales"><span class="icon">↺</span>售后管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/customers"><span class="icon">☺</span>客户管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/settings"><span class="icon">⚙</span>商城设置</a></div></nav>`;
+}
+
+let asStatus='',asType='',asPage=1;
+let typeLabels={refund:'仅退款',return:'退货退款',exchange:'换货'};
+let statusLabels={pending:'待处理',processing:'处理中',completed:'已完成',rejected:'已拒绝'};
+let statusClasses={pending:'pending',processing:'processing',completed:'completed',rejected:'rejected'};
+
+async function init(){
+  let r=await fetch('/api/auth/me');let u=await r.json();
+  if(u.success)document.getElementById('displayName').textContent=u.user.display_name;
+  r=await fetch('/api/settings');let s=await r.json();
+  if(s.success)document.getElementById('storeName').textContent=s.data.store_name||'百货商城';
+}
+
+// Tabs
+document.getElementById('tabs').addEventListener('click',function(e){
+  if(e.target.classList.contains('tab')){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    e.target.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('tab-'+e.target.dataset.tab).classList.add('active');
+    if(e.target.dataset.tab==='after-sales')loadAfterSales();
+    if(e.target.dataset.tab==='appeals')loadAppeals();
+  }
+});
+
+function doLogout(){fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/login');}
+
+// ====== Tab 1: 售后处理 ======
+async function loadAfterSales(page,status,type){
+  page=page||1;asPage=page;
+  if(status!==undefined)asStatus=status;
+  if(type!==undefined)asType=type;
+
+  let p=new URLSearchParams({page,per_page:20});
+  if(asStatus)p.set('status',asStatus);
+  if(asType)p.set('type',asType);
+
+  let r=await fetch('/api/admin/after-sales?'+p);
+  let d=(await r.json()).data;
+
+  let h=`<div class="panel"><div class="panel-header"><h3>售后列表 (${d.total})</h3>
+    <div class="filters">
+      <select id="asFilterType" onchange="loadAfterSales(1,asStatus,this.value)"><option value="">全部类型</option><option value="refund" ${asType==='refund'?'selected':''}>仅退款</option><option value="return" ${asType==='return'?'selected':''}>退货退款</option><option value="exchange" ${asType==='exchange'?'selected':''}>换货</option></select>
+    </div></div>
+    <div class="status-tabs">`;
+
+  // Stats summary
+  let allLabels={'':'全部',...statusLabels};
+  for(let[s,l] of Object.entries(allLabels)){
+    let count=s===''?d.total:(d.stats&&d.stats[s])||0;
+    h+=`<button class="status-tab ${asStatus===s?'active':''}" onclick="loadAfterSales(1,'${s}',asType)">${l} (${count})</button>`;
+  }
+
+  h+=`</div><div class="panel-body"><table><thead><tr><th>售后单号</th><th>订单号</th><th>客户</th><th>类型</th><th>原因</th><th>金额</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>`;
+
+  d.items.forEach(a=>{
+    h+=`<tr><td>AS${a.id}</td><td>${a.order_no||'-'}</td>
+      <td>${a.customer_name||'-'}<br><span style="font-size:11px;color:#999">${a.customer_phone||''}</span></td>
+      <td>${typeLabels[a.type]||a.type}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.reason||'—'}</td>
+      <td>¥${(a.amount||0).toFixed(2)}</td>
+      <td><span class="tag tag-${statusClasses[a.status]}">${statusLabels[a.status]}</span></td>
+      <td>${(a.created_at||'').slice(0,16)}</td>
+      <td><button class="btn btn-cancel btn-sm" onclick="showAsDetail(${a.id})">查看</button>
+      ${a.status==='pending'?`<button class="btn btn-primary btn-sm" onclick="handleAfterSale(${a.id})">处理</button>`:''}</td></tr>`;
+  });
+
+  h+='</tbody></table>'+renderPagination(d.total,d.page,d.per_page,'loadAfterSales')+'</div></div>';
+  document.getElementById('afterSalesView').innerHTML=h;
+}
+
+function renderPagination(total,page,perPage,fn){
+  let pages=Math.ceil(total/perPage);
+  if(pages<=1)return'';
+  let h='<div class="pagination">';
+  for(let i=1;i<=pages;i++)h+=`<button class="${i===page?'active':''}" onclick="${fn}(${i},asStatus,asType)">${i}</button>`;
+  return h+'</div>';
+}
+
+function showAsDetail(id){
+  fetch('/api/admin/after-sales').then(r=>r.json()).then(d=>{
+    let a=d.data.items.find(x=>x.id===id);
+    if(!a)return;
+    let overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.innerHTML=`<div class="modal">
+      <div class="modal-header"><h3>售后详情 #AS${a.id}</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:12px">
+          <div><strong>订单号:</strong> ${a.order_no||'-'}</div>
+          <div><strong>客户:</strong> ${a.customer_name||'-'} ${a.customer_phone||''}</div>
+          <div><strong>类型:</strong> ${typeLabels[a.type]}</div>
+          <div><strong>金额:</strong> ¥${(a.amount||0).toFixed(2)}</div>
+          <div><strong>状态:</strong> <span class="tag tag-${statusClasses[a.status]}">${statusLabels[a.status]}</span></div>
+          <div><strong>时间:</strong> ${(a.created_at||'').slice(0,16)}</div>
+        </div>
+        <div class="form-group"><label>申请原因</label><div style="padding:8px;background:#f8f9fc;border-radius:6px">${a.reason||'—'}</div></div>
+        <div class="form-group"><label>详细描述</label><div style="padding:8px;background:#f8f9fc;border-radius:6px;min-height:60px">${a.description||'—'}</div></div>
+        ${a.handler_note?`<div class="form-group"><label>处理备注</label><div style="padding:8px;background:#f0fdf4;border-radius:6px">${a.handler_note}</div></div>`:''}
+        ${a.result?`<div class="form-group"><label>处理结果</label><div style="padding:8px;background:#ecfdf5;border-radius:6px">${a.result}</div></div>`:''}
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+  });
+}
+
+function handleAfterSale(id){
+  fetch('/api/admin/after-sales').then(r=>r.json()).then(d=>{
+    let a=d.data.items.find(x=>x.id===id);
+    if(!a)return;
+    let overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.innerHTML=`<div class="modal">
+      <div class="modal-header"><h3>处理售后 #AS${a.id}</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <div style="font-size:13px;margin-bottom:12px">
+          <strong>客户:</strong> ${a.customer_name} | <strong>类型:</strong> ${typeLabels[a.type]} | <strong>金额:</strong> ¥${(a.amount||0).toFixed(2)}<br>
+          <strong>原因:</strong> ${a.reason||'—'}
+        </div>
+        <div class="form-group"><label>处理状态</label><select id="asStatus">
+          <option value="processing">处理中</option>
+          <option value="completed">已完成</option>
+          <option value="rejected">已拒绝</option>
+        </select></div>
+        <div class="form-group"><label>处理备注</label><textarea id="asNote" placeholder="输入处理备注..."></textarea></div>
+        <div class="form-group"><label>处理结果</label><textarea id="asResult" placeholder="输入处理结果..."></textarea></div>
+        <div class="form-actions">
+          <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+          <button class="btn btn-primary" id="asSave">确认处理</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#asSave').onclick=async()=>{
+      let data={status:overlay.querySelector('#asStatus').value,
+        handler_note:overlay.querySelector('#asNote').value,
+        result:overlay.querySelector('#asResult').value};
+      let r=await fetch('/api/admin/after-sales/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      let j=await r.json();
+      if(j.success){overlay.remove();loadAfterSales(asPage,asStatus,asType);}else alert(j.message);
+    };
+  });
+}
+
+// ====== Tab 2: 申诉管理 ======
+async function loadAppeals(){
+  let r=await fetch('/api/admin/appeals');
+  let d=(await r.json()).data;
+  let h=`<div class="panel"><div class="panel-header"><h3>申诉列表</h3></div><div class="panel-body"><table><thead><tr><th>申诉ID</th><th>关联售后</th><th>订单号</th><th>客户</th><th>申诉原因</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>`;
+
+  d.forEach(ap=>{
+    h+=`<tr><td>AP${ap.id}</td><td>AS${ap.after_sale_id}</td><td>${ap.order_no||'-'}</td>
+      <td>${ap.customer_name||'-'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ap.reason||'—'}</td>
+      <td><span class="tag tag-${statusClasses[ap.status]}">${statusLabels[ap.status]}</span></td>
+      <td>${(ap.created_at||'').slice(0,16)}</td>
+      <td><button class="btn btn-cancel btn-sm" onclick="showAppealDetail(${ap.id})">查看</button>
+      ${ap.status==='pending'?`<button class="btn btn-primary btn-sm" onclick="handleAppeal(${ap.id})">处理</button>`:''}</td></tr>`;
+  });
+
+  h+='</tbody></table></div></div>';
+  if(d.length===0)h=h.replace('<tbody></tbody>','<tbody><tr><td colspan="8"><div class="empty">暂无申诉</div></td></tr></tbody>');
+  document.getElementById('appealsView').innerHTML=h;
+}
+
+function showAppealDetail(id){
+  fetch('/api/admin/appeals').then(r=>r.json()).then(d=>{
+    let ap=d.data.find(x=>x.id===id);
+    if(!ap)return;
+    let overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.innerHTML=`<div class="modal">
+      <div class="modal-header"><h3>申诉详情 #AP${ap.id}</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:12px">
+          <div><strong>关联售后:</strong> AS${ap.after_sale_id}</div>
+          <div><strong>订单号:</strong> ${ap.order_no||'-'}</div>
+          <div><strong>客户:</strong> ${ap.customer_name||'-'}</div>
+          <div><strong>状态:</strong> <span class="tag tag-${statusClasses[ap.status]}">${statusLabels[ap.status]}</span></div>
+        </div>
+        <div class="form-group"><label>申诉原因</label><div style="padding:8px;background:#f8f9fc;border-radius:6px">${ap.reason||'—'}</div></div>
+        <div class="form-group"><label>详细说明</label><div style="padding:8px;background:#f8f9fc;border-radius:6px;min-height:60px">${ap.description||'—'}</div></div>
+        ${ap.handler_note?`<div class="form-group"><label>处理备注</label><div style="padding:8px;background:#f0fdf4;border-radius:6px">${ap.handler_note}</div></div>`:''}
+        ${ap.result?`<div class="form-group"><label>处理结果</label><div style="padding:8px;background:#ecfdf5;border-radius:6px">${ap.result}</div></div>`:''}
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+  });
+}
+
+function handleAppeal(id){
+  fetch('/api/admin/appeals').then(r=>r.json()).then(d=>{
+    let ap=d.data.find(x=>x.id===id);
+    if(!ap)return;
+    let overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.innerHTML=`<div class="modal">
+      <div class="modal-header"><h3>处理申诉 #AP${ap.id}</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <div style="font-size:13px;margin-bottom:12px"><strong>客户:</strong> ${ap.customer_name} | <strong>原因:</strong> ${ap.reason||'—'}</div>
+        <div class="form-group"><label>处理状态</label><select id="apStatus">
+          <option value="processing">处理中</option>
+          <option value="completed">已完成</option>
+          <option value="rejected">驳回</option>
+        </select></div>
+        <div class="form-group"><label>处理备注</label><textarea id="apNote"></textarea></div>
+        <div class="form-group"><label>处理结果</label><textarea id="apResult"></textarea></div>
+        <div class="form-actions">
+          <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+          <button class="btn btn-primary" id="apSave">确认处理</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#apSave').onclick=async()=>{
+      let data={status:overlay.querySelector('#apStatus').value,
+        handler_note:overlay.querySelector('#apNote').value,
+        result:overlay.querySelector('#apResult').value};
+      let r=await fetch('/api/admin/appeals/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      let j=await r.json();
+      if(j.success){overlay.remove();loadAppeals();}else alert(j.message);
+    };
+  });
+}
+
+init();
+loadAfterSales();
+</script>
+</body>
+</html>
