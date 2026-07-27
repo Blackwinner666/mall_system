@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人中心 - 百货商城</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f5f5;color:#333}
+a{color:inherit;text-decoration:none}
+
+/* Header */
+.header{background:#fff;border-bottom:1px solid #f0f0f0;position:sticky;top:0;z-index:50}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px}
+.header-left{display:flex;align-items:center;gap:10px}
+.header-logo{width:36px;height:36px;border-radius:8px;background:#eeedfe;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.header-logo img{width:100%;height:100%;object-fit:cover}
+.header-logo svg{width:22px;height:22px;fill:#534ab7}
+.header-title{font-size:16px;font-weight:600;color:#1a1a1a}
+.header-right{display:flex;align-items:center;gap:12px}
+.header-btn{padding:6px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:1px solid #e0e0e0;background:#fff;color:#666;transition:.15s;text-decoration:none}
+.header-btn:hover{border-color:#534ab7;color:#534ab7}
+
+/* Main layout - two columns */
+.main-wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px}
+.profile-layout{display:flex;gap:24px}
+
+/* Left sidebar */
+.sidebar{width:240px;flex-shrink:0}
+.user-card{background:#fff;border-radius:12px;padding:24px 20px;text-align:center;border:1px solid #f0f0f0;margin-bottom:16px}
+.user-avatar{width:72px;height:72px;border-radius:50%;background:#eeedfe;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:32px;color:#534ab7;overflow:hidden}
+.user-avatar img{width:100%;height:100%;object-fit:cover}
+.user-name{font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:4px}
+.user-phone{font-size:12px;color:#999;margin-bottom:2px}
+.user-email{font-size:12px;color:#999}
+
+.sidebar-nav{background:#fff;border-radius:12px;overflow:hidden;border:1px solid #f0f0f0}
+.sidebar-nav-item{display:flex;align-items:center;gap:10px;padding:14px 20px;font-size:14px;cursor:pointer;transition:.15s;border-left:3px solid transparent;color:#333}
+.sidebar-nav-item:hover{background:#fafafa}
+.sidebar-nav-item.active{background:#eeedfe;color:#534ab7;border-left-color:#534ab7;font-weight:500}
+.sidebar-nav-item .icon{font-size:18px;width:22px;text-align:center}
+
+/* Right content */
+.content{flex:1;min-width:0}
+
+/* Order stat tabs */
+.order-stats{display:flex;gap:12px;margin-bottom:20px}
+.stat-card{flex:1;background:#fff;border-radius:10px;padding:18px 12px;text-align:center;border:1px solid #f0f0f0;cursor:pointer;transition:.2s;position:relative}
+.stat-card:hover{border-color:#534ab7;box-shadow:0 2px 8px rgba(83,74,183,.1)}
+.stat-card.active{background:linear-gradient(135deg,#534ab7,#7f77dd);color:#fff;border-color:#534ab7}
+.stat-card .stat-num{font-size:26px;font-weight:700;margin-bottom:4px}
+.stat-card .stat-label{font-size:12px;opacity:.8}
+.stat-card .stat-badge{position:absolute;top:8px;right:8px;background:#e24b4a;color:#fff;min-width:18px;height:18px;border-radius:9px;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.stat-card.active .stat-badge{background:#fff;color:#534ab7}
+
+/* Content panels */
+.panel{display:none;background:#fff;border-radius:12px;border:1px solid #f0f0f0;min-height:400px}
+.panel.active{display:block}
+.panel-title{font-size:16px;font-weight:600;padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px}
+
+/* Order list */
+.order-list{padding:0}
+.order-item{display:flex;align-items:center;padding:16px 24px;border-bottom:1px solid #f5f5f5;transition:.15s}
+.order-item:hover{background:#fafafa}
+.order-item:last-child{border-bottom:none}
+.order-check{width:50px;flex-shrink:0}
+.order-check input[type="checkbox"]{width:18px;height:18px;cursor:pointer;accent-color:#534ab7}
+.order-img{width:72px;height:72px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#f5f5f5;display:flex;align-items:center;justify-content:center;margin-right:14px}
+.order-img img{width:100%;height:100%;object-fit:cover}
+.order-img .no-img{font-size:28px;color:#ddd}
+.order-info{flex:1;min-width:0}
+.order-name{font-size:14px;font-weight:500;color:#1a1a1a;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:4px}
+.order-meta{font-size:12px;color:#999;display:flex;gap:16px}
+.order-meta span{display:flex;align-items:center;gap:4px}
+.order-right{text-align:right;flex-shrink:0}
+.order-price{font-size:16px;font-weight:600;color:#e24b4a;margin-bottom:4px}
+.order-qty{font-size:12px;color:#999;margin-bottom:8px}
+.order-status-tag{display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:500}
+.tag-pending_payment{background:#fff3e0;color:#e65100}
+.tag-paid{background:#e3f2fd;color:#1565c0}
+.tag-shipped{background:#e8f5e9;color:#2e7d32}
+.tag-completed{background:#f3e5f5;color:#6a1b9a}
+.tag-cancelled{background:#f5f5f5;color:#999}
+
+/* Order card (full width with header) */
+.order-card{background:#fff;border-radius:10px;border:1px solid #f0f0f0;margin-bottom:12px;overflow:hidden}
+.order-card-header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fafafa;border-bottom:1px solid #f0f0f0;font-size:13px;color:#666}
+.order-card-no{color:#333;font-weight:500}
+.order-card-body{padding:12px 20px}
+.order-card-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f5f5f5}
+.order-card-item:last-child{border-bottom:none}
+.order-card-item .item-img{width:64px;height:64px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#f5f5f5;display:flex;align-items:center;justify-content:center}
+.order-card-item .item-img img{width:100%;height:100%;object-fit:cover}
+.order-card-item .item-img .no-img{font-size:24px;color:#ddd}
+.order-card-item .item-info{flex:1;min-width:0}
+.order-card-item .item-name{font-size:13px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.order-card-item .item-spec{font-size:11px;color:#999}
+.order-card-item .item-price{font-size:13px;color:#e24b4a;font-weight:500;text-align:right}
+.order-card-item .item-qty{font-size:11px;color:#999;text-align:right}
+.order-card-footer{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid #f0f0f0}
+.order-card-total{font-size:13px;color:#333}
+.order-card-total b{font-size:16px;color:#e24b4a}
+.order-card-actions{display:flex;gap:8px}
+.order-btn{padding:6px 16px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid #ddd;background:#fff;color:#666;transition:.2s;white-space:nowrap}
+.order-btn:hover{border-color:#534ab7;color:#534ab7}
+.order-btn.primary{background:#534ab7;color:#fff;border-color:#534ab7}
+.order-btn.primary:hover{background:#4338ca}
+.order-btn.danger{color:#e24b4a;border-color:#e24b4a}
+.order-btn.danger:hover{background:#fff5f5}
+
+/* Favorites grid */
+.fav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding:24px}
+.fav-card{background:#fff;border-radius:10px;overflow:hidden;border:1px solid #f0f0f0;transition:.2s;position:relative}
+.fav-card:hover{transform:translateY(-2px);box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.fav-card-img{width:100%;height:180px;background:#fafafa;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.fav-card-img img{width:100%;height:100%;object-fit:cover}
+.fav-card-img .no-img{font-size:48px;color:#e0e0e0}
+.fav-card-offline{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px}
+.fav-card-remove{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.4);color:#fff;border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:.2s;z-index:2}
+.fav-card-remove:hover{background:#e24b4a}
+.fav-card-info{padding:12px}
+.fav-card-name{font-size:13px;font-weight:500;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;min-height:36px}
+.fav-card-price{font-size:16px;font-weight:600;color:#e24b4a}
+.fav-card-orig{font-size:12px;color:#ccc;text-decoration:line-through;margin-left:4px}
+.fav-card-actions{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #f0f0f0}
+.fav-card-btn{padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid #d0d0d0;background:#fff;color:#666;transition:.2s;flex:1;text-align:center;white-space:nowrap}
+.fav-card-btn:hover{color:#534ab7;border-color:#534ab7}
+.fav-card-btn.primary{background:#534ab7;color:#fff;border-color:#534ab7}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 20px}
+.empty-icon{font-size:64px;color:#e0e0e0;margin-bottom:12px}
+.empty-text{font-size:14px;color:#999;margin-bottom:16px}
+.empty-btn{display:inline-block;padding:8px 24px;border-radius:8px;font-size:13px;background:#534ab7;color:#fff;text-decoration:none;transition:.2s}
+.empty-btn:hover{background:#4338ca}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;z-index:200;display:none;white-space:nowrap}
+.toast.show{display:block;animation:fadeInOut 2s}
+@keyframes fadeInOut{0%,100%{opacity:0}10%,80%{opacity:1}}
+
+/* Loading */
+.loading-wrap{text-align:center;padding:60px;color:#999;font-size:14px}
+
+/* Payment modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:12px;width:420px;max-width:95vw;padding:0;overflow:hidden}
+.modal-header{padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
+.modal-title{font-size:16px;font-weight:600}
+.modal-close{background:none;border:none;font-size:20px;color:#999;cursor:pointer;padding:4px 8px}
+.modal-body{padding:24px 20px}
+.modal-footer{padding:12px 20px;border-top:1px solid #f0f0f0;display:flex;gap:8px;justify-content:flex-end}
+
+/* Responsive */
+@media(max-width:768px){
+  .profile-layout{flex-direction:column}
+  .sidebar{width:100%}
+  .order-stats{flex-wrap:nowrap;overflow-x:auto;gap:8px}
+  .stat-card{min-width:70px;padding:12px 8px;flex:none}
+  .stat-card .stat-num{font-size:20px}
+  .fav-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));padding:16px;gap:10px}
+  .fav-card-img{height:140px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <a href="/" class="header-logo" id="headerLogo">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+      </a>
+      <a href="/" class="header-title" id="headerTitle">百货商城</a>
+    </div>
+    <div class="header-right" id="headerRight">
+      <a href="/login" class="header-btn">登录</a>
+    </div>
+  </div>
+</div>
+
+<div class="main-wrap" id="mainWrap">
+  <div class="loading-wrap">加载中...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="payModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">确认支付</span>
+      <button class="modal-close" onclick="closePayModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="payModalBody"></div>
+    <div class="modal-footer">
+      <button class="order-btn" onclick="closePayModal()">取消</button>
+      <button class="order-btn primary" onclick="confirmPay()">确认支付</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let profile = null;
+let currentTab = 'all';
+let currentOrderId = null;
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function doLogout() {
+  fetch('/api/auth/logout', {method:'POST'}).then(() => location.href='/');
+}
+
+async function init() {
+  // Login check
+  const meRes = await fetch('/api/auth/me'); const meJson = await meRes.json();
+  const hr = document.getElementById('headerRight');
+  if (meJson.success && meJson.logged_in) {
+    const u = meJson.user;
+    hr.innerHTML = '<a href="/cart" class="header-btn">&#128722; 购物车</a>' +
+      '<a href="/profile" class="header-btn" style="background:#534ab7;color:#fff;border-color:#534ab7">个人中心</a>' +
+      '<span style="font-size:13px;color:#333;font-weight:500">' + u.display_name + '</span>' +
+      '<button class="header-btn" onclick="doLogout()">退出</button>';
+  } else {
+    location.href = '/login'; return;
+  }
+
+  // Store info
+  const sRes = await fetch('/api/settings'); const sJson = await sRes.json();
+  if (sJson.success && sJson.data) {
+    const d = sJson.data;
+    document.getElementById('headerTitle').textContent = d.store_name || '百货商城';
+    document.title = '个人中心 - ' + (d.store_name || '百货商城');
+    if (d.store_logo) {
+      document.getElementById('headerLogo').innerHTML = '<img src="' + d.store_logo + '" alt="logo">';
+    }
+  }
+
+  // Profile data
+  const pRes = await fetch('/api/user/profile'); const pJson = await pRes.json();
+  if (!pJson.success) { showToast('获取用户信息失败'); return; }
+  profile = pJson.data;
+  renderProfile();
+}
+
+function renderProfile() {
+  const p = profile;
+  const u = p.user;
+  const stats = p.order_stats;
+
+  const statusTabs = [
+    {key:'pending_payment', label:'待付款', count:stats.pending_payment, icon:'&#128179;'},
+    {key:'paid', label:'待发货', count:stats.paid, icon:'&#128666;'},
+    {key:'shipped', label:'待收货', count:stats.shipped, icon:'&#128230;'},
+    {key:'pending_review', label:'待评价', count:stats.completed, icon:'&#128172;'},
+    {key:'after_sales', label:'售后', count:stats.after_sales, icon:'&#128276;'}
+  ];
+
+  document.getElementById('mainWrap').innerHTML = `
+    <div class="profile-layout">
+      <div class="sidebar">
+        <div class="user-card">
+          <div class="user-avatar">${u.avatar ? '<img src="'+u.avatar+'" alt="avatar">' : '&#128100;'}</div>
+          <div class="user-name">${u.display_name}</div>
+          ${u.phone ? '<div class="user-phone">'+u.phone+'</div>' : ''}
+          ${u.email ? '<div class="user-email">'+u.email+'</div>' : ''}
+        </div>
+        <div class="sidebar-nav">
+          <div class="sidebar-nav-item active" onclick="switchTo('all')" data-tab="all">
+            <span class="icon">&#128722;</span>全部订单
+          </div>
+          ${statusTabs.map(t => `
+            <div class="sidebar-nav-item" onclick="switchTo('${t.key}')" data-tab="${t.key}">
+              <span class="icon">${t.icon}</span>${t.label}
+              ${t.count > 0 ? '<span style="margin-left:auto;background:#e24b4a;color:#fff;min-width:18px;height:18px;border-radius:9px;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 5px">'+t.count+'</span>' : ''}
+            </div>
+          `).join('')}
+          <div class="sidebar-nav-item" onclick="switchTo('favorites')" data-tab="favorites">
+            <span class="icon">&#9825;</span>我的收藏
+            <span style="margin-left:auto;background:#534ab7;color:#fff;min-width:18px;height:18px;border-radius:9px;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 5px">${p.fav_count}</span>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="order-stats">
+          ${statusTabs.map(t => `
+            <div class="stat-card${currentTab===t.key?' active':''}" onclick="switchTo('${t.key}')" data-tab="${t.key}">
+              <div class="stat-num">${t.count}</div>
+              <div class="stat-label">${t.label}</div>
+              ${t.count > 0 ? '<div class="stat-badge">'+t.count+'</div>' : ''}
+            </div>
+          `).join('')}
+        </div>
+        <div class="panel active" id="panel-all"><div class="panel-title">&#128722; 全部订单</div><div class="loading-wrap">加载中...</div></div>
+      </div>
+    </div>`;
+
+  loadOrders('all');
+}
+
+function switchTo(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.sidebar-nav-item').forEach(c => c.classList.remove('active'));
+  const tabEl = document.querySelector('[data-tab="'+tab+'"]');
+  if (tabEl) tabEl.classList.add('active');
+  if (document.querySelector('.stat-card[data-tab="'+tab+'"]')) {
+    document.querySelector('.stat-card[data-tab="'+tab+'"]').classList.add('active');
+  }
+
+  const labels = {
+    'all':'全部订单','pending_payment':'&#128179; 待付款','paid':'&#128666; 待发货',
+    'shipped':'&#128230; 待收货','pending_review':'&#128172; 待评价','after_sales':'&#128276; 售后','favorites':'&#9825; 我的收藏'
+  };
+
+  if (tab === 'favorites') {
+    document.getElementById('panel-all').innerHTML = '<div class="panel-title">'+labels[tab]+'</div><div class="loading-wrap">加载中...</div>';
+    loadFavorites();
+  } else {
+    document.getElementById('panel-all').innerHTML = '<div class="panel-title">'+labels[tab]+'</div><div class="loading-wrap">加载中...</div>';
+    loadOrders(tab);
+  }
+}
+
+async function loadOrders(tab) {
+  const panel = document.getElementById('panel-all');
+  const labels = {
+    'all':'全部订单','pending_payment':'待付款','paid':'待发货',
+    'shipped':'待收货','pending_review':'待评价','after_sales':'售后'
+  };
+
+  let url = '/api/user/orders?per_page=50';
+  if (tab !== 'all') url += '&status=' + tab;
+
+  try {
+    const res = await fetch(url); const json = await res.json();
+    const orders = json.success ? json.data.items : [];
+    if (orders.length === 0) {
+      panel.innerHTML = '<div class="panel-title">'+labels[tab]+'</div><div class="empty-state"><div class="empty-icon">&#128230;</div><div class="empty-text">暂无相关订单</div><a href="/" class="empty-btn">去逛逛</a></div>';
+      return;
+    }
+
+    let html = '<div class="panel-title">'+labels[tab]+'（共 '+orders.length+' 单）</div>';
+    orders.forEach(o => {
+      // Delivery info line
+      let delInfo = '';
+      if (o.delivery && o.delivery.tracking_number) {
+        delInfo = '<div style="font-size:11px;color:#999;margin-top:2px">' +
+          (o.delivery.express_company||'快递') + ' ' + o.delivery.tracking_number + '</div>';
+      }
+
+      // Order items
+      let itemsHtml = '';
+      o.items.forEach(item => {
+        const imgHtml = item.product_image
+          ? '<img src="'+item.product_image+'" alt="'+item.product_name+'">'
+          : '<span class="no-img">&#128247;</span>';
+        itemsHtml += `
+          <div class="order-card-item">
+            <div class="item-img">${imgHtml}</div>
+            <div class="item-info">
+              <div class="item-name">${item.product_name}</div>
+              ${item.specs ? '<div class="item-spec">'+item.specs+'</div>' : ''}
+            </div>
+            <div>
+              <div class="item-price">¥${parseFloat(item.unit_price).toFixed(2)}</div>
+              <div class="item-qty">x${item.quantity}</div>
+            </div>
+          </div>`;
+      });
+
+      // Action buttons
+      let actions = '';
+      if (o.status === 'pending_payment') {
+        actions = '<button class="order-btn danger" onclick="cancelOrder('+o.id+')">取消订单</button>' +
+          '<button class="order-btn primary" onclick="openPayModal('+o.id+','+o.actual_amount+')">去支付</button>';
+      } else if (o.status === 'paid') {
+        actions = '<button class="order-btn">提醒发货</button>';
+      } else if (o.status === 'shipped') {
+        actions = '<button class="order-btn primary" onclick="confirmReceive('+o.id+')">确认收货</button>';
+      } else if (o.status === 'completed' && !o.review) {
+        actions = '<button class="order-btn" onclick="openReview('+o.id+')">去评价</button>';
+      } else if (o.status === 'completed') {
+        actions = '<button class="order-btn" onclick="applyAfterSale('+o.id+')">申请售后</button>';
+      }
+
+      html += `
+        <div class="order-card">
+          <div class="order-card-header">
+            <span>订单号：<span class="order-card-no">${o.order_no}</span></span>
+            <span class="order-status-tag tag-${o.status}">${o.status_label}</span>
+          </div>
+          <div class="order-card-body">${itemsHtml}</div>
+          <div class="order-card-footer">
+            <div class="order-card-total">
+              共 ${o.items.reduce((s,i)=>s+i.quantity,0)} 件商品 &nbsp; 合计：<b>¥${parseFloat(o.actual_amount).toFixed(2)}</b>
+              ${delInfo}
+            </div>
+            <div class="order-card-actions">${actions}</div>
+          </div>
+        </div>`;
+    });
+    panel.innerHTML = html;
+  } catch (e) {
+    panel.innerHTML = '<div class="panel-title">'+labels[tab]+'</div><div class="empty-state"><div class="empty-text">加载失败，请刷新重试</div></div>';
+  }
+}
+
+async function loadFavorites() {
+  const panel = document.getElementById('panel-all');
+  try {
+    const res = await fetch('/api/favorites'); const json = await res.json();
+    const items = json.success ? json.data.items : [];
+    if (items.length === 0) {
+      panel.innerHTML = '<div class="panel-title">&#9825; 我的收藏</div><div class="empty-state"><div class="empty-icon">&#9825;</div><div class="empty-text">还没有收藏商品</div><a href="/" class="empty-btn">去逛逛</a></div>';
+      return;
+    }
+    let html = '<div class="panel-title">&#9825; 我的收藏（共 '+items.length+' 件）</div><div class="fav-grid">';
+    items.forEach(item => {
+      const imgHtml = item.image
+        ? '<img src="'+item.image+'" alt="'+item.product_name+'">'
+        : '<span class="no-img">&#128247;</span>';
+      const offline = item.product_status !== 'active' ? '<div class="fav-card-offline">已下架</div>' : '';
+      const origPrice = item.original_price ? '<span class="fav-card-orig">¥'+parseFloat(item.original_price).toFixed(2)+'</span>' : '';
+      html += `
+        <div class="fav-card" onclick="location.href='/product/${item.product_id}'">
+          <div class="fav-card-img">${imgHtml}</div>
+          ${offline}
+          <button class="fav-card-remove" onclick="event.stopPropagation();removeFavorite(${item.product_id})" title="取消收藏">&times;</button>
+          <div class="fav-card-info">
+            <div class="fav-card-name">${item.product_name}</div>
+            <span class="fav-card-price">¥${parseFloat(item.price).toFixed(2)}</span>${origPrice}
+          </div>
+          <div class="fav-card-actions">
+            <a href="/product/${item.product_id}" class="fav-card-btn" onclick="event.stopPropagation()">查看详情</a>
+            ${item.product_status === 'active' ? '<span class="fav-card-btn primary" onclick="event.stopPropagation();addToCart('+item.product_id+')">加入购物车</span>' : ''}
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    panel.innerHTML = html;
+  } catch (e) {
+    panel.innerHTML = '<div class="panel-title">&#9825; 我的收藏</div><div class="empty-state"><div class="empty-text">加载失败，请刷新重试</div></div>';
+  }
+}
+
+async function removeFavorite(productId) {
+  try {
+    const res = await fetch('/api/favorites/' + productId, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message);
+      loadFavorites();
+      // Update sidebar count
+      const pRes = await fetch('/api/user/profile'); const pJson = await pRes.json();
+      if (pJson.success) {
+        profile = pJson.data;
+        renderProfile();
+      }
+    }
+  } catch (e) {
+    showToast('操作失败');
+  }
+}
+
+async function addToCart(productId) {
+  try {
+    const res = await fetch('/api/cart', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({product_id: productId, quantity: 1})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('已加入购物车');
+    } else if (data.need_login) {
+      location.href = '/login';
+    } else {
+      showToast(data.message || '操作失败');
+    }
+  } catch (e) {
+    showToast('网络错误');
+  }
+}
+
+function openPayModal(orderId, amount) {
+  currentOrderId = orderId;
+  document.getElementById('payModalBody').innerHTML = `
+    <div style="text-align:center;padding:10px 0">
+      <div style="font-size:28px;font-weight:700;color:#e24b4a;margin-bottom:8px">¥${parseFloat(amount).toFixed(2)}</div>
+      <div style="font-size:13px;color:#999;margin-bottom:20px">支付金额</div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <div style="text-align:center;padding:16px 24px;border:2px solid #e0e0e0;border-radius:10px;cursor:pointer" onclick="selectPayMethod(this,'wechat')">
+          <div style="font-size:32px;color:#07c160;margin-bottom:4px">&#128179;</div>
+          <div style="font-size:12px">微信支付</div>
+        </div>
+        <div style="text-align:center;padding:16px 24px;border:2px solid #e0e0e0;border-radius:10px;cursor:pointer" onclick="selectPayMethod(this,'alipay')">
+          <div style="font-size:32px;color:#1677ff;margin-bottom:4px">&#128176;</div>
+          <div style="font-size:12px">支付宝</div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('payModal').classList.add('show');
+}
+
+function selectPayMethod(el, method) {
+  document.querySelectorAll('#payModalBody [style*="border:2px"]').forEach(d => {
+    d.style.border = '2px solid #e0e0e0'; d.style.background = '';
+  });
+  el.style.border = '2px solid #534ab7'; el.style.background = '#eeedfe';
+}
+
+function closePayModal() {
+  document.getElementById('payModal').classList.remove('show');
+}
+
+async function confirmPay() {
+  showToast('支付接口预留，请联系管理员');
+  closePayModal();
+}
+
+async function cancelOrder(orderId) {
+  if (!confirm('确定取消该订单吗？')) return;
+  try {
+    const res = await fetch('/api/orders/'+orderId+'/status', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: 'cancelled'})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('订单已取消');
+      loadOrders(currentTab);
+    } else {
+      showToast(data.message || '操作失败');
+    }
+  } catch (e) {
+    showToast('网络错误');
+  }
+}
+
+async function confirmReceive(orderId) {
+  if (!confirm('确认已收到商品吗？')) return;
+  try {
+    const res = await fetch('/api/orders/'+orderId+'/status', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: 'completed'})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('已确认收货');
+      loadOrders(currentTab);
+    } else {
+      showToast(data.message || '操作失败');
+    }
+  } catch (e) {
+    showToast('网络错误');
+  }
+}
+
+function openReview(orderId) {
+  showToast('评价功能开发中，敬请期待');
+}
+
+function applyAfterSale(orderId) {
+  showToast('售后申请功能开发中，请联系管理员');
+}
+
+// Click overlay to close
+document.getElementById('payModal').addEventListener('click', function(e) {
+  if (e.target === this) closePayModal();
+});
+
+init();
+</script>
+</body>
+</html>
