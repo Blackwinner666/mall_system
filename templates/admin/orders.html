@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>订单管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#333}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;flex-shrink:0}
+.sidebar-header{padding:20px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:36px;height:36px;background:#4a6cf7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.sidebar-header .name{font-size:15px;font-weight:600}
+.nav-group{padding:0 12px;margin-bottom:8px}
+.nav-group-title{font-size:11px;color:rgba(255,255,255,.4);padding:8px 12px;letter-spacing:1px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:14px;transition:.2s;cursor:pointer;margin:2px 0}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:#4a6cf7;color:#fff}
+.nav-item .icon{width:20px;text-align:center;font-size:15px}
+.main{flex:1;overflow-y:auto}
+.topbar{background:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8}
+.topbar .breadcrumb{font-size:13px;color:#999}
+.topbar .user-info{display:flex;align-items:center;gap:10px;font-size:13px}
+.topbar .logout-btn{background:none;border:1px solid #ddd;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;color:#666}
+.content{padding:24px}
+.tabs{display:flex;gap:0;background:#fff;border-radius:12px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.tab{padding:12px 24px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;transition:.2s;font-weight:500}
+.tab:hover{color:#4a6cf7}
+.tab.active{color:#4a6cf7;border-bottom-color:#4a6cf7}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden;margin-bottom:16px}
+.panel-header{padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.panel-header h3{font-size:15px;font-weight:600}
+.panel-body{padding:20px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:6px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#4a6cf7;box-shadow:0 0 0 3px rgba(74,108,247,.1)}
+.form-group textarea{resize:vertical;min-height:80px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filters input,.filters select{padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none}
+.btn{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:.2s}
+.btn-primary{background:#4a6cf7;color:#fff}
+.btn-primary:hover{background:#3b5de7}
+.btn-cancel{background:#f5f5f5;color:#666}
+.btn-success{background:#ecfdf5;color:#059669}
+.btn-danger{background:#fef2f2;color:#dc2626}
+.btn-warning{background:#fff7ed;color:#ea580c}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid #f0f0f0}
+th{font-weight:600;color:#555;font-size:12px;background:#f8f9fc}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px}
+.tag-pending{background:#fef3c7;color:#d97706}
+.tag-paid{background:#dbeafe;color:#2563eb}
+.tag-shipped{background:#ede9fe;color:#7c3aed}
+.tag-completed{background:#d1fae5;color:#059669}
+.tag-cancelled{background:#fee2e2;color:#dc2626}
+.status-tabs{display:flex;gap:4px;padding:16px 20px;border-bottom:1px solid #f0f0f0;flex-wrap:wrap}
+.status-tab{padding:6px 16px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid #e8e8e8;background:#fff;transition:.2s}
+.status-tab:hover{border-color:#4a6cf7;color:#4a6cf7}
+.status-tab.active{background:#4a6cf7;color:#fff;border-color:#4a6cf7}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{padding:16px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border:none;background:#f5f5f5;border-radius:8px;cursor:pointer;font-size:18px;color:#999}
+.modal-body{padding:20px 24px}
+.pagination{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.pagination button{padding:6px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
+.pagination button.active{background:#4a6cf7;color:#fff;border-color:#4a6cf7}
+.empty{text-align:center;padding:40px;color:#999}
+.loading{text-align:center;padding:40px;color:#999}
+.stars{color:#f59e0b;font-size:14px}
+.order-detail{display:none;padding:12px;background:#f8f9fc;border-radius:8px;margin-top:8px}
+.address-card{border:1px solid #e8e8e8;border-radius:10px;padding:16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px}
+.address-card .addr-info{flex:1}
+.address-card .addr-default{font-size:11px;color:#4a6cf7}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.mt-2{margin-top:8px}
+.mt-3{margin-top:12px}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">订单管理</div>
+      <div class="user-info"><span id="displayName"></span><button class="logout-btn" onclick="doLogout()">退出登录</button></div>
+    </div>
+    <div class="content">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="orders">订单列表</button>
+        <button class="tab" data-tab="delivery">配送管理</button>
+        <button class="tab" data-tab="addresses">快递地址</button>
+        <button class="tab" data-tab="reviews">订单评价</button>
+      </div>
+
+      <!-- Tab 1: 订单列表 -->
+      <div class="tab-panel active" id="tab-orders"><div id="ordersView"><div class="loading">加载中...</div></div></div>
+
+      <!-- Tab 2: 配送管理 -->
+      <div class="tab-panel" id="tab-delivery"><div id="deliveryView"><div class="loading">加载中...</div></div></div>
+
+      <!-- Tab 3: 快递地址 -->
+      <div class="tab-panel" id="tab-addresses"><div id="addressesView"><div class="loading">加载中...</div></div></div>
+
+      <!-- Tab 4: 订单评价 -->
+      <div class="tab-panel" id="tab-reviews"><div id="reviewsView"><div class="loading">加载中...</div></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+renderSidebar();
+function renderSidebar(){
+  document.getElementById('sidebar').innerHTML=`<div class="sidebar-header"><div class="logo">M</div><div class="name" id="storeName">百货商城</div></div>
+    <nav style="padding:12px 0">
+      <div class="nav-group"><a class="nav-item" href="/admin"><span class="icon">◆</span>首页</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/store"><span class="icon">◇</span>店铺管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/products"><span class="icon">☆</span>商品管理</a></div>
+      <div class="nav-group"><a class="nav-item active" href="/admin/orders"><span class="icon">☑</span>订单管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/after-sales"><span class="icon">↺</span>售后管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/customers"><span class="icon">☺</span>客户管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/settings"><span class="icon">⚙</span>商城设置</a></div></nav>`;
+}
+
+let statusLabels={pending_payment:'待付款',paid:'已付款',shipped:'已发货',completed:'已完成',cancelled:'已取消'};
+let statusClasses={pending_payment:'pending',paid:'paid',shipped:'shipped',completed:'completed',cancelled:'cancelled'};
+let currentStatus='',currentPage=1;
+
+async function init(){
+  let r=await fetch('/api/auth/me');let u=await r.json();
+  if(u.success)document.getElementById('displayName').textContent=u.user.display_name;
+  r=await fetch('/api/settings');let s=await r.json();
+  if(s.success)document.getElementById('storeName').textContent=s.data.store_name||'百货商城';
+}
+
+// Tabs
+document.getElementById('tabs').addEventListener('click',function(e){
+  if(e.target.classList.contains('tab')){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    e.target.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('tab-'+e.target.dataset.tab).classList.add('active');
+    let tab=e.target.dataset.tab;
+    if(tab==='orders')loadOrders();
+    if(tab==='delivery')loadDeliveries();
+    if(tab==='addresses')loadAddresses();
+    if(tab==='reviews')loadReviews();
+  }
+});
+
+function doLogout(){fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/login');}
+
+// ====== Tab 1: 订单列表 ======
+async function loadOrders(page,status){
+  page=page||1;currentPage=page;
+  if(status!==undefined)currentStatus=status;
+  let p=new URLSearchParams({page,per_page:20});
+  if(currentStatus)p.set('status',currentStatus);
+  let kw=document.getElementById('orderKw')?.value||'';
+  if(kw)p.set('keyword',kw);
+
+  let r=await fetch('/api/orders?'+p);
+  let d=(await r.json()).data;
+
+  let h=`<div class="panel">
+    <div class="panel-header"><h3>订单列表 (${d.total})</h3>
+      <div class="filters"><input id="orderKw" placeholder="搜索订单号/客户..." value="${kw}" onkeyup="if(event.key==='Enter')loadOrders(1)" style="width:180px" /></div>
+    </div>
+    <div class="status-tabs">`;
+  let allLabels={'':'全部',...statusLabels};
+  for(let[s,l] of Object.entries(allLabels)){
+    h+=`<button class="status-tab ${currentStatus===s?'active':''}" onclick="loadOrders(1,'${s}')">${l}${d.status_counts&&s?` (${d.status_counts[s]})`:''}</button>`;
+  }
+  h+=`</div><div class="panel-body"><table><thead><tr><th>订单号</th><th>客户</th><th>金额</th><th>状态</th><th>商品</th><th>配送</th><th>时间</th><th>操作</th></tr></thead><tbody>`;
+
+  d.items.forEach(o=>{
+    let itemsHtml=o.items.map(i=>i.product_name+'×'+i.quantity).join('、');
+    h+=`<tr>
+      <td><a href="javascript:void(0)" onclick="toggleOrderDetail(${o.id})" style="color:#4a6cf7">${o.order_no}</a></td>
+      <td>${o.customer_name||'-'}<br><span style="font-size:11px;color:#999">${o.customer_phone||''}</span></td>
+      <td>¥${o.actual_amount.toFixed(2)}</td>
+      <td><span class="tag tag-${statusClasses[o.status]}">${statusLabels[o.status]}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${itemsHtml}</td>
+      <td>${o.delivery?o.delivery.express_company+' '+o.delivery.tracking_number:'—'}</td>
+      <td>${(o.created_at||'').slice(0,16)}</td>
+      <td>${renderOrderActions(o)}</td>
+    </tr>
+    <tr id="orderDetail${o.id}" class="order-detail"><td colspan="8">
+      <div style="padding:8px"><strong>收货人:</strong> ${o.receiver_name||'-'} ${o.receiver_phone||''}<br>
+      <strong>地址:</strong> ${o.shipping_address||'-'}<br>
+      <strong>商品明细:</strong> ${o.items.map(i=>i.product_name+' ×'+i.quantity+' ¥'+i.unit_price.toFixed(2)).join('<br>')}
+      ${o.delivery?`<br><strong>配送:</strong> ${o.delivery.express_company} ${o.delivery.tracking_number} (${o.delivery.status})`:''}
+      ${o.review?`<br><strong>评价:</strong> ${'★'.repeat(o.review.rating)}${'☆'.repeat(5-o.review.rating)} ${o.review.content||''}`:''}
+      </div>
+    </td></tr>`;
+  });
+
+  h+='</tbody></table>'+renderPagination(d.total,d.page,d.per_page,'loadOrders')+'</div></div>';
+  document.getElementById('ordersView').innerHTML=h;
+}
+function renderOrderActions(o){
+  let btns=[];
+  if(o.status==='paid')btns.push(`<button class="btn btn-success btn-sm" onclick="showDeliveryModal(${o.id})">发货</button>`);
+  if(o.status==='pending_payment'||o.status==='paid'||o.status==='shipped')btns.push(`<button class="btn btn-primary btn-sm" onclick="updateOrderStatus(${o.id},'completed')">完成</button>`);
+  if(o.status==='pending_payment')btns.push(`<button class="btn btn-danger btn-sm" onclick="updateOrderStatus(${o.id},'cancelled')">取消</button>`);
+  return btns.join(' ');
+}
+function toggleOrderDetail(id){
+  let el=document.getElementById('orderDetail'+id);
+  el.style.display=el.style.display==='table-row'?'none':'table-row';
+}
+async function updateOrderStatus(id,status){
+  if(!confirm('确认修改订单状态？'))return;
+  await fetch('/api/orders/'+id+'/status',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+  loadOrders(currentPage,currentStatus);
+}
+function renderPagination(total,page,perPage,fn){
+  let pages=Math.ceil(total/perPage);
+  if(pages<=1)return'';
+  let h='<div class="pagination">';
+  for(let i=1;i<=pages;i++)h+=`<button class="${i===page?'active':''}" onclick="${fn}(${i})">${i}</button>`;
+  return h+'</div>';
+}
+
+// ====== Delivery Modal ======
+function showDeliveryModal(orderId){
+  let overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-header"><h3>录入配送信息</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>快递公司</label><select id="dlCompany"><option value="顺丰速运">顺丰速运</option><option value="中通快递">中通快递</option><option value="圆通速递">圆通速递</option><option value="申通快递">申通快递</option><option value="韵达快递">韵达快递</option><option value="邮政EMS">邮政EMS</option><option value="极兔速递">极兔速递</option></select></div>
+      <div class="form-group"><label>快递单号</label><input id="dlTracking" /></div>
+      <div class="form-group"><label>备注</label><textarea id="dlNotes"></textarea></div>
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="dlSave">确认发货</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#dlSave').onclick=async()=>{
+    let data={order_id:orderId,express_company:overlay.querySelector('#dlCompany').value,
+      tracking_number:overlay.querySelector('#dlTracking').value,notes:overlay.querySelector('#dlNotes').value};
+    let r=await fetch('/api/admin/deliveries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    let j=await r.json();
+    if(j.success){overlay.remove();loadOrders(currentPage,currentStatus);}else alert(j.message);
+  };
+}
+
+// ====== Tab 2: 配送管理 ======
+async function loadDeliveries(){
+  let r=await fetch('/api/admin/deliveries');
+  let d=(await r.json()).data;
+  let h=`<div class="panel"><div class="panel-header"><h3>配送记录</h3></div><div class="panel-body"><table><thead><tr><th>订单号</th><th>客户</th><th>快递公司</th><th>快递单号</th><th>状态</th><th>发货时间</th><th>签收时间</th><th>操作</th></tr></thead><tbody>`;
+  d.forEach(dl=>{
+    h+=`<tr><td>${dl.order_no||'-'}</td><td>${dl.customer_name||'-'}</td><td>${dl.express_company}</td><td>${dl.tracking_number}</td>
+      <td><span class="tag tag-${dl.status==='delivered'?'completed':dl.status==='shipping'?'shipped':'pending'}">${dl.status==='delivered'?'已签收':dl.status==='shipping'?'运输中':'待发货'}</span></td>
+      <td>${(dl.shipped_at||'').slice(0,16)}</td><td>${(dl.delivered_at||'').slice(0,16)||'—'}</td>
+      <td>${dl.status!=='delivered'?`<button class="btn btn-success btn-sm" onclick="markDelivered(${dl.id})">标记签收</button>`:'—'}</td></tr>`;
+  });
+  h+='</tbody></table></div></div>';
+  if(d.length===0)h=h.replace('<tbody></tbody>','<tbody><tr><td colspan="8"><div class="empty">暂无配送记录</div></td></tr></tbody>');
+  document.getElementById('deliveryView').innerHTML=h;
+}
+async function markDelivered(id){if(confirm('确认已签收？')){await fetch('/api/admin/deliveries/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'delivered'})});loadDeliveries();}}
+
+// ====== Tab 3: 快递地址 ======
+async function loadAddresses(){
+  let r=await fetch('/api/admin/shipping-addresses');
+  let d=(await r.json()).data;
+  let h=`<div class="panel"><div class="panel-header"><h3>快递地址管理</h3><button class="btn btn-primary btn-sm" onclick="showAddressModal()">+ 添加地址</button></div><div class="panel-body">`;
+  d.forEach(a=>{
+    let typeLabel=a.address_type==='return'?'退货地址':'发货地址';
+    h+=`<div class="address-card">
+      <div class="addr-info">
+        <strong>${a.name}</strong> ${a.phone} ${a.is_default?'<span class="addr-default">[默认]</span>':''}<br>
+        ${a.province}${a.city}${a.district} ${a.address}<br>
+        <span style="font-size:11px;color:#999">类型: ${typeLabel}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-cancel btn-sm" onclick="showAddressModal(${a.id})">编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAddress(${a.id})">删除</button>
+      </div>
+    </div>`;
+  });
+  if(d.length===0)h+='<div class="empty">暂无地址</div>';
+  h+='</div></div>';
+  document.getElementById('addressesView').innerHTML=h;
+}
+function showAddressModal(id){
+  let overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-header"><h3>${id?'编辑':'添加'}地址</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>联系人</label><input id="addrName" /></div>
+      <div class="form-group"><label>联系电话</label><input id="addrPhone" /></div>
+      <div class="grid-3">
+        <div class="form-group"><label>省份</label><input id="addrProv" /></div>
+        <div class="form-group"><label>城市</label><input id="addrCity" /></div>
+        <div class="form-group"><label>区/县</label><input id="addrDist" /></div>
+      </div>
+      <div class="form-group"><label>详细地址</label><input id="addrAddr" /></div>
+      <div class="grid-2">
+        <div class="form-group"><label>地址类型</label><select id="addrType"><option value="return">退货地址</option><option value="ship">发货地址</option></select></div>
+        <div class="form-group"><label><input type="checkbox" id="addrDefault" /> 设为默认</label></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="addrSave">${id?'保存':'添加'}</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  if(id){
+    fetch('/api/admin/shipping-addresses').then(r=>r.json()).then(d=>{
+      let a=d.data.find(x=>x.id===id);
+      if(a){
+        overlay.querySelector('#addrName').value=a.name;overlay.querySelector('#addrPhone').value=a.phone;
+        overlay.querySelector('#addrProv').value=a.province;overlay.querySelector('#addrCity').value=a.city;
+        overlay.querySelector('#addrDist').value=a.district;overlay.querySelector('#addrAddr').value=a.address;
+        overlay.querySelector('#addrType').value=a.address_type;
+        if(a.is_default)overlay.querySelector('#addrDefault').checked=true;
+      }
+    });
+  }
+  overlay.querySelector('#addrSave').onclick=async()=>{
+    let data={name:overlay.querySelector('#addrName').value,phone:overlay.querySelector('#addrPhone').value,
+      province:overlay.querySelector('#addrProv').value,city:overlay.querySelector('#addrCity').value,
+      district:overlay.querySelector('#addrDist').value,address:overlay.querySelector('#addrAddr').value,
+      address_type:overlay.querySelector('#addrType').value,is_default:overlay.querySelector('#addrDefault').checked};
+    let url='/api/admin/shipping-addresses',method='POST';
+    if(id){url+='/'+id;method='PUT';}
+    let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    let j=await r.json();
+    if(j.success){overlay.remove();loadAddresses();}else alert(j.message);
+  };
+}
+async function deleteAddress(id){if(confirm('确认删除？')){await fetch('/api/admin/shipping-addresses/'+id,{method:'DELETE'});loadAddresses();}}
+
+// ====== Tab 4: 订单评价 ======
+async function loadReviews(){
+  let r=await fetch('/api/admin/reviews');
+  let d=(await r.json()).data;
+  let h=`<div class="panel"><div class="panel-header"><h3>订单评价</h3></div><div class="panel-body"><table><thead><tr><th>订单号</th><th>客户</th><th>评分</th><th>评价内容</th><th>商家回复</th><th>时间</th><th>操作</th></tr></thead><tbody>`;
+  d.forEach(rv=>{
+    h+=`<tr><td>${rv.order_no||'-'}</td><td>${rv.customer_name||'-'}</td>
+      <td><span class="stars">${'★'.repeat(rv.rating)}${'☆'.repeat(5-rv.rating)}</span></td>
+      <td style="max-width:200px">${rv.content||'—'}</td>
+      <td style="max-width:150px">${rv.reply||'<span style="color:#999">未回复</span>'}</td>
+      <td>${(rv.created_at||'').slice(0,10)}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="showReplyModal(${rv.id},'${(rv.content||'').replace(/'/g,"\\'")}')">${rv.reply?'修改回复':'回复'}</button></td></tr>`;
+  });
+  h+='</tbody></table></div></div>';
+  if(d.length===0)h=h.replace('<tbody></tbody>','<tbody><tr><td colspan="7"><div class="empty">暂无评价</div></td></tr></tbody>');
+  document.getElementById('reviewsView').innerHTML=h;
+}
+function showReplyModal(reviewId,content){
+  let overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-header"><h3>回复评价</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>评价内容</label><div style="padding:8px;background:#f8f9fc;border-radius:6px;font-size:13px">${content||'无文字内容'}</div></div>
+      <div class="form-group"><label>回复内容</label><textarea id="replyContent" placeholder="输入回复内容..."></textarea></div>
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="replySave">发送回复</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#replySave').onclick=async()=>{
+    let reply=overlay.querySelector('#replyContent').value;
+    let r=await fetch('/api/admin/reviews/'+reviewId+'/reply',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({reply})});
+    let j=await r.json();
+    if(j.success){overlay.remove();loadReviews();}else alert(j.message);
+  };
+}
+
+init();
+loadOrders();
+</script>
+</body>
+</html>
