@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模板编辑器 - 管理后台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#333}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-header{padding:20px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:36px;height:36px;background:#4a6cf7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.sidebar-header .name{font-size:15px;font-weight:600}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-group{padding:0 12px;margin-bottom:8px}
+.nav-group-title{font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;padding:8px 12px;letter-spacing:1px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:14px;transition:.2s;cursor:pointer;margin:2px 0}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:#4a6cf7;color:#fff}
+.nav-item .icon{width:20px;text-align:center;font-size:15px}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.topbar{background:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8;flex-shrink:0}
+.topbar .breadcrumb{font-size:13px;color:#999}
+.topbar .breadcrumb a{color:#4a6cf7;text-decoration:none}
+.topbar .actions{display:flex;gap:8px;align-items:center}
+.btn{padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:#4a6cf7;color:#fff}
+.btn-primary:hover{background:#3b5de7}
+.btn-outline{background:#fff;border:1px solid #ddd;color:#666}
+.btn-outline:hover{background:#f5f5f5}
+.btn-danger{background:#e74c3c;color:#fff}
+.btn-danger:hover{background:#c0392b}
+.btn-sm{padding:4px 10px;font-size:12px}
+.content{flex:1;display:flex;overflow:hidden}
+
+/* 三栏布局 */
+.editor-layout{display:flex;flex:1;overflow:hidden}
+.toolbar-panel{width:200px;background:#fff;border-right:1px solid #e8e8e8;padding:16px 12px;overflow-y:auto;flex-shrink:0}
+.toolbar-title{font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding:0 4px}
+.tool-btn{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:1px solid #e8e8e8;border-radius:8px;background:#fff;cursor:pointer;font-size:14px;color:#333;transition:.2s;margin-bottom:8px}
+.tool-btn:hover{border-color:#4a6cf7;background:#f0f4ff;color:#4a6cf7}
+.tool-btn .tool-icon{font-size:18px}
+
+/* 画布 */
+.canvas-panel{flex:1;overflow-y:auto;padding:24px;background:#ebedf0;display:flex;justify-content:center}
+.canvas{width:100%;max-width:420px;background:#fff;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.08);min-height:600px;padding:0}
+.canvas-empty{text-align:center;padding:80px 20px;color:#ccc;font-size:14px}
+.block-wrapper{position:relative;border:2px solid transparent;transition:.15s;cursor:pointer}
+.block-wrapper:hover{border-color:rgba(74,108,247,.3)}
+.block-wrapper.selected{border-color:#4a6cf7;border-style:solid}
+.block-toolbar{position:absolute;top:4px;right:4px;display:none;gap:4px;z-index:10;background:#4a6cf7;border-radius:6px;padding:2px}
+.block-wrapper.selected .block-toolbar{display:flex}
+.block-toolbar button{background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.block-toolbar button:hover{background:rgba(255,255,255,.2)}
+.block-content{outline:none;cursor:text}
+.block-content:focus{outline:none}
+.block-type-label{position:absolute;top:4px;left:4px;font-size:10px;color:#fff;background:#4a6cf7;padding:1px 6px;border-radius:4px;display:none;z-index:10}
+.block-wrapper.selected .block-type-label{display:block}
+
+/* 属性面板 */
+.props-panel{width:300px;background:#fff;border-left:1px solid #e8e8e8;padding:16px;overflow-y:auto;flex-shrink:0}
+.props-title{font-size:14px;font-weight:600;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f0f0f0}
+.prop-group{margin-bottom:16px}
+.prop-label{font-size:12px;color:#666;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.prop-label .prop-value{color:#4a6cf7;font-weight:600}
+.prop-slider{width:100%;height:4px;border-radius:2px;background:#e8e8e8;appearance:none;outline:none}
+.prop-slider::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:#4a6cf7;cursor:pointer}
+.prop-color-row{display:flex;align-items:center;gap:8px}
+.prop-color{width:36px;height:28px;border:1px solid #ddd;border-radius:4px;cursor:pointer;padding:0;background:none}
+.prop-text{flex:1;padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;font-family:monospace}
+.prop-btn-group{display:flex;gap:4px}
+.prop-btn-group button{flex:1;padding:6px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:13px;color:#666;transition:.15s}
+.prop-btn-group button.active{background:#4a6cf7;color:#fff;border-color:#4a6cf7}
+.prop-toggle{width:36px;height:20px;border-radius:10px;background:#ccc;cursor:pointer;position:relative;transition:.2s}
+.prop-toggle.on{background:#4a6cf7}
+.prop-toggle::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.2s}
+.prop-toggle.on::after{left:18px}
+.prop-select{width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;background:#fff;cursor:pointer}
+.prop-hint{font-size:11px;color:#999;margin-top:4px}
+.props-empty{text-align:center;color:#ccc;padding:40px 20px;font-size:13px}
+.divider-line{height:1px;background:#f0f0f0;margin:16px 0}
+
+/* 保存栏 */
+.save-bar{background:#fff;padding:12px 24px;border-top:1px solid #e8e8e8;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.save-bar input{flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+
+/* toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;z-index:9999;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.success{background:#10b981}
+.toast.error{background:#e74c3c}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">M</div>
+      <div class="name" id="storeName">百货商城</div>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <!-- 动态渲染 -->
+    </nav>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb" id="breadcrumb"><a href="/publish">文章发布</a> / 模板编辑器</div>
+      <div class="actions">
+        <span id="userBadge" style="font-size:12px;color:#999;margin-right:8px;"></span>
+        <button class="btn btn-outline btn-sm" onclick="previewTemplate()">&#128065; 预览</button>
+        <button class="btn btn-primary btn-sm" onclick="saveTemplate()">&#128190; 保存模板</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="editor-layout">
+        <!-- 左侧：组件栏 -->
+        <div class="toolbar-panel">
+          <div class="toolbar-title">添加组件</div>
+          <button class="tool-btn" onclick="addBlock('title')"><span class="tool-icon">&#128276;</span> 大标题</button>
+          <button class="tool-btn" onclick="addBlock('subtitle')"><span class="tool-icon">&#128220;</span> 小标题</button>
+          <button class="tool-btn" onclick="addBlock('text')"><span class="tool-icon">&#128221;</span> 正文段落</button>
+          <button class="tool-btn" onclick="addBlock('quote')"><span class="tool-icon">&#128092;</span> 引用框</button>
+          <button class="tool-btn" onclick="addBlock('image')"><span class="tool-icon">&#128247;</span> 图片</button>
+          <button class="tool-btn" onclick="addBlock('divider')"><span class="tool-icon">&#8213;</span> 分隔线</button>
+
+          <div style="margin-top:24px;padding-top:16px;border-top:1px solid #f0f0f0;">
+            <div class="toolbar-title">我的模板</div>
+            <div id="my-templates-list" style="font-size:13px;color:#999;">加载中...</div>
+          </div>
+        </div>
+
+        <!-- 中间：画布 -->
+        <div class="canvas-panel">
+          <div class="canvas" id="canvas">
+            <div class="canvas-empty" id="canvas-empty">
+              点击左侧组件，开始创建你的模板<br><br>
+              <span style="font-size:12px;color:#ddd;">支持大标题、小标题、正文、引用、图片、分隔线</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：属性面板 -->
+        <div class="props-panel">
+          <div id="props-content">
+            <div class="props-empty">选中一个组件<br>来编辑它的属性</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="save-bar">
+      <input type="text" id="template-name" placeholder="模板名称（如：我的科技风模板）">
+      <input type="text" id="template-desc" placeholder="描述（可选）" style="max-width:200px;">
+      <button class="btn btn-primary" onclick="saveTemplate()">&#128190; 保存</button>
+      <button class="btn btn-outline" onclick="newTemplate()">&#10162; 新建</button>
+      <button class="btn btn-outline" id="btn-publish-public" style="display:none;border-color:#10b981;color:#10b981;" onclick="togglePublish()">&#128277; 发布公共</button>
+      <span id="template-status-badge" style="font-size:12px;color:#999;margin-left:8px;"></span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 状态 =====
+let blocks = [];
+let selectedId = null;
+let editingTemplateId = null;
+let currentUser = null;
+let isCurrentUserAdmin = false;
+let currentTemplateIsPublic = false;
+let currentTemplateIsOwner = false;
+
+// ===== 块默认属性 =====
+const BLOCK_DEFAULTS = {
+  title: {
+    text: '在这里输入大标题',
+    fontSize: 24, fontColor: '#1a1a2e', fontWeight: 'bold', fontStyle: 'normal',
+    textAlign: 'center', lineHeight: 1.4, letterSpacing: 0,
+    backgroundColor: 'transparent', padding: 16, borderRadius: 0,
+    marginTop: 10, marginBottom: 10
+  },
+  subtitle: {
+    text: '小标题',
+    fontSize: 18, fontColor: '#333333', fontWeight: 'bold', fontStyle: 'normal',
+    textAlign: 'left', lineHeight: 1.5, letterSpacing: 0,
+    backgroundColor: 'transparent', padding: 8, borderRadius: 0,
+    marginTop: 16, marginBottom: 8
+  },
+  text: {
+    text: '在这里输入正文内容，可以写多段文字。',
+    fontSize: 15, fontColor: '#3f3f3f', fontWeight: 'normal', fontStyle: 'normal',
+    textAlign: 'left', lineHeight: 1.8, letterSpacing: 0.5,
+    backgroundColor: 'transparent', padding: 4, borderRadius: 0,
+    marginTop: 4, marginBottom: 4
+  },
+  quote: {
+    text: '这是一段引用文字。',
+    fontSize: 14, fontColor: '#666666', fontWeight: 'normal', fontStyle: 'italic',
+    textAlign: 'left', lineHeight: 1.8, letterSpacing: 0,
+    backgroundColor: '#f9f9f9', padding: 16, borderRadius: 0,
+    borderColor: '#534ab7', marginTop: 12, marginBottom: 12
+  },
+  image: {
+    src: '', width: 100, align: 'center', borderRadius: 8,
+    marginTop: 12, marginBottom: 12
+  },
+  divider: {
+    style: 'solid', color: '#dddddd', thickness: 1, margin: 20
+  }
+};
+
+const TYPE_LABELS = {
+  title: '大标题', subtitle: '小标题', text: '正文',
+  quote: '引用', image: '图片', divider: '分隔线'
+};
+const TYPE_ICONS = {
+  title: '&#128276;', subtitle: '&#128220;', text: '&#128221;',
+  quote: '&#128092;', image: '&#128247;', divider: '&#8213;'
+};
+
+// ===== 工具函数 =====
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => t.className = 'toast', 2000);
+}
+
+function genId() {
+  return 'blk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+}
+
+// ===== 添加块 =====
+function addBlock(type) {
+  const props = JSON.parse(JSON.stringify(BLOCK_DEFAULTS[type] || {}));
+  const block = { id: genId(), type: type, props: props };
+  blocks.push(block);
+  selectedId = block.id;
+  renderCanvas();
+  renderProps();
+  document.getElementById('canvas-empty').style.display = 'none';
+}
+
+// ===== 渲染画布 =====
+function renderCanvas() {
+  const canvas = document.getElementById('canvas');
+  canvas.innerHTML = '';
+  if (blocks.length === 0) {
+    canvas.innerHTML = '<div class="canvas-empty">点击左侧组件，开始创建你的模板</div>';
+    return;
+  }
+  blocks.forEach((blk, idx) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'block-wrapper' + (blk.id === selectedId ? ' selected' : '');
+    wrapper.dataset.id = blk.id;
+    wrapper.onclick = (e) => {
+      if (e.target.closest('.block-toolbar')) return;
+      selectedId = blk.id;
+      renderCanvas();
+      renderProps();
+    };
+
+    // 类型标签
+    const label = document.createElement('div');
+    label.className = 'block-type-label';
+    label.textContent = TYPE_LABELS[blk.type] || blk.type;
+    wrapper.appendChild(label);
+
+    // 工具栏
+    const toolbar = document.createElement('div');
+    toolbar.className = 'block-toolbar';
+    toolbar.innerHTML =
+      '<button onclick="moveBlock(\'' + blk.id + '\',-1)" title="上移">&#9650;</button>' +
+      '<button onclick="moveBlock(\'' + blk.id + '\',1)" title="下移">&#9660;</button>' +
+      '<button onclick="duplicateBlock(\'' + blk.id + '\')" title="复制">&#10697;</button>' +
+      '<button onclick="deleteBlock(\'' + blk.id + '\')" title="删除">&#10005;</button>';
+    wrapper.appendChild(toolbar);
+
+    // 内容
+    const content = renderBlockContent(blk);
+    wrapper.appendChild(content);
+    canvas.appendChild(wrapper);
+  });
+}
+
+function renderBlockContent(blk) {
+  const p = blk.props;
+  const div = document.createElement('div');
+
+  if (blk.type === 'divider') {
+    div.innerHTML = '<div style="border:none;border-top:' + p.thickness + 'px ' + p.style + ' ' + p.color + ';margin:' + p.margin + 'px 0;"></div>';
+    return div;
+  }
+
+  if (blk.type === 'image') {
+    const src = p.src || '';
+    const marginStyle = p.align === 'center' ? 'margin:0 auto' : 'margin-' + p.align + ':0';
+    if (src) {
+      div.innerHTML = '<img src="' + escapeAttr(src) + '" style="max-width:' + p.width + '%;border-radius:' + p.borderRadius + 'px;display:block;' + marginStyle + ';margin-top:' + p.marginTop + 'px;margin-bottom:' + p.marginBottom + 'px;" />';
+    } else {
+      div.innerHTML = '<div style="width:100%;height:150px;background:#f0f0f0;border:2px dashed #ccc;border-radius:' + p.borderRadius + 'px;display:flex;align-items:center;justify-content:center;color:#999;font-size:13px;margin-top:' + p.marginTop + 'px;margin-bottom:' + p.marginBottom + 'px;">点击右侧上传或输入图片URL</div>';
+    }
+    return div;
+  }
+
+  // 文字类
+  const styles = [];
+  styles.push('font-size:' + p.fontSize + 'px');
+  styles.push('color:' + p.fontColor);
+  styles.push('font-weight:' + p.fontWeight);
+  styles.push('font-style:' + p.fontStyle);
+  styles.push('text-align:' + p.textAlign);
+  styles.push('line-height:' + p.lineHeight);
+  if (p.letterSpacing) styles.push('letter-spacing:' + p.letterSpacing + 'px');
+  if (p.backgroundColor && p.backgroundColor !== 'transparent') styles.push('background-color:' + p.backgroundColor);
+  styles.push('padding:' + p.padding + 'px');
+  if (p.borderRadius) styles.push('border-radius:' + p.borderRadius + 'px');
+  styles.push('margin-top:' + p.marginTop + 'px');
+  styles.push('margin-bottom:' + p.marginBottom + 'px');
+  if (blk.type === 'quote') {
+    styles.push('border-left:3px solid ' + (p.borderColor || '#534ab7'));
+    styles.push('padding-left:12px');
+  }
+
+  const tag = blk.type === 'title' ? 'h2' : (blk.type === 'subtitle' ? 'h3' : (blk.type === 'quote' ? 'blockquote' : 'p'));
+  div.innerHTML = '<' + tag + ' class="block-content" contenteditable="true" style="' + styles.join(';') + ';" data-block-id="' + blk.id + '">' + escapeHtml(p.text || '') + '</' + tag + '>';
+
+  // 绑定文字编辑
+  setTimeout(() => {
+    const el = div.querySelector('.block-content');
+    if (el) {
+      el.addEventListener('blur', () => {
+        const b = blocks.find(b => b.id === blk.id);
+        if (b) b.props.text = el.innerText;
+      });
+      el.addEventListener('focus', () => {
+        selectedId = blk.id;
+        document.querySelectorAll('.block-wrapper').forEach(w => w.classList.remove('selected'));
+        el.closest('.block-wrapper').classList.add('selected');
+        renderProps();
+      });
+    }
+  }, 0);
+
+  return div;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeAttr(s) {
+  return String(s).replace(/"/g,'&quot;');
+}
+
+// ===== 块操作 =====
+function moveBlock(id, dir) {
+  const idx = blocks.findIndex(b => b.id === id);
+  if (idx < 0) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= blocks.length) return;
+  [blocks[idx], blocks[newIdx]] = [blocks[newIdx], blocks[idx]];
+  renderCanvas();
+  renderProps();
+}
+
+function duplicateBlock(id) {
+  const blk = blocks.find(b => b.id === id);
+  if (!blk) return;
+  const copy = JSON.parse(JSON.stringify(blk));
+  copy.id = genId();
+  const idx = blocks.findIndex(b => b.id === id);
+  blocks.splice(idx + 1, 0, copy);
+  selectedId = copy.id;
+  renderCanvas();
+  renderProps();
+  toast('已复制', 'success');
+}
+
+function deleteBlock(id) {
+  blocks = blocks.filter(b => b.id !== id);
+  if (selectedId === id) selectedId = null;
+  renderCanvas();
+  renderProps();
+}
+
+// ===== 属性面板 =====
+function renderProps() {
+  const panel = document.getElementById('props-content');
+  const blk = blocks.find(b => b.id === selectedId);
+
+  if (!blk) {
+    panel.innerHTML = '<div class="props-empty">选中一个组件<br>来编辑它的属性</div>';
+    return;
+  }
+
+  const p = blk.props;
+  let html = '<div class="props-title">' + (TYPE_ICONS[blk.type] || '') + ' ' + (TYPE_LABELS[blk.type] || blk.type) + '</div>';
+
+  if (blk.type === 'divider') {
+    html += propGroup('样式', propSelect('style', p.style, {'solid':'实线','dashed':'虚线','dotted':'点线'}));
+    html += propGroup('颜色', propColor('color', p.color));
+    html += propGroup('粗细', propSlider('thickness', p.thickness, 1, 5, 1));
+    html += propGroup('上下间距', propSlider('margin', p.margin, 0, 60, 2));
+  } else if (blk.type === 'image') {
+    html += propGroup('图片URL', '<input type="text" class="prop-text" id="prop-src" value="' + escapeAttr(p.src || '') + '" placeholder="https://..." oninput="updateProp(\'src\', this.value)">');
+    html += propGroup('上传图片', '<input type="file" accept="image/*" onchange="uploadImage(this)" style="font-size:12px;">');
+    html += propGroup('宽度', propSlider('width', p.width, 30, 100, 5, '%'));
+    html += propGroup('对齐', propBtnGroup('align', p.align, {'left':'左','center':'中','right':'右'}));
+    html += propGroup('圆角', propSlider('borderRadius', p.borderRadius, 0, 30, 1, 'px'));
+    html += propGroup('上间距', propSlider('marginTop', p.marginTop, 0, 60, 1, 'px'));
+    html += propGroup('下间距', propSlider('marginBottom', p.marginBottom, 0, 60, 1, 'px'));
+  } else {
+    // 文字类
+    html += propGroup('字号', propSlider('fontSize', p.fontSize, 12, 48, 1, 'px'));
+    html += propGroup('文字颜色', propColor('fontColor', p.fontColor));
+    html += propGroup('粗体', propToggle('fontWeight', p.fontWeight === 'bold', 'bold|normal'));
+    if (blk.type === 'quote' || blk.type === 'text') {
+      html += propGroup('斜体', propToggle('fontStyle', p.fontStyle === 'italic', 'italic|normal'));
+    }
+    html += propGroup('对齐', propBtnGroup('textAlign', p.textAlign, {'left':'左','center':'中','right':'右'}));
+    html += propGroup('行高', propSlider('lineHeight', p.lineHeight, 1.2, 3.0, 0.1, ''));
+    html += propGroup('字间距', propSlider('letterSpacing', p.letterSpacing, 0, 5, 0.5, 'px'));
+    html += '<div class="divider-line"></div>';
+    html += propGroup('背景色', propColorWithTransparent('backgroundColor', p.backgroundColor));
+    html += propGroup('内边距', propSlider('padding', p.padding, 0, 40, 1, 'px'));
+    html += propGroup('圆角', propSlider('borderRadius', p.borderRadius, 0, 30, 1, 'px'));
+    html += propGroup('上间距', propSlider('marginTop', p.marginTop, 0, 60, 1, 'px'));
+    html += propGroup('下间距', propSlider('marginBottom', p.marginBottom, 0, 60, 1, 'px'));
+    if (blk.type === 'quote') {
+      html += '<div class="divider-line"></div>';
+      html += propGroup('左边框颜色', propColor('borderColor', p.borderColor || '#534ab7'));
+    }
+  }
+
+  panel.innerHTML = html;
+  bindPropEvents();
+}
+
+function propGroup(label, content) {
+  return '<div class="prop-group"><div class="prop-label">' + label + '</div>' + content + '</div>';
+}
+
+function propSlider(key, val, min, max, step, unit) {
+  const display = (step < 1 ? parseFloat(val).toFixed(1) : val) + (unit || '');
+  return '<div style="display:flex;align-items:center;gap:8px;">' +
+    '<input type="range" class="prop-slider" min="' + min + '" max="' + max + '" step="' + step + '" value="' + val + '" data-prop="' + key + '">' +
+    '<span class="prop-value" style="min-width:40px;font-size:12px;">' + display + '</span>' +
+    '</div>';
+}
+
+function propColor(key, val) {
+  return '<div class="prop-color-row">' +
+    '<input type="color" class="prop-color" value="' + (val || '#000000') + '" data-prop="' + key + '">' +
+    '<input type="text" class="prop-text" value="' + escapeAttr(val || '') + '" data-prop="' + key + '">' +
+    '</div>';
+}
+
+function propColorWithTransparent(key, val) {
+  const isTransparent = !val || val === 'transparent';
+  return '<div class="prop-color-row">' +
+    '<input type="color" class="prop-color" value="' + (isTransparent ? '#ffffff' : val) + '" data-prop="' + key + '">' +
+    '<input type="text" class="prop-text" value="' + escapeAttr(val || 'transparent') + '" data-prop="' + key + '" style="flex:1;">' +
+    '<button class="btn btn-sm btn-outline" onclick="updateProp(\'backgroundColor\',\'transparent\')" style="padding:2px 8px;">透明</button>' +
+    '</div>';
+}
+
+function propToggle(key, isOn, values) {
+  const [onVal, offVal] = values.split('|');
+  return '<div class="prop-toggle ' + (isOn ? 'on' : '') + '" data-prop="' + key + '" data-on="' + onVal + '" data-off="' + offVal + '"></div>';
+}
+
+function propBtnGroup(key, val, options) {
+  let btns = '';
+  for (const [k, label] of Object.entries(options)) {
+    btns += '<button class="' + (k === val ? 'active' : '') + '" data-val="' + k + '" data-prop="' + key + '">' + label + '</button>';
+  }
+  return '<div class="prop-btn-group">' + btns + '</div>';
+}
+
+function propSelect(key, val, options) {
+  let opts = '';
+  for (const [k, label] of Object.entries(options)) {
+    opts += '<option value="' + k + '"' + (k === val ? ' selected' : '') + '>' + label + '</option>';
+  }
+  return '<select class="prop-select" data-prop="' + key + '">' + opts + '</select>';
+}
+
+// ===== 属性事件绑定 =====
+function bindPropEvents() {
+  // sliders
+  document.querySelectorAll('.prop-slider').forEach(s => {
+    s.addEventListener('input', (e) => {
+      const key = e.target.dataset.prop;
+      const val = parseFloat(e.target.value);
+      updateProp(key, val);
+      // 更新显示值
+      const display = e.target.parentElement.querySelector('.prop-value');
+      if (display) {
+        const step = parseFloat(e.target.step);
+        const unit = display.textContent.replace(/[\d.]/g, '');
+        display.textContent = (step < 1 ? val.toFixed(1) : val) + unit;
+      }
+    });
+  });
+  // colors
+  document.querySelectorAll('.prop-color').forEach(c => {
+    c.addEventListener('input', (e) => {
+      updateProp(e.target.dataset.prop, e.target.value);
+      // 同步文本框
+      const text = e.target.parentElement.querySelector('.prop-text');
+      if (text) text.value = e.target.value;
+    });
+  });
+  document.querySelectorAll('.prop-text[data-prop]').forEach(t => {
+    t.addEventListener('input', (e) => {
+      updateProp(e.target.dataset.prop, e.target.value);
+      // 同步颜色选择器
+      const color = e.target.parentElement.querySelector('.prop-color');
+      if (color && /^#[0-9a-fA-F]{6}$/.test(e.target.value)) color.value = e.target.value;
+    });
+  });
+  // toggles
+  document.querySelectorAll('.prop-toggle').forEach(t => {
+    t.addEventListener('click', (e) => {
+      const el = e.currentTarget;
+      const key = el.dataset.prop;
+      const onVal = el.dataset.on;
+      const offVal = el.dataset.off;
+      const blk = blocks.find(b => b.id === selectedId);
+      if (!blk) return;
+      const current = blk.props[key];
+      const newVal = current === onVal ? offVal : onVal;
+      updateProp(key, newVal);
+    });
+  });
+  // btn groups
+  document.querySelectorAll('.prop-btn-group button').forEach(b => {
+    b.addEventListener('click', (e) => {
+      const el = e.currentTarget;
+      const key = el.dataset.prop;
+      updateProp(key, el.dataset.val);
+    });
+  });
+  // selects
+  document.querySelectorAll('.prop-select').forEach(s => {
+    s.addEventListener('change', (e) => {
+      updateProp(e.target.dataset.prop, e.target.value);
+    });
+  });
+}
+
+function updateProp(key, val) {
+  const blk = blocks.find(b => b.id === selectedId);
+  if (!blk) return;
+  blk.props[key] = val;
+  // 只更新画布不重建属性面板（避免输入框失焦）
+  renderCanvas();
+  // 但需要更新toggle和btn-group的视觉状态
+  updatePropsVisual(key, val);
+}
+
+function updatePropsVisual(key, val) {
+  // 更新toggle
+  const toggle = document.querySelector('.prop-toggle[data-prop="' + key + '"]');
+  if (toggle) {
+    if (val === toggle.dataset.on) toggle.classList.add('on');
+    else toggle.classList.remove('on');
+  }
+  // 更新btn-group
+  document.querySelectorAll('.prop-btn-group button[data-prop="' + key + '"]').forEach(b => {
+    if (b.dataset.val === val) b.classList.add('active');
+    else b.classList.remove('active');
+  });
+}
+
+// ===== 图片上传 =====
+function uploadImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    toast('图片不能超过2MB', 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    updateProp('src', e.target.result);
+    toast('图片已添加', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ===== 保存/加载 =====
+async function saveTemplate() {
+  const name = document.getElementById('template-name').value.trim();
+  if (!name) { toast('请输入模板名称', 'error'); return; }
+  if (blocks.length === 0) { toast('请先添加至少一个组件', 'error'); return; }
+
+  // 同步文字内容
+  document.querySelectorAll('.block-content').forEach(el => {
+    const id = el.dataset.blockId;
+    const blk = blocks.find(b => b.id === id);
+    if (blk) blk.props.text = el.innerText;
+  });
+
+  const desc = document.getElementById('template-desc').value.trim();
+  const payload = { name, description: desc, blocks: blocks };
+
+  try {
+    const url = '/api/article-templates/save' + (editingTemplateId ? '' : '');
+    if (editingTemplateId) payload.id = editingTemplateId;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.success) {
+      editingTemplateId = d.id;
+      currentTemplateIsOwner = true;
+      updateTemplateStatusBadge();
+      toast(d.message, 'success');
+      loadMyTemplates();
+    } else {
+      toast(d.message, 'error');
+    }
+  } catch (e) {
+    toast('保存失败: ' + e.message, 'error');
+  }
+}
+
+async function loadMyTemplates() {
+  const list = document.getElementById('my-templates-list');
+  try {
+    const r = await fetch('/api/article-templates');
+    const d = await r.json();
+    if (d.success) {
+      // 分成：我的模板 和 公共模板
+      const myTemplates = d.templates.filter(t => t.is_owner);
+      const publicTemplates = d.templates.filter(t => t.is_public && !t.is_owner);
+      const otherTemplates = d.templates.filter(t => !t.is_public && !t.is_owner); // admin看到的其他人的私有模板
+
+      let html = '';
+
+      if (myTemplates.length > 0) {
+        html += '<div style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">我的模板</div>';
+        html += myTemplates.map(t => templateListItem(t, true)).join('');
+      }
+
+      if (publicTemplates.length > 0) {
+        html += '<div style="font-size:11px;font-weight:600;color:#10b981;text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;">&#127746; 公共模板</div>';
+        html += publicTemplates.map(t => templateListItem(t, false)).join('');
+      }
+
+      if (isCurrentUserAdmin && otherTemplates.length > 0) {
+        html += '<div style="font-size:11px;font-weight:600;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;">其他用户模板</div>';
+        html += otherTemplates.map(t => templateListItem(t, false)).join('');
+      }
+
+      if (!html) {
+        html = '<div style="font-size:12px;color:#ccc;">还没有保存的模板<br><span style="font-size:11px;">点击上方组件开始创建</span></div>';
+      }
+
+      list.innerHTML = html;
+    } else {
+      list.innerHTML = '<div style="font-size:12px;color:#ccc;">还没有保存的模板</div>';
+    }
+  } catch (e) {
+    list.innerHTML = '<div style="font-size:12px;color:#ccc;">加载失败</div>';
+  }
+}
+
+function templateListItem(t, isOwner) {
+  let badges = '';
+  if (t.is_public) badges += ' <span style="font-size:10px;color:#10b981;background:#d1fae5;padding:1px 5px;border-radius:3px;">公共</span>';
+  if (isOwner) badges += ' <span style="font-size:10px;color:#4a6cf7;background:#e0e7ff;padding:1px 5px;border-radius:3px;">我的</span>';
+  if (!isOwner && !t.is_public && isCurrentUserAdmin) badges += ' <span style="font-size:10px;color:#f59e0b;background:#fef3c7;padding:1px 5px;border-radius:3px;">' + escapeHtml(t.author_name || '用户') + '</span>';
+  if (!isOwner && t.is_public) badges += ' <span style="font-size:10px;color:#999;">by ' + escapeHtml(t.author_name || '管理员') + '</span>';
+
+  let actions = '';
+  if (t.can_edit) {
+    actions = '<div style="text-align:right;margin-top:4px;">';
+    if (isCurrentUserAdmin && t.can_edit) {
+      actions += '<button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 6px;color:#10b981;border-color:#10b981;" onclick="event.stopPropagation();togglePublishTemplate(' + t.id + ',' + (t.is_public ? 1 : 0) + ')">' + (t.is_public ? '取消公共' : '发布公共') + '</button> ';
+    }
+    actions += '<button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 6px;color:#e74c3c;border-color:#e74c3c;" onclick="event.stopPropagation();deleteTemplateById(' + t.id + ')">删除</button>';
+    actions += '</div>';
+  }
+
+  return '<div style="padding:8px;border:1px solid #e8e8e8;border-radius:6px;margin-bottom:6px;cursor:pointer;" onclick="loadTemplate(' + t.id + ')" onmouseover="this.style.borderColor=\'#4a6cf7\'" onmouseout="this.style.borderColor=\'#e8e8e8\'">' +
+    '<div style="font-weight:600;font-size:13px;">' + escapeHtml(t.name) + badges + '</div>' +
+    '<div style="font-size:11px;color:#999;">' + escapeHtml(t.description || '点击编辑') + '</div>' +
+    actions +
+    '</div>';
+}
+
+async function togglePublishTemplate(tid, currentlyPublic) {
+  try {
+    const url = '/api/article-templates/' + tid + '/' + (currentlyPublic ? 'unpublish' : 'publish');
+    const r = await fetch(url, { method: 'POST' });
+    const d = await r.json();
+    if (d.success) {
+      toast(d.message, 'success');
+      loadMyTemplates();
+    } else {
+      toast(d.message, 'error');
+    }
+  } catch (e) {
+    toast('操作失败', 'error');
+  }
+}
+
+async function deleteTemplateById(tid) {
+  if (!confirm('确定删除这个模板吗？')) return;
+  try {
+    const r = await fetch('/api/article-templates/' + tid, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.success) {
+      toast(d.message, 'success');
+      if (editingTemplateId === tid) newTemplate();
+      loadMyTemplates();
+    } else {
+      toast(d.message, 'error');
+    }
+  } catch (e) {
+    toast('删除失败', 'error');
+  }
+}
+
+async function loadTemplate(tid) {
+  try {
+    const r = await fetch('/api/article-templates/' + tid);
+    const d = await r.json();
+    if (d.success) {
+      const t = d.template;
+      editingTemplateId = t.id;
+      currentTemplateIsPublic = t.is_public;
+      currentTemplateIsOwner = t.is_owner;
+      document.getElementById('template-name').value = t.name;
+      document.getElementById('template-desc').value = t.description || '';
+      blocks = JSON.parse(t.blocks_json || '[]');
+      selectedId = null;
+      renderCanvas();
+      renderProps();
+      updateTemplateStatusBadge();
+      toast('已加载模板: ' + t.name, 'success');
+    } else {
+      toast(d.message, 'error');
+    }
+  } catch (e) {
+    toast('加载失败', 'error');
+  }
+}
+
+function updateTemplateStatusBadge() {
+  const badge = document.getElementById('template-status-badge');
+  const pubBtn = document.getElementById('btn-publish-public');
+  if (!editingTemplateId) {
+    badge.textContent = '';
+    pubBtn.style.display = 'none';
+    return;
+  }
+  // 只有admin能看到发布按钮
+  if (isCurrentUserAdmin) {
+    pubBtn.style.display = '';
+    if (currentTemplateIsPublic) {
+      pubBtn.textContent = '🔗 取消公共';
+      pubBtn.style.color = '#e74c3c';
+      pubBtn.style.borderColor = '#e74c3c';
+    } else {
+      pubBtn.textContent = '🔗 发布公共';
+      pubBtn.style.color = '#10b981';
+      pubBtn.style.borderColor = '#10b981';
+    }
+  } else {
+    pubBtn.style.display = 'none';
+  }
+  // 状态标签
+  if (currentTemplateIsPublic) {
+    badge.innerHTML = '<span style="color:#10b981;">&#127746; 公共模板</span>';
+  } else if (currentTemplateIsOwner) {
+    badge.innerHTML = '<span style="color:#4a6cf7;">&#128274; 私有模板</span>';
+  } else {
+    badge.innerHTML = '<span style="color:#999;">只读（他人模板）</span>';
+  }
+}
+
+async function togglePublish() {
+  if (!editingTemplateId) { toast('请先保存或加载模板', 'error'); return; }
+  const action = currentTemplateIsPublic ? 'unpublish' : 'publish';
+  try {
+    const r = await fetch('/api/article-templates/' + editingTemplateId + '/' + action, { method: 'POST' });
+    const d = await r.json();
+    if (d.success) {
+      currentTemplateIsPublic = !currentTemplateIsPublic;
+      updateTemplateStatusBadge();
+      loadMyTemplates();
+      toast(d.message, 'success');
+    } else {
+      toast(d.message, 'error');
+    }
+  } catch (e) {
+    toast('操作失败', 'error');
+  }
+}
+
+async function deleteTemplatePrompt() {
+  if (!editingTemplateId) { toast('当前没有加载的模板', 'error'); return; }
+  if (!confirm('确定删除这个模板吗？')) return;
+  try {
+    const r = await fetch('/api/article-templates/' + editingTemplateId, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.success) {
+      toast('模板已删除', 'success');
+      newTemplate();
+      loadMyTemplates();
+    }
+  } catch (e) {
+    toast('删除失败', 'error');
+  }
+}
+
+function newTemplate() {
+  blocks = [];
+  selectedId = null;
+  editingTemplateId = null;
+  currentTemplateIsPublic = false;
+  currentTemplateIsOwner = true;
+  document.getElementById('template-name').value = '';
+  document.getElementById('template-desc').value = '';
+  renderCanvas();
+  renderProps();
+  updateTemplateStatusBadge();
+  toast('已新建空白模板', 'success');
+}
+
+function previewTemplate() {
+  // 同步文字
+  document.querySelectorAll('.block-content').forEach(el => {
+    const id = el.dataset.blockId;
+    const blk = blocks.find(b => b.id === id);
+    if (blk) blk.props.text = el.innerText;
+  });
+
+  const html = blocks.map(blk => generateBlockHTML(blk)).join('\n');
+  const win = window.open('', '_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;max-width:420px;margin:0 auto;padding:20px;color:#333;}img{max-width:100%;}</style></head><body>' + html + '</body></html>');
+  win.document.close();
+}
+
+function generateBlockHTML(blk) {
+  const p = blk.props;
+  if (blk.type === 'divider') {
+    return '<hr style="border:none;border-top:' + p.thickness + 'px ' + p.style + ' ' + p.color + ';margin:' + p.margin + 'px 0;">';
+  }
+  if (blk.type === 'image') {
+    if (!p.src) return '';
+    const margin = p.align === 'center' ? 'margin:0 auto' : 'margin-' + p.align + ':0';
+    return '<img src="' + escapeAttr(p.src) + '" style="max-width:' + p.width + '%;border-radius:' + p.borderRadius + 'px;display:block;' + margin + ';margin-top:' + p.marginTop + 'px;margin-bottom:' + p.marginBottom + 'px;" />';
+  }
+  const styles = [];
+  styles.push('font-size:' + p.fontSize + 'px');
+  styles.push('color:' + p.fontColor);
+  styles.push('font-weight:' + p.fontWeight);
+  styles.push('font-style:' + p.fontStyle);
+  styles.push('text-align:' + p.textAlign);
+  styles.push('line-height:' + p.lineHeight);
+  if (p.letterSpacing) styles.push('letter-spacing:' + p.letterSpacing + 'px');
+  if (p.backgroundColor && p.backgroundColor !== 'transparent') styles.push('background-color:' + p.backgroundColor);
+  styles.push('padding:' + p.padding + 'px');
+  if (p.borderRadius) styles.push('border-radius:' + p.borderRadius + 'px');
+  styles.push('margin-top:' + p.marginTop + 'px');
+  styles.push('margin-bottom:' + p.marginBottom + 'px');
+  if (blk.type === 'quote') {
+    styles.push('border-left:3px solid ' + (p.borderColor || '#534ab7'));
+    styles.push('padding-left:12px');
+  }
+  const tag = blk.type === 'title' ? 'h2' : (blk.type === 'subtitle' ? 'h3' : (blk.type === 'quote' ? 'blockquote' : 'p'));
+  return '<' + tag + ' style="' + styles.join(';') + ';">' + escapeHtml(p.text || '') + '</' + tag + '>';
+}
+
+// ===== 初始化 =====
+async function initPage() {
+  await loadCurrentUser();
+  renderSidebar();
+  loadMyTemplates();
+}
+
+async function loadCurrentUser() {
+  try {
+    const r = await fetch('/api/auth/me');
+    const d = await r.json();
+    if (d.success) {
+      currentUser = d.user;
+      isCurrentUserAdmin = d.user.role === 'admin';
+      document.getElementById('userBadge').textContent =
+        (d.user.display_name || d.user.username) + (isCurrentUserAdmin ? ' (管理员)' : '');
+    }
+  } catch (e) {}
+}
+
+function renderSidebar() {
+  const nav = document.getElementById('sidebarNav');
+  if (isCurrentUserAdmin) {
+    nav.innerHTML = `
+      <div class="nav-group">
+        <div class="nav-group-title">管理</div>
+        <a class="nav-item" href="/admin"><span class="icon">&#128202;</span> 仪表盘</a>
+        <a class="nav-item" href="/admin/products"><span class="icon">&#128230;</span> 商品管理</a>
+        <a class="nav-item" href="/admin/orders"><span class="icon">&#128230;</span> 订单管理</a>
+        <a class="nav-item" href="/admin/customers"><span class="icon">&#128100;</span> 客户管理</a>
+        <a class="nav-item" href="/admin/after-sales"><span class="icon">&#128736;</span> 售后管理</a>
+        <a class="nav-item" href="/admin/settings"><span class="icon">&#9881;</span> 系统设置</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">内容</div>
+        <a class="nav-item" href="/publish"><span class="icon">&#9999;</span> 文章发布</a>
+        <a class="nav-item active" href="/template-editor"><span class="icon">&#127912;</span> 模板编辑器</a>
+        <a class="nav-item" href="/admin/generation-records"><span class="icon">&#128221;</span> 生成记录</a>
+      </div>`;
+  } else {
+    nav.innerHTML = `
+      <div class="nav-group">
+        <div class="nav-group-title">我的</div>
+        <a class="nav-item" href="/"><span class="icon">&#127968;</span> 商城首页</a>
+        <a class="nav-item" href="/profile"><span class="icon">&#128100;</span> 个人中心</a>
+        <a class="nav-item" href="/publish"><span class="icon">&#9999;</span> 文章发布</a>
+        <a class="nav-item active" href="/template-editor"><span class="icon">&#127912;</span> 模板编辑器</a>
+      </div>`;
+  }
+}
+
+initPage();
+</script>
+</body>
+</html>
