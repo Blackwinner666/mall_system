@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商城设置 - 百货商城</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#333}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;flex-shrink:0}
+.sidebar-header{padding:20px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:36px;height:36px;background:#4a6cf7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.sidebar-header .name{font-size:15px;font-weight:600}
+.nav-group{padding:0 12px;margin-bottom:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:14px;transition:.2s;cursor:pointer;margin:2px 0}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:#4a6cf7;color:#fff}
+.nav-item .icon{width:20px;text-align:center;font-size:15px}
+.main{flex:1;overflow-y:auto}
+.topbar{background:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8}
+.topbar .breadcrumb{font-size:13px;color:#999}
+.topbar .user-info{display:flex;align-items:center;gap:10px;font-size:13px}
+.topbar .logout-btn{background:none;border:1px solid #ddd;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;color:#666}
+.topbar .logout-btn:hover{background:#f5f5f5}
+.content{padding:24px;max-width:800px}
+.section{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:24px;margin-bottom:20px}
+.section h3{font-size:15px;font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #f0f0f0}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:6px}
+.form-group input,.form-group textarea{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;font-family:inherit}
+.form-group input:focus,.form-group textarea:focus{border-color:#4a6cf7;box-shadow:0 0 0 3px rgba(74,108,247,.1)}
+.form-group textarea{resize:vertical;min-height:80px}
+.form-hint{font-size:12px;color:#999;margin-top:4px}
+.logo-upload{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.logo-preview{width:80px;height:80px;border-radius:12px;background:#f5f5f5;border:1.5px dashed #ddd;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+.logo-preview img{width:100%;height:100%;object-fit:cover}
+.logo-preview svg{width:36px;height:36px;fill:#ccc}
+.logo-info{font-size:13px;color:#666}
+.logo-info p{margin-bottom:6px}
+.btn{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:.2s}
+.btn-primary{background:#4a6cf7;color:#fff}
+.btn-primary:hover{background:#3b5de7}
+.btn-cancel{background:#f5f5f5;color:#666}
+.save-bar{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.toast{position:fixed;top:24px;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;z-index:200;display:none}
+.toast.show{display:block}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">商城设置</div>
+      <div class="user-info">
+        <span id="displayName">管理员</span>
+        <button class="logout-btn" onclick="doLogout()">退出</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="section">
+        <h3>基础信息</h3>
+        <div class="form-group">
+          <label>商城 Logo</label>
+          <div class="logo-upload">
+            <div class="logo-preview" id="logoPreview" onclick="document.getElementById('logoInput').click()">
+              <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+            </div>
+            <div class="logo-info">
+              <p>建议尺寸 200x200，支持 PNG/JPG</p>
+              <button class="btn btn-cancel" style="padding:4px 12px;font-size:12px" onclick="document.getElementById('logoInput').click()">上传 Logo</button>
+            </div>
+          </div>
+          <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group"><label>商城名称</label><input type="text" id="storeName" placeholder="百货商城"></div>
+          <div class="form-group"><label>联系电话</label><input type="text" id="contactPhone" placeholder="客服电话"></div>
+        </div>
+        <div class="form-group"><label>商城描述</label><textarea id="storeDesc" placeholder="品质百货，一站购齐"></textarea></div>
+        <div class="form-group"><label>联系邮箱</label><input type="email" id="contactEmail" placeholder="contact@example.com"></div>
+      </div>
+
+      <div class="section">
+        <h3>物流设置</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group"><label>运费 (元)</label><input type="number" id="shippingFee" placeholder="0" step="0.01" min="0"><div class="form-hint">0 表示包邮</div></div>
+          <div class="form-group"><label>满额包邮 (元)</label><input type="number" id="freeShippingMin" placeholder="99" step="0.01" min="0"><div class="form-hint">订单满此金额免运费</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>支付设置 (预留)</h3>
+        <div style="padding:12px;background:#fafafa;border-radius:8px;font-size:13px;color:#666;">
+          支付功能预留 — 后期对接微信支付 / 支付宝后在此处配置。API 接口已预留在后端。
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function doLogout(){fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/login');}
+
+function renderSidebar(){
+  document.getElementById('sidebar').innerHTML=`<div class="sidebar-header"><div class="logo">M</div><div class="name" id="storeNameTitle">百货商城</div></div>
+    <nav style="padding:12px 0">
+      <div class="nav-group"><a class="nav-item" href="/admin"><span class="icon">◆</span>首页</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/store"><span class="icon">◇</span>店铺管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/products"><span class="icon">☆</span>商品管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/orders"><span class="icon">☑</span>订单管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/after-sales"><span class="icon">↺</span>售后管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/customers"><span class="icon">☺</span>客户管理</a></div>
+      <div class="nav-group"><a class="nav-item active" href="/admin/settings"><span class="icon">⚙</span>商城设置</a></div></nav>`;
+}
+
+async function init(){
+  let r=await fetch('/api/auth/me');let u=await r.json();
+  if(u.success)document.getElementById('displayName').textContent=u.user.display_name;
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+async function loadSettings(){
+  const res=await fetch('/api/settings');const json=await res.json();
+  if(!json.success)return;
+  const d=json.data;
+  document.getElementById('storeName').value=d.store_name||'';
+  document.getElementById('storeDesc').value=d.store_description||'';
+  document.getElementById('contactPhone').value=d.contact_phone||'';
+  document.getElementById('contactEmail').value=d.contact_email||'';
+  document.getElementById('shippingFee').value=d.shipping_fee||'0';
+  document.getElementById('freeShippingMin').value=d.free_shipping_min||'99';
+  if(d.store_logo)document.getElementById('logoPreview').innerHTML='<img src="'+d.store_logo+'" alt="logo">';
+  document.getElementById('storeNameTitle').textContent=d.store_name||'百货商城';
+}
+
+async function handleLogoUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const fd=new FormData();fd.append('file',file);
+  const res=await fetch('/api/upload',{method:'POST',body:fd});
+  const json=await res.json();
+  if(json.success){
+    document.getElementById('logoPreview').innerHTML='<img src="'+json.data.url+'" alt="logo">';
+    document.getElementById('logoPreview').dataset.url=json.data.url;
+    showToast('Logo 上传成功，请点击保存设置');
+  }
+  e.target.value='';
+}
+
+async function saveSettings(){
+  const data={
+    store_name:document.getElementById('storeName').value.trim(),
+    store_description:document.getElementById('storeDesc').value.trim(),
+    contact_phone:document.getElementById('contactPhone').value.trim(),
+    contact_email:document.getElementById('contactEmail').value.trim(),
+    shipping_fee:document.getElementById('shippingFee').value,
+    free_shipping_min:document.getElementById('freeShippingMin').value
+  };
+  const logoUrl=document.getElementById('logoPreview').dataset.url;
+  if(logoUrl)data.store_logo=logoUrl;
+  const res=await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const json=await res.json();
+  if(json.success){
+    showToast('设置已保存');
+    document.getElementById('storeNameTitle').textContent=data.store_name||'百货商城';
+  }else{alert(json.message);}
+}
+
+renderSidebar();init();loadSettings();
+</script>
+</body>
+</html>
