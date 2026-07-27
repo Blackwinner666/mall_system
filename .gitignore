@@ -35,5 +35,9 @@ app_server.py
 publish_server.html
 template_editor_server.html
 
+# Environment / secrets (NEVER commit real keys)
+.env
+.env.local
+
 # WorkBuddy internal
 .workbuddy/
