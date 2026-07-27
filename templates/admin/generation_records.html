@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生成记录 - 公众号AI创作 - 百货商城管理</title>
+<style>
+:root {
+  --primary: #534ab7;
+  --bg: #f5f6fa;
+  --card: #fff;
+  --text: #333;
+  --text2: #666;
+  --text3: #999;
+  --border: #e8e8e8;
+  --radius: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif; background:var(--bg); color:var(--text); font-size:14px; }
+.header { background:var(--card); border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
+.header h2 { font-size:16px; font-weight:600; }
+.header a { color:var(--primary); text-decoration:none; font-size:13px; }
+.header a:hover { text-decoration:underline; }
+.container { max-width:1200px; margin:24px auto; padding:0 24px; }
+
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.stat-card { background:var(--card); border-radius:var(--radius); padding:20px; border:1px solid var(--border); }
+.stat-card .label { font-size:12px; color:var(--text3); margin-bottom:4px; }
+.stat-card .value { font-size:28px; font-weight:700; color:var(--primary); }
+.stat-card .sub { font-size:11px; color:var(--text2); margin-top:4px; }
+
+.filters { background:var(--card); border-radius:var(--radius); padding:16px 20px; margin-bottom:16px; border:1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.filters select, .filters input { height:36px; padding:0 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; outline:none; }
+.filters select:focus, .filters input:focus { border-color:var(--primary); }
+.btn { height:36px; padding:0 16px; border:none; border-radius:6px; font-size:13px; cursor:pointer; font-weight:500; }
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-primary:hover { opacity:0.9; }
+.btn-outline { background:#fff; color:var(--primary); border:1px solid var(--primary); }
+
+.table-wrap { background:var(--card); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; }
+table { width:100%; border-collapse:collapse; }
+th { text-align:left; padding:12px 16px; background:#fafafa; font-weight:600; color:var(--text2); font-size:12px; text-transform:uppercase; border-bottom:2px solid var(--border); }
+td { padding:12px 16px; border-bottom:1px solid #f5f5f5; font-size:13px; }
+tr:hover td { background:#fafafa; }
+.status-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.status-badge.success { background:#e8f5e9; color:#2e7d32; }
+.status-badge.failed { background:#ffebee; color:#c62828; }
+.status-badge.pending { background:#fff3e0; color:#e65100; }
+.action-type { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:500; }
+.action-type.draft { background:#e3f2fd; color:#1565c0; }
+.action-type.style { background:#f3e5f5; color:#7b1fa2; }
+.action-type.image { background:#e8f5e9; color:#2e7d32; }
+.action-type.publish { background:#fff3e0; color:#e65100; }
+.code { font-family:monospace; font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px; }
+
+.pagination { display:flex; justify-content:center; align-items:center; gap:8px; padding:16px; }
+.pagination button { height:32px; padding:0 12px; border:1px solid var(--border); border-radius:6px; background:#fff; cursor:pointer; font-size:13px; }
+.pagination button:hover { border-color:var(--primary); color:var(--primary); }
+.pagination button.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.pagination span { font-size:13px; color:var(--text3); }
+
+.empty { text-align:center; padding:60px 20px; color:var(--text3); }
+.empty .icon { font-size:48px; margin-bottom:12px; }
+
+.loading { text-align:center; padding:40px; color:var(--text3); }
+@media (max-width:768px) { .stats { grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h2>公众号AI创作 - 生成记录</h2>
+  <a href="/admin">返回管理后台</a>
+</div>
+<div class="container">
+  <div class="stats" id="stats"></div>
+  <div class="filters">
+    <select id="filter-type" onchange="loadRecords()">
+      <option value="">全部操作</option>
+      <option value="create_draft">创建草稿</option>
+      <option value="generate_image">AI生图</option>
+      <option value="analyze_style">分析风格</option>
+      <option value="save_style">保存模板</option>
+      <option value="save_draft">保存草稿</option>
+    </select>
+    <input type="text" id="filter-user" placeholder="用户名搜索..." onkeyup="if(event.key==='Enter')loadRecords()">
+    <button class="btn btn-primary" onclick="loadRecords()">查询</button>
+    <button class="btn btn-outline" onclick="location.reload()">刷新</button>
+  </div>
+  <div class="table-wrap">
+    <div id="table-container"><div class="loading">加载中...</div></div>
+  </div>
+</div>
+
+<script>
+const state = { page:1, total:0, per_page:30 };
+
+async function api(path) {
+  const r = await fetch(path);
+  return r.json();
+}
+
+async function loadStats() {
+  try {
+    const r = await api('/api/admin/generation-records?per_page=1');
+    if (!r.success) return;
+    const total = r.data.total;
+    
+    // Get counts by type
+    const all = await api('/api/admin/generation-records?per_page=10000');
+    const items = all.data?.items || [];
+    
+    const drafts = items.filter(i=>i.action_type==='create_draft').length;
+    const styles = items.filter(i=>i.action_type==='analyze_style'||i.action_type==='save_style').length;
+    const images = items.filter(i=>i.action_type==='generate_image').length;
+    
+    document.getElementById('stats').innerHTML = `
+      <div class="stat-card">
+        <div class="label">总操作数</div>
+        <div class="value">${total || 0}</div>
+        <div class="sub">全部生成记录</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">创建草稿</div>
+        <div class="value">${drafts}</div>
+        <div class="sub">公众号草稿创建</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">风格分析</div>
+        <div class="value">${styles}</div>
+        <div class="sub">排版风格分析与模板</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">AI生图</div>
+        <div class="value">${images}</div>
+        <div class="sub">AI智能配图</div>
+      </div>`;
+  } catch(e) {}
+}
+
+async function loadRecords(pg) {
+  if (pg) state.page = pg;
+  const type = document.getElementById('filter-type').value;
+  const user = document.getElementById('filter-user').value.trim();
+  
+  let url = `/api/admin/generation-records?page=${state.page}&per_page=${state.per_page}`;
+  if (type) url += '&action_type=' + type;
+  if (user) url += '&username=' + encodeURIComponent(user);
+  
+  try {
+    const r = await api(url);
+    if (!r.success) { document.getElementById('table-container').innerHTML = '<div class="empty">加载失败</div>'; return; }
+    
+    const { items, total, page, per_page } = r.data;
+    state.total = total;
+    state.page = page;
+    
+    if (!items || items.length === 0) {
+      document.getElementById('table-container').innerHTML = '<div class="empty"><div class="icon">&#128203;</div>暂无生成记录</div>';
+      return;
+    }
+    
+    const typeLabels = { create_draft:'创建草稿', generate_image:'AI生图', analyze_style:'分析风格', save_style:'保存模板', save_draft:'保存草稿' };
+    const typeClasses = { create_draft:'draft', generate_image:'image', analyze_style:'style', save_style:'style', save_draft:'draft' };
+    
+    let html = '<table><thead><tr><th>ID</th><th>用户</th><th>操作类型</th><th>标题</th><th>详情</th><th>状态</th><th>草稿ID</th><th>时间</th></tr></thead><tbody>';
+    
+    items.forEach(item => {
+      const at = item.action_type;
+      html += `<tr>
+        <td>${item.id}</td>
+        <td>${esc(item.username||'游客')}</td>
+        <td><span class="action-type ${typeClasses[at]||''}">${typeLabels[at]||at}</span></td>
+        <td>${esc((item.title||'').substring(0,30))}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc((item.detail||'').substring(0,50))}</td>
+        <td><span class="status-badge ${item.status==='success'?'success':'failed'}">${item.status==='success'?'成功':'失败'}</span></td>
+        <td>${item.draft_media_id ? '<span class="code">'+esc(item.draft_media_id.substring(0,12))+'</span>' : '-'}</td>
+        <td style="font-size:12px;color:#999;">${(item.created_at||'').substring(0,19)}</td>
+      </tr>`;
+    });
+    
+    html += '</tbody></table>';
+    
+    // Pagination
+    const totalPages = Math.ceil(total / per_page);
+    if (totalPages > 1) {
+      html += '<div class="pagination">';
+      html += `<button onclick="loadRecords(${page-1})" ${page<=1?'disabled':''}>上一页</button>`;
+      for (let i=1; i<=totalPages; i++) {
+        if (i===1||i===totalPages||Math.abs(i-page)<=2) {
+          html += `<button class="${i===page?'active':''}" onclick="loadRecords(${i})">${i}</button>`;
+        } else if (i===2||i===totalPages-1) {
+          html += '<span>...</span>';
+        }
+      }
+      html += `<button onclick="loadRecords(${page+1})" ${page>=totalPages?'disabled':''}>下一页</button>`;
+      html += `<span>共 ${total} 条</span>`;
+      html += '</div>';
+    }
+    
+    document.getElementById('table-container').innerHTML = html;
+  } catch(e) {
+    document.getElementById('table-container').innerHTML = '<div class="empty">加载出错</div>';
+  }
+}
+
+function esc(s) { if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+loadStats();
+loadRecords();
+</script>
+</body>
+</html>
