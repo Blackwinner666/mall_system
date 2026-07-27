@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>购物车 - 百货商城</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f5f5;color:#333;min-height:100vh;display:flex;flex-direction:column}
+a{color:inherit;text-decoration:none}
+
+/* Header */
+.header{background:#fff;border-bottom:1px solid #f0f0f0;position:sticky;top:0;z-index:50}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px}
+.header-left{display:flex;align-items:center;gap:10px}
+.header-logo{width:36px;height:36px;border-radius:8px;background:#eeedfe;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.header-logo img{width:100%;height:100%;object-fit:cover}
+.header-logo svg{width:22px;height:22px;fill:#534ab7}
+.header-title{font-size:16px;font-weight:600;color:#1a1a1a}
+.header-right{display:flex;align-items:center;gap:12px}
+.header-btn{padding:6px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:1px solid #e0e0e0;background:#fff;color:#666;transition:.15s;text-decoration:none}
+.header-btn:hover{border-color:#534ab7;color:#534ab7}
+.header-cart-count{background:#e24b4a;color:#fff;padding:1px 6px;border-radius:10px;font-size:11px;margin-left:2px}
+
+/* Cart Layout */
+.cart-wrap{flex:1;max-width:1200px;width:100%;margin:0 auto;padding:20px 16px 80px}
+.cart-title{font-size:20px;font-weight:700;color:#1a1a1a;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.cart-title .count{font-size:14px;color:#999;font-weight:400}
+.cart-title .count b{color:#e24b4a}
+
+/* Cart Table Header */
+.cart-table-header{display:flex;align-items:center;padding:12px 0;background:#fff;border-radius:10px 10px 0 0;border:1px solid #f0f0f0;border-bottom:none;font-size:13px;color:#999}
+.cart-table-header .col-check{width:60px;text-align:center}
+.cart-table-header .col-info{flex:1}
+.cart-table-header .col-price{width:130px;text-align:center}
+.cart-table-header .col-qty{width:130px;text-align:center}
+.cart-table-header .col-subtotal{width:130px;text-align:center}
+.cart-table-header .col-action{width:80px;text-align:center}
+
+/* Cart Items */
+.cart-items{background:#fff;border:1px solid #f0f0f0;border-top:none;border-radius:0 0 10px 10px}
+
+.cart-item{display:flex;align-items:center;padding:16px 0;border-bottom:1px solid #f5f5f5;transition:.2s}
+.cart-item:last-child{border-bottom:none}
+.cart-item:hover{background:#fafafa}
+.cart-item.offline{opacity:.5}
+.cart-item .col-check{width:60px;text-align:center}
+.cart-item .col-check input[type="checkbox"]{width:18px;height:18px;cursor:pointer;accent-color:#534ab7}
+.cart-item .col-info{flex:1;display:flex;align-items:center;gap:12px;min-width:0}
+.cart-item .item-img{width:80px;height:80px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#f5f5f5;display:flex;align-items:center;justify-content:center}
+.cart-item .item-img img{width:100%;height:100%;object-fit:cover}
+.cart-item .item-img .no-img{font-size:32px;color:#ddd}
+.cart-item .item-detail{min-width:0}
+.cart-item .item-name{font-size:14px;line-height:1.4;color:#1a1a1a;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:4px}
+.cart-item .item-specs{font-size:12px;color:#999}
+.cart-item .item-offline{display:inline-block;background:#f0f0f0;color:#999;padding:1px 8px;border-radius:4px;font-size:11px;margin-top:4px}
+.cart-item .col-price{width:130px;text-align:center;font-size:14px;font-weight:600;color:#1a1a1a}
+.cart-item .col-qty{width:130px;display:flex;justify-content:center}
+.cart-item .qty-ctrl{display:flex;align-items:center;border:1px solid #ddd;border-radius:4px;overflow:hidden;height:28px}
+.cart-item .qty-ctrl button{width:28px;height:28px;border:none;background:#f5f5f5;color:#666;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.cart-item .qty-ctrl button:hover{background:#e8e8e8}
+.cart-item .qty-ctrl button:disabled{color:#ccc;cursor:not-allowed}
+.cart-item .qty-ctrl input{width:44px;height:28px;border:none;border-left:1px solid #ddd;border-right:1px solid #ddd;text-align:center;font-size:13px;outline:none;-moz-appearance:textfield}
+.cart-item .qty-ctrl input::-webkit-outer-spin-button,
+.cart-item .qty-ctrl input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.cart-item .col-subtotal{width:130px;text-align:center;font-size:14px;font-weight:700;color:#e24b4a}
+.cart-item .col-action{width:80px;text-align:center}
+.cart-item .btn-del{background:none;border:none;color:#ccc;font-size:18px;cursor:pointer;transition:.2s;padding:4px 8px}
+.cart-item .btn-del:hover{color:#e24b4a}
+
+/* Bottom Bar */
+.cart-bottom{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #f0f0f0;z-index:40;box-shadow:0 -2px 10px rgba(0,0,0,.05)}
+.cart-bottom-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px}
+.cart-bottom-left{display:flex;align-items:center;gap:16px}
+.cart-bottom-left input[type="checkbox"]{width:18px;height:18px;cursor:pointer;accent-color:#534ab7}
+.cart-bottom-left label{font-size:13px;color:#666;cursor:pointer;user-select:none}
+.cart-bottom-actions{display:flex;align-items:center;gap:12px}
+.cart-bottom-del{font-size:13px;color:#999;cursor:pointer;background:none;border:none;padding:4px 8px}
+.cart-bottom-del:hover{color:#e24b4a}
+.cart-bottom-right{display:flex;align-items:center;gap:16px}
+.cart-total-label{font-size:13px;color:#666}
+.cart-total-num{font-size:22px;font-weight:700;color:#e24b4a}
+.cart-total-num .small{font-size:14px;font-weight:600}
+.cart-btn-checkout{background:linear-gradient(135deg,#e24b4a,#d63031);color:#fff;border:none;padding:12px 40px;border-radius:24px;font-size:16px;font-weight:600;cursor:pointer;transition:.2s;white-space:nowrap}
+.cart-btn-checkout:hover{opacity:.9;box-shadow:0 4px 12px rgba(226,75,74,.4)}
+.cart-btn-checkout:disabled{background:#ccc;cursor:not-allowed;box-shadow:none}
+
+/* Empty State */
+.cart-empty{text-align:center;padding:80px 20px;background:#fff;border-radius:12px;border:1px solid #f0f0f0}
+.cart-empty-icon{font-size:72px;color:#e0e0e0;margin-bottom:16px}
+.cart-empty h3{font-size:18px;color:#999;margin-bottom:8px}
+.cart-empty p{font-size:13px;color:#ccc;margin-bottom:24px}
+.cart-empty .btn-shop{display:inline-block;padding:10px 32px;background:#534ab7;color:#fff;border-radius:8px;font-size:14px;text-decoration:none;transition:.2s}
+.cart-empty .btn-shop:hover{background:#4338ca}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;z-index:200;display:none;white-space:nowrap}
+.toast.show{display:block;animation:fadeInOut 2s}
+@keyframes fadeInOut{0%,100%{opacity:0}10%,80%{opacity:1}}
+
+/* Loading */
+.loading-wrap{text-align:center;padding:60px;color:#999;font-size:14px}
+.loading-spinner{display:inline-block;width:32px;height:32px;border:3px solid #f0f0f0;border-top-color:#534ab7;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Responsive */
+@media(max-width:768px){
+  .cart-item .col-price,.cart-table-header .col-price{display:none}
+  .cart-item .col-check{width:40px}
+  .cart-item .item-img{width:64px;height:64px}
+  .cart-bottom-inner{flex-wrap:wrap;height:auto;padding:10px 12px;gap:8px}
+  .cart-btn-checkout{padding:10px 28px;font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <a href="/" class="header-logo" id="headerLogo">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+      </a>
+      <a href="/" class="header-title" id="headerTitle">百货商城</a>
+    </div>
+    <div class="header-right" id="headerRight">
+      <a href="/login" class="header-btn">登录</a>
+    </div>
+  </div>
+</div>
+
+<div class="cart-wrap" id="cartWrap">
+  <div class="loading-wrap"><div class="loading-spinner"></div><p>加载购物车...</p></div>
+</div>
+
+<div class="cart-bottom" id="cartBottom" style="display:none">
+  <div class="cart-bottom-inner">
+    <div class="cart-bottom-left">
+      <input type="checkbox" id="checkAll" onchange="toggleCheckAll()">
+      <label for="checkAll">全选</label>
+      <button class="cart-bottom-del" onclick="clearChecked()">删除选中</button>
+    </div>
+    <div class="cart-bottom-right">
+      <span class="cart-total-label">合计：</span>
+      <span class="cart-total-num"><span class="small">¥</span><span id="totalPrice">0.00</span></span>
+      <button class="cart-btn-checkout" id="btnCheckout" onclick="goCheckout()" disabled>
+        去结算<span id="checkedCount"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function doLogout() {
+  fetch('/api/auth/logout', {method:'POST'}).then(() => location.href='/');
+}
+
+async function init() {
+  // Login check
+  const meRes = await fetch('/api/auth/me'); const meJson = await meRes.json();
+  const hr = document.getElementById('headerRight');
+  let loggedIn = false;
+
+  if (meJson.success && meJson.logged_in) {
+    loggedIn = true;
+    const u = meJson.user;
+    hr.innerHTML = '<a href="/profile" class="header-btn">个人中心</a>' +
+      '<span style="font-size:13px;color:#333;font-weight:500">' + u.display_name + '</span>' +
+      '<button class="header-btn" onclick="doLogout()" style="cursor:pointer">退出</button>';
+  } else {
+    hr.innerHTML = '<a href="/login" class="header-btn">登录</a>';
+  }
+
+  // Store info
+  const sRes = await fetch('/api/settings'); const sJson = await sRes.json();
+  if (sJson.success && sJson.data) {
+    const d = sJson.data;
+    document.getElementById('headerTitle').textContent = d.store_name || '百货商城';
+    document.title = '购物车 - ' + (d.store_name || '百货商城');
+    if (d.store_logo) {
+      document.getElementById('headerLogo').innerHTML = '<img src="' + d.store_logo + '" alt="logo">';
+    }
+  }
+
+  if (!loggedIn) {
+    document.getElementById('cartWrap').innerHTML = '<div class="cart-empty"><div class="cart-empty-icon">&#128722;</div><h3>请先登录</h3><p>登录后查看您的购物车</p><a href="/login" class="btn-shop">去登录</a></div>';
+    return;
+  }
+
+  await loadCart();
+}
+
+async function loadCart() {
+  try {
+    const res = await fetch('/api/cart');
+    const json = await res.json();
+    if (!json.success) { showToast(json.message || '加载失败'); return; }
+
+    renderCart(json.data);
+  } catch (e) {
+    document.getElementById('cartWrap').innerHTML = '<div class="cart-empty"><p style="color:#999">加载失败，请刷新重试</p></div>';
+  }
+}
+
+function renderCart(data) {
+  const wrap = document.getElementById('cartWrap');
+  const items = data.items || [];
+
+  if (items.length === 0) {
+    wrap.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon">&#128722;</div><h3>购物车还是空的</h3><p>快去挑选您喜欢的商品吧</p><a href="/" class="btn-shop">去逛逛</a></div>';
+    document.getElementById('cartBottom').style.display = 'none';
+    return;
+  }
+
+  let itemsHtml = items.map(item => {
+    const offlineCls = item.available ? '' : ' offline';
+    const imgHtml = item.product_image
+      ? '<img src="' + item.product_image + '" alt="' + item.product_name + '" />'
+      : '<span class="no-img">&#128247;</span>';
+    const offlineBadge = item.available ? '' : '<span class="item-offline">已下架</span>';
+    const disabled = !item.available ? ' disabled' : '';
+
+    return '<div class="cart-item' + offlineCls + '" id="cartItem' + item.id + '">' +
+      '<div class="col-check"><input type="checkbox"' + (item.checked ? ' checked' : '') + disabled +
+        ' onchange="toggleItem(' + item.id + ', this.checked)"></div>' +
+      '<div class="col-info">' +
+        '<a href="/product/' + item.product_id + '" class="item-img">' + imgHtml + '</a>' +
+        '<div class="item-detail">' +
+          '<a href="/product/' + item.product_id + '" class="item-name">' + item.product_name + '</a>' +
+          (item.spec_desc ? '<div class="item-specs">' + item.spec_desc + '</div>' : '') +
+          offlineBadge +
+        '</div>' +
+      '</div>' +
+      '<div class="col-price">¥' + item.price.toFixed(2) + '</div>' +
+      '<div class="col-qty">' +
+        '<div class="qty-ctrl">' +
+          '<button' + disabled + ' onclick="changeQty(' + item.id + ', -1)">−</button>' +
+          '<input type="number" value="' + item.quantity + '" min="1" max="' + item.stock + '"' + disabled +
+            ' onchange="setQty(' + item.id + ', this.value)">' +
+          '<button' + disabled + ' onclick="changeQty(' + item.id + ', 1)">+</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="col-subtotal">¥' + (item.price * item.quantity).toFixed(2) + '</div>' +
+      '<div class="col-action"><button class="btn-del" onclick="deleteItem(' + item.id + ')" title="删除">×</button></div>' +
+    '</div>';
+  }).join('');
+
+  wrap.innerHTML =
+    '<div class="cart-title">购物车<span class="count">（共<b>' + data.total_count + '</b>件）</span></div>' +
+    '<div class="cart-table-header">' +
+      '<div class="col-check"></div>' +
+      '<div class="col-info">商品信息</div>' +
+      '<div class="col-price">单价</div>' +
+      '<div class="col-qty">数量</div>' +
+      '<div class="col-subtotal">小计</div>' +
+      '<div class="col-action"></div>' +
+    '</div>' +
+    '<div class="cart-items">' + itemsHtml + '</div>';
+
+  // Bottom bar
+  document.getElementById('cartBottom').style.display = 'block';
+  document.getElementById('checkAll').checked = data.all_checked;
+  document.getElementById('totalPrice').textContent = data.checked_total.toFixed(2);
+  const countEl = document.getElementById('checkedCount');
+  if (data.checked_count > 0) {
+    countEl.textContent = '（' + data.checked_count + '）';
+  } else {
+    countEl.textContent = '';
+  }
+  document.getElementById('btnCheckout').disabled = data.checked_count === 0;
+}
+
+async function toggleItem(id, checked) {
+  try {
+    await fetch('/api/cart/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checked: checked })
+    });
+    refreshCart();
+  } catch (e) { showToast('操作失败'); }
+}
+
+async function toggleCheckAll() {
+  const checked = document.getElementById('checkAll').checked;
+  try {
+    await fetch('/api/cart/check-all', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checked: checked })
+    });
+    refreshCart();
+  } catch (e) { showToast('操作失败'); }
+}
+
+async function changeQty(id, delta) {
+  try {
+    const inp = document.querySelector('#cartItem' + id + ' input');
+    if (inp) {
+      const cur = parseInt(inp.value) || 1;
+      const max = parseInt(inp.max) || 999;
+      const newVal = Math.max(1, Math.min(max, cur + delta));
+      if (newVal === cur) return;
+      await fetch('/api/cart/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: newVal })
+      });
+      refreshCart();
+    }
+  } catch (e) { showToast('操作失败'); }
+}
+
+async function setQty(id, val) {
+  const v = parseInt(val) || 1;
+  try {
+    await fetch('/api/cart/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity: v })
+    });
+    refreshCart();
+  } catch (e) { showToast('操作失败'); }
+}
+
+async function deleteItem(id) {
+  if (!confirm('确定要删除该商品吗？')) return;
+  try {
+    await fetch('/api/cart/' + id, { method: 'DELETE' });
+    refreshCart();
+    showToast('已删除');
+  } catch (e) { showToast('删除失败'); }
+}
+
+async function clearChecked() {
+  const checkedCount = parseInt(document.getElementById('checkedCount').textContent.replace(/[()]/g, '')) || 0;
+  if (checkedCount === 0) { showToast('请先选择商品'); return; }
+  if (!confirm('确定要删除选中的 ' + checkedCount + ' 件商品吗？')) return;
+  try {
+    await fetch('/api/cart', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    refreshCart();
+    showToast('已删除');
+  } catch (e) { showToast('删除失败'); }
+}
+
+async function refreshCart() {
+  const res = await fetch('/api/cart');
+  const json = await res.json();
+  if (json.success) renderCart(json.data);
+}
+
+function goCheckout() {
+  showToast('支付功能即将上线，敬请期待');
+}
+
+init();
+</script>
+</body>
+</html>
