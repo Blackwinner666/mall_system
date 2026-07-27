@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#333}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;flex-shrink:0}
+.sidebar-header{padding:20px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:36px;height:36px;background:#4a6cf7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.sidebar-header .name{font-size:15px;font-weight:600}
+.nav-group{padding:0 12px;margin-bottom:8px}
+.nav-group-title{font-size:11px;color:rgba(255,255,255,.4);padding:8px 12px;letter-spacing:1px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:14px;transition:.2s;cursor:pointer;margin:2px 0}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:#4a6cf7;color:#fff}
+.nav-item .icon{width:20px;text-align:center;font-size:15px}
+.main{flex:1;overflow-y:auto}
+.topbar{background:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8}
+.topbar .breadcrumb{font-size:13px;color:#999}
+.topbar .user-info{display:flex;align-items:center;gap:10px;font-size:13px}
+.topbar .logout-btn{background:none;border:1px solid #ddd;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;color:#666}
+.content{padding:24px}
+.tabs{display:flex;gap:0;background:#fff;border-radius:12px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.tab{padding:12px 24px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;transition:.2s;font-weight:500}
+.tab:hover{color:#4a6cf7}
+.tab.active{color:#4a6cf7;border-bottom-color:#4a6cf7}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden;margin-bottom:16px}
+.panel-header{padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.panel-header h3{font-size:15px;font-weight:600}
+.panel-body{padding:20px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:6px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;transition:.2s}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#4a6cf7;box-shadow:0 0 0 3px rgba(74,108,247,.1)}
+.form-group textarea{resize:vertical;min-height:80px}
+.filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filters input,.filters select{padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none}
+.filters input:focus,.filters select:focus{border-color:#4a6cf7}
+.btn{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:.2s}
+.btn-primary{background:#4a6cf7;color:#fff}
+.btn-primary:hover{background:#3b5de7}
+.btn-cancel{background:#f5f5f5;color:#666}
+.btn-success{background:#ecfdf5;color:#059669}
+.btn-danger{background:#fef2f2;color:#dc2626}
+.btn-warning{background:#fff7ed;color:#ea580c}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid #f0f0f0}
+th{font-weight:600;color:#555;font-size:12px;background:#f8f9fc}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px}
+.tag-active{background:#ecfdf5;color:#059669}
+.tag-draft{background:#f3f4f6;color:#6b7280}
+.tag-non-sellable{background:#fef3c7;color:#d97706}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;width:700px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{padding:16px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1}
+.modal-header h3{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border:none;background:#f5f5f5;border-radius:8px;cursor:pointer;font-size:18px;color:#999}
+.modal-body{padding:20px 24px}
+.modal-tabs{display:flex;gap:0;border-bottom:1px solid #f0f0f0;margin-bottom:16px}
+.modal-tab{padding:8px 16px;font-size:12px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;transition:.2s}
+.modal-tab:hover{color:#4a6cf7}
+.modal-tab.active{color:#4a6cf7;border-bottom-color:#4a6cf7}
+.modal-tab-panel{display:none}
+.modal-tab-panel.active{display:block}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.img-upload-area{display:flex;gap:8px;flex-wrap:wrap}
+.img-upload-box{width:80px;height:80px;border:2px dashed #ddd;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden}
+.img-upload-box img{width:100%;height:100%;object-fit:cover}
+.img-upload-box .remove{position:absolute;top:2px;right:2px;width:18px;height:18px;background:rgba(0,0,0,.5);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer}
+.editor-toolbar{display:flex;gap:4px;padding:8px;background:#f8f9fc;border:1px solid #ddd;border-bottom:none;border-radius:8px 8px 0 0;flex-wrap:wrap}
+.editor-toolbar button{padding:4px 8px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;font-size:12px}
+.editor-toolbar button:hover{background:#e8e8e8}
+.editor-content{border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;min-height:200px;padding:12px;outline:none;font-size:13px;overflow-y:auto}
+.spec-group{margin-bottom:10px;padding:10px;background:#f8f9fc;border-radius:8px}
+.spec-row{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+.spec-row input{flex:1}
+.sku-table{width:100%;margin-top:12px}
+.sku-table th,.sku-table td{padding:6px;font-size:12px}
+.sku-table input{width:100%;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:12px}
+.pagination{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.pagination button{padding:6px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
+.pagination button:hover{background:#f5f5f5}
+.pagination button.active{background:#4a6cf7;color:#fff;border-color:#4a6cf7}
+.empty{text-align:center;padding:40px;color:#999}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.card{border:1px solid #e8e8e8;border-radius:12px;overflow:hidden;background:#fff;transition:.2s}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.card-img{height:160px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.card-img img{width:100%;height:100%;object-fit:cover}
+.card-info{padding:12px}
+.card-info .card-name{font-size:14px;font-weight:500;margin-bottom:4px}
+.card-info .card-meta{font-size:12px;color:#999}
+.card-actions{display:flex;gap:6px;margin-top:8px}
+.loading{text-align:center;padding:40px;color:#999}
+.upload-btn{position:relative;overflow:hidden;display:inline-block}
+.upload-btn input{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">商品管理</div>
+      <div class="user-info"><span id="displayName"></span><button class="logout-btn" onclick="doLogout()">退出登录</button></div>
+    </div>
+    <div class="content">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="list">商品列表</button>
+        <button class="tab" data-tab="content">商品内容</button>
+        <button class="tab" data-tab="collections">商品合集</button>
+        <button class="tab" data-tab="non-sellable">非卖商品</button>
+        <button class="tab" data-tab="add">新增商品</button>
+      </div>
+
+      <!-- Tab 1: 商品列表 -->
+      <div class="tab-panel active" id="tab-list"><div id="productList"><div class="loading">加载中...</div></div></div>
+
+      <!-- Tab 2: 商品内容（详情编辑） -->
+      <div class="tab-panel" id="tab-content"><div id="contentList"><div class="loading">加载中...</div></div></div>
+
+      <!-- Tab 3: 商品合集 -->
+      <div class="tab-panel" id="tab-collections"><div id="collectionsView"><div class="loading">加载中...</div></div></div>
+
+      <!-- Tab 4: 非卖商品 -->
+      <div class="tab-panel" id="tab-non-sellable"><div id="nonSellableView"><div class="loading">加载中...</div></div></div>
+
+      <!-- Tab 5: 新增商品 -->
+      <div class="tab-panel" id="tab-add"><div id="addProductForm"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== Sidebar ======
+renderSidebar();
+function renderSidebar(){
+  document.getElementById('sidebar').innerHTML=`<div class="sidebar-header"><div class="logo">M</div><div class="name" id="storeName">百货商城</div></div>
+    <nav style="padding:12px 0">
+      <div class="nav-group"><a class="nav-item" href="/admin"><span class="icon">◆</span>首页</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/store"><span class="icon">◇</span>店铺管理</a></div>
+      <div class="nav-group"><a class="nav-item active" href="/admin/products"><span class="icon">☆</span>商品管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/orders"><span class="icon">☑</span>订单管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/after-sales"><span class="icon">↺</span>售后管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/customers"><span class="icon">☺</span>客户管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/settings"><span class="icon">⚙</span>商城设置</a></div></nav>`;
+}
+
+let currentPage=1, currentFilters={}, categories=[], brands=[];
+
+async function init(){
+  let r=await fetch('/api/auth/me');let u=await r.json();
+  if(u.success)document.getElementById('displayName').textContent=u.user.display_name;
+  r=await fetch('/api/settings');let s=await r.json();
+  if(s.success)document.getElementById('storeName').textContent=s.data.store_name||'百货商城';
+  r=await fetch('/api/categories');categories=(await r.json()).data||[];
+  r=await fetch('/api/admin/brands');brands=(await r.json()).data||[];
+}
+
+// ====== Tabs ======
+document.getElementById('tabs').addEventListener('click',function(e){
+  if(e.target.classList.contains('tab')){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    e.target.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('tab-'+e.target.dataset.tab).classList.add('active');
+    let tab=e.target.dataset.tab;
+    if(tab==='list')loadProducts();
+    if(tab==='content')loadContentList();
+    if(tab==='collections')loadCollections();
+    if(tab==='non-sellable')loadNonSellable();
+    if(tab==='add')renderAddForm();
+  }
+});
+
+function doLogout(){fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/login');}
+
+// ====== Tab 1: 商品列表 ======
+async function loadProducts(page){
+  page=page||1;currentPage=page;
+  let p=new URLSearchParams({page,per_page:20});
+  let kw=document.getElementById('searchKw')?.value||'';
+  let cat=document.getElementById('searchCat')?.value||'';
+  let st=document.getElementById('searchStatus')?.value||'';
+  if(kw)p.set('keyword',kw);
+  if(cat)p.set('category_id',cat);
+  if(st)p.set('status',st);
+  currentFilters={keyword:kw,category_id:cat,status:st};
+  let r=await fetch('/api/products?'+p);
+  let d=(await r.json()).data;
+  let h=`<div class="panel"><div class="panel-header"><h3>商品列表 (${d.total})</h3>
+    <div class="filters">
+      <input id="searchKw" placeholder="搜索商品名称..." value="${kw}" onkeyup="if(event.key==='Enter')loadProducts(1)" style="width:160px" />
+      <select id="searchCat" onchange="loadProducts(1)"><option value="">全部分类</option>${categories.map(c=>'<option value="'+c.id+'" '+(cat==c.id?'selected':'')+'>'+c.name+'</option>').join('')}</select>
+      <select id="searchStatus" onchange="loadProducts(1)"><option value="">全部状态</option><option value="active" ${st==='active'?'selected':''}>在售</option><option value="draft" ${st==='draft'?'selected':''}>草稿</option></select>
+    </div></div>
+  <div class="panel-body"><table><thead><tr><th>商品</th><th>价格</th><th>库存</th><th>分类/品牌</th><th>状态</th><th>销量</th><th>操作</th></tr></thead><tbody>`;
+  d.items.forEach(p=>{
+    let img=p.images&&p.images.length>0?p.images[0]:'';
+    h+=`<tr>
+      <td style="display:flex;align-items:center;gap:8px">${img?'<img src="'+img+'" style="width:40px;height:40px;border-radius:6px;object-fit:cover" />':'<div style="width:40px;height:40px;border-radius:6px;background:#f0f0f0"></div>'} <span>${p.name}</span></td>
+      <td>¥${p.price.toFixed(2)} ${p.original_price?'<span style="text-decoration:line-through;color:#999;font-size:11px">¥'+p.original_price.toFixed(2)+'</span>':''}</td>
+      <td>${p.stock}</td>
+      <td>${p.category_name||'未分类'} ${p.brand_name?' / '+p.brand_name:''}</td>
+      <td><span class="tag tag-${p.status==='active'?'active':'draft'}">${p.status==='active'?'在售':'草稿'}</span></td>
+      <td>${p.sales_count}</td>
+      <td>
+        <button class="btn btn-cancel btn-sm" onclick="showEditModal(${p.id})">编辑</button>
+        <button class="btn btn-warning btn-sm" onclick="markNonSellable(${p.id})">非卖</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">删除</button>
+      </td></tr>`;
+  });
+  h+='</tbody></table>';
+  h+=renderPagination(d.total,d.page,d.per_page);
+  h+='</div></div>';
+  document.getElementById('productList').innerHTML=h;
+}
+
+function renderPagination(total,page,perPage){
+  let pages=Math.ceil(total/perPage);
+  if(pages<=1)return'';
+  let h='<div class="pagination">';
+  for(let i=1;i<=pages;i++)h+=`<button class="${i===page?'active':''}" onclick="loadProducts(${i})">${i}</button>`;
+  return h+'</div>';
+}
+
+// ====== Edit Modal ======
+function showEditModal(id){
+  fetch('/api/products/'+id).then(r=>r.json()).then(d=>{
+    let p=d.data;
+    let overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.innerHTML=`<div class="modal">
+      <div class="modal-header"><h3>编辑商品</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <div class="modal-tabs">
+          <button class="modal-tab active" data-mtab="basic">基础信息</button>
+          <button class="modal-tab" data-mtab="detail">商品详情</button>
+          <button class="modal-tab" data-mtab="specs">规格/SKU</button>
+        </div>
+        <div class="modal-tab-panel active" id="mtab-basic">
+          <div class="form-group"><label>商品名称</label><input id="edName" value="${p.name}" /></div>
+          <div class="form-group"><label>商品图片</label>
+            <div class="img-upload-area" id="edImages"></div>
+            <div class="upload-btn mt-3"><button class="btn btn-cancel btn-sm">上传图片</button><input type="file" accept="image/*" onchange="uploadEditImage(this)" /></div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group"><label>分类</label><select id="edCat">${categories.map(c=>'<option value="'+c.id+'" '+(p.category_id===c.id?'selected':'')+'>'+c.name+'</option>').join('')}</select></div>
+            <div class="form-group"><label>品牌</label><select id="edBrand"><option value="">无</option>${brands.map(b=>'<option value="'+b.id+'" '+(p.brand_id===b.id?'selected':'')+'>'+b.name+'</option>').join('')}</select></div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group"><label>售价</label><input type="number" step="0.01" id="edPrice" value="${p.price}" /></div>
+            <div class="form-group"><label>原价（划线价）</label><input type="number" step="0.01" id="edOrigPrice" value="${p.original_price||''}" /></div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group"><label>库存</label><input type="number" id="edStock" value="${p.stock}" /></div>
+            <div class="form-group"><label>状态</label><select id="edStatus"><option value="active" ${p.status==='active'?'selected':''}>在售</option><option value="draft" ${p.status==='draft'?'selected':''}>草稿</option></select></div>
+          </div>
+          <div class="form-group"><label>简短描述</label><textarea id="edDesc">${p.description||''}</textarea></div>
+        </div>
+        <div class="modal-tab-panel" id="mtab-detail">
+          <div class="editor-toolbar">
+            <button onclick="execCmd('bold')"><b>B</b></button>
+            <button onclick="execCmd('italic')"><i>I</i></button>
+            <button onclick="execCmd('underline')"><u>U</u></button>
+            <button onclick="execCmd('insertUnorderedList')">列表</button>
+            <button onclick="execCmd('formatBlock','<h3>')">H3</button>
+            <button onclick="execCmd('formatBlock','<p>')">正文</button>
+            <button class="upload-btn">插入图片<input type="file" accept="image/*" onchange="insertDetailImage(this)" /></button>
+          </div>
+          <div class="editor-content" id="edDetail" contenteditable="true"></div>
+        </div>
+        <div class="modal-tab-panel" id="mtab-specs">
+          <div id="edSpecsArea"></div>
+          <button class="btn btn-cancel btn-sm mt-3" onclick="addSpecGroup()">+ 添加规格组</button>
+          <div class="form-group mt-3"><label>统一设置价格 <input type="number" step="0.01" id="skuPriceAll" style="width:120px" /> <button class="btn btn-cancel btn-sm" onclick="setAllSkuPrice()">应用</button></label></div>
+          <div class="form-group"><label>统一设置库存 <input type="number" id="skuStockAll" style="width:120px" /> <button class="btn btn-cancel btn-sm" onclick="setAllSkuStock()">应用</button></label></div>
+          <table class="sku-table" id="skuTable"><thead><tr><th>规格</th><th>价格</th><th>库存</th><th>编码</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+          <button class="btn btn-primary" id="edSave">保存</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    // Modal tabs
+    overlay.querySelectorAll('.modal-tab').forEach(t=>{t.onclick=function(){
+      overlay.querySelectorAll('.modal-tab').forEach(x=>x.classList.remove('active'));
+      this.classList.add('active');
+      overlay.querySelectorAll('.modal-tab-panel').forEach(x=>x.classList.remove('active'));
+      overlay.querySelector('#mtab-'+this.dataset.mtab).classList.add('active');
+    }});
+
+    // Init content
+    let images=p.images||[];
+    let imgsHtml=images.map((img,i)=>`<div class="img-upload-box"><img src="${img}" /><span class="remove" onclick="this.parentElement.remove()">×</span></div>`).join('');
+    imgsHtml+='<div class="img-upload-box upload-btn" style="font-size:24px;color:#ccc">+<input type="file" accept="image/*" onchange="uploadEditImage(this)" /></div>';
+    overlay.querySelector('#edImages').innerHTML=imgsHtml;
+    setTimeout(()=>overlay.querySelector('#edDetail').innerHTML=p.detail_html||'',200);
+
+    // Specs editor
+    let specs=p.specs||[],skus=p.skus||[];
+    overlay.specsData=specs;
+    overlay.skusData=skus;
+    renderSpecEditor(overlay,specs,skus);
+
+    overlay.querySelector('#edSave').onclick=async()=>{
+      let imgs=[...overlay.querySelectorAll('#edImages .img-upload-box img')].map(i=>i.src);
+      let data={
+        name:overlay.querySelector('#edName').value,
+        description:overlay.querySelector('#edDesc').value,
+        detail_html:overlay.querySelector('#edDetail').innerHTML,
+        price:parseFloat(overlay.querySelector('#edPrice').value)||0,
+        original_price:parseFloat(overlay.querySelector('#edOrigPrice').value)||null,
+        stock:parseInt(overlay.querySelector('#edStock').value)||0,
+        category_id:overlay.querySelector('#edCat').value?parseInt(overlay.querySelector('#edCat').value):null,
+        brand_id:overlay.querySelector('#edBrand').value?parseInt(overlay.querySelector('#edBrand').value):null,
+        status:overlay.querySelector('#edStatus').value,
+        images:imgs,
+        specs:overlay.specsData,
+        skus:collectSkus(overlay)
+      };
+      let r=await fetch('/api/products/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      let j=await r.json();
+      if(j.success){overlay.remove();loadProducts(currentPage);}else alert(j.message);
+    };
+  });
+}
+
+function execCmd(cmd,val){
+  document.execCommand(cmd,false,val);
+}
+
+async function uploadEditImage(input){
+  let fd=new FormData();fd.append('file',input.files[0]);
+  let r=await fetch('/api/upload',{method:'POST',body:fd});
+  let j=await r.json();
+  if(j.success){
+    let area=document.getElementById('edImages');
+    let box=document.createElement('div');
+    box.className='img-upload-box';
+    box.innerHTML=`<img src="${j.data.url}" /><span class="remove" onclick="this.parentElement.remove()">×</span>`;
+    area.querySelector('.upload-btn')?.before(box);
+  }
+}
+
+async function insertDetailImage(input){
+  let fd=new FormData();fd.append('file',input.files[0]);
+  let r=await fetch('/api/upload',{method:'POST',body:fd});
+  let j=await r.json();
+  if(j.success){document.execCommand('insertImage',false,j.data.url);}
+}
+
+function renderSpecEditor(overlay,specs,skus){
+  let area=overlay.querySelector('#edSpecsArea');
+  let h='';
+  specs.forEach((spec,i)=>{
+    h+=`<div class="spec-group"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <input value="${spec.name||''}" placeholder="规格名（如颜色）" onchange="overlay.specsData[${i}].name=this.value;genSkuTable(overlay)" style="flex:1" />
+      <button class="btn btn-danger btn-sm" onclick="overlay.specsData.splice(${i},1);renderSpecEditor(overlay,overlay.specsData,overlay.skusData)">删除</button>
+    </div>
+    <div id="specVals${i}">${(spec.values||[]).map((v,j)=>`<div class="spec-row">
+      <input value="${v}" placeholder="规格值（如红色）" onchange="overlay.specsData[${i}].values[${j}]=this.value;genSkuTable(overlay)" />
+      <button class="btn btn-danger btn-sm" onclick="overlay.specsData[${i}].values.splice(${j},1);renderSpecEditor(overlay,overlay.specsData,overlay.skusData)">×</button>
+    </div>`).join('')}</div>
+    <button class="btn btn-cancel btn-sm" onclick="addSpecValue(overlay,${i})">+ 添加值</button></div>`;
+  });
+  area.innerHTML=h;
+  setTimeout(()=>genSkuTable(overlay),100);
+}
+
+function addSpecGroup(){
+  let overlay=document.querySelector('.modal-overlay .modal');
+  if(!overlay)return;
+  let _overlay=document.querySelector('.modal-overlay');
+  _overlay.specsData.push({name:'',values:[]});
+  renderSpecEditor(_overlay,_overlay.specsData,_overlay.skusData);
+}
+
+function addSpecValue(overlay,i){
+  overlay.specsData[i].values.push('');
+  renderSpecEditor(overlay,overlay.specsData,overlay.skusData);
+}
+
+function genSkuTable(overlay){
+  let specs=overlay.specsData;
+  let tbody=overlay.querySelector('#skuTable tbody');
+  if(specs.length===0||specs.some(s=>!s.values||s.values.length===0)){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#999">请先添加规格组和值</td></tr>';return;}
+
+  function cartesian(arrays){
+    return arrays.reduce((a,b)=>a.flatMap(d=>b.map(e=>[...d,e])),[[]]);
+  }
+  let vals=specs.map(s=>s.values.filter(v=>v));
+  if(vals.some(v=>v.length===0)){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#999">请填写完整的规格值</td></tr>';return;}
+
+  let combos=cartesian(vals);
+  let defaultPrice=parseFloat(overlay.querySelector('#edPrice')?.value)||0;
+
+  let h='';
+  combos.forEach((combo,i)=>{
+    let label=combo.join(' / ');
+    let existing=overlay.skusData.find(s=>JSON.stringify(s.spec_values)===JSON.stringify(combo));
+    let price=existing?existing.price:defaultPrice;
+    let stock=existing?existing.stock:0;
+    let code=existing?existing.sku_code||'':'';
+    h+=`<tr>
+      <td>${label}</td>
+      <td><input type="number" step="0.01" value="${price}" data-sku-idx="${i}" data-field="price" /></td>
+      <td><input type="number" value="${stock}" data-sku-idx="${i}" data-field="stock" /></td>
+      <td><input value="${code}" data-sku-idx="${i}" data-field="sku_code" /></td>
+    </tr>`;
+  });
+  tbody.innerHTML=h;
+}
+
+function collectSkus(overlay){
+  let specs=overlay.specsData;
+  if(specs.length===0||specs.some(s=>!s.values||s.values.length===0))return[];
+  let vals=specs.map(s=>s.values.filter(v=>v));
+  if(vals.some(v=>v.length===0))return[];
+
+  function cartesian(arrays){return arrays.reduce((a,b)=>a.flatMap(d=>b.map(e=>[...d,e])),[[]]);}
+  let combos=cartesian(vals);
+  let skus=[];
+  overlay.querySelectorAll('#skuTable tbody input').forEach(inp=>{
+    let idx=parseInt(inp.dataset.skuIdx);
+    let field=inp.dataset.field;
+    if(!skus[idx])skus[idx]={spec_values:combos[idx],price:0,stock:0,sku_code:''};
+    if(field==='price')skus[idx].price=parseFloat(inp.value)||0;
+    if(field==='stock')skus[idx].stock=parseInt(inp.value)||0;
+    if(field==='sku_code')skus[idx].sku_code=inp.value;
+  });
+  return skus;
+}
+
+function setAllSkuPrice(){
+  let v=parseFloat(document.getElementById('skuPriceAll').value)||0;
+  document.querySelectorAll('#skuTable tbody input[data-field="price"]').forEach(i=>i.value=v);
+}
+function setAllSkuStock(){
+  let v=parseInt(document.getElementById('skuStockAll').value)||0;
+  document.querySelectorAll('#skuTable tbody input[data-field="stock"]').forEach(i=>i.value=v);
+}
+
+async function markNonSellable(id){
+  if(!confirm('标记为非卖商品？'))return;
+  await fetch('/api/products/'+id+'/status',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'non_sellable'})});
+  loadProducts(currentPage);
+}
+async function deleteProduct(id){
+  if(!confirm('确认删除？'))return;
+  await fetch('/api/products/'+id,{method:'DELETE'});
+  loadProducts(currentPage);
+}
+
+// ====== Tab 2: 商品内容 ======
+async function loadContentList(page){
+  page=page||1;
+  let r=await fetch('/api/products?status=all&page='+page+'&per_page=20');
+  let d=(await r.json()).data;
+  let h=`<div class="panel"><div class="panel-header"><h3>商品内容管理</h3></div>
+  <div class="panel-body"><table><thead><tr><th>商品</th><th>详情状态</th><th>内容长度</th><th>操作</th></tr></thead><tbody>`;
+  d.items.forEach(p=>{
+    let hasDetail=!!p.detail_html;
+    h+=`<tr><td>${p.name}</td>
+      <td><span class="tag tag-${hasDetail?'active':'draft'}">${hasDetail?'有内容':'未编辑'}</span></td>
+      <td>${(p.detail_html||'').length} 字符</td>
+      <td><button class="btn btn-primary btn-sm" onclick="openContentEditor(${p.id})">编辑内容</button></td></tr>`;
+  });
+  h+='</tbody></table>'+renderPaginationSimple(d.total,d.page,d.per_page,'loadContentList')+'</div></div>';
+  document.getElementById('contentList').innerHTML=h;
+}
+function renderPaginationSimple(total,page,perPage,fn){
+  let pages=Math.ceil(total/perPage);
+  if(pages<=1)return'';
+  let h='<div class="pagination">';
+  for(let i=1;i<=pages;i++)h+=`<button class="${i===page?'active':''}" onclick="${fn}(${i})">${i}</button>`;
+  return h+'</div>';
+}
+function openContentEditor(id){
+  fetch('/api/products/'+id).then(r=>r.json()).then(d=>{
+    let p=d.data;
+    let overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.innerHTML=`<div class="modal" style="width:800px">
+      <div class="modal-header"><h3>${p.name} - 商品详情编辑</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <div class="editor-toolbar">
+          <button onclick="document.getElementById('cntEditor').focus();document.execCommand('bold')"><b>B</b></button>
+          <button onclick="document.getElementById('cntEditor').focus();document.execCommand('italic')"><i>I</i></button>
+          <button onclick="document.getElementById('cntEditor').focus();document.execCommand('underline')"><u>U</u></button>
+          <button onclick="document.getElementById('cntEditor').focus();document.execCommand('insertUnorderedList')">列表</button>
+          <button onclick="document.getElementById('cntEditor').focus();document.execCommand('formatBlock','<h3>')">H3</button>
+          <button class="upload-btn">插入图片<input type="file" accept="image/*" onchange="insertContentImage(this)" /></button>
+        </div>
+        <div class="editor-content" id="cntEditor" contenteditable="true"></div>
+        <div class="form-actions">
+          <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+          <button class="btn btn-primary" id="cntSave">保存内容</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    setTimeout(()=>overlay.querySelector('#cntEditor').innerHTML=p.detail_html||'',200);
+    overlay.querySelector('#cntSave').onclick=async()=>{
+      let html=overlay.querySelector('#cntEditor').innerHTML;
+      let r=await fetch('/api/products/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({detail_html:html,name:p.name,description:p.description,price:p.price,stock:p.stock,images:p.images,specs:p.specs,status:p.status,category_id:p.category_id,brand_id:p.brand_id})});
+      let j=await r.json();
+      if(j.success){overlay.remove();loadContentList();}else alert(j.message);
+    };
+  });
+}
+async function insertContentImage(input){
+  let fd=new FormData();fd.append('file',input.files[0]);
+  let r=await fetch('/api/upload',{method:'POST',body:fd});
+  let j=await r.json();
+  if(j.success)document.execCommand('insertImage',false,j.data.url);
+}
+
+// ====== Tab 3: 商品合集 ======
+async function loadCollections(){
+  let r=await fetch('/api/admin/collections');
+  let d=(await r.json()).data;
+  let h=`<div class="panel"><div class="panel-header"><h3>商品合集</h3><button class="btn btn-primary btn-sm" onclick="showCollectionModal()">+ 新建合集</button></div>
+  <div class="panel-body"><div class="card-grid">`;
+  d.forEach(c=>{
+    h+=`<div class="card">
+      <div class="card-img">${c.cover_image?'<img src="'+c.cover_image+'" />':'📦'}</div>
+      <div class="card-info">
+        <div class="card-name">${c.name} <span class="tag tag-${c.status==='active'?'active':'draft'}">${c.status==='active'?'启用':'停用'}</span></div>
+        <div class="card-meta">${c.product_count} 件商品 | ${c.description||''}</div>
+        <div class="card-actions">
+          <button class="btn btn-cancel btn-sm" onclick="showCollectionModal(${c.id})">编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCollection(${c.id})">删除</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  if(d.length===0)h+='<div class="empty">暂无合集</div>';
+  h+='</div></div></div>';
+  document.getElementById('collectionsView').innerHTML=h;
+}
+function showCollectionModal(id){
+  let overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-header"><h3>${id?'编辑':'新建'}合集</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>合集名称</label><input id="colName" /></div>
+      <div class="form-group"><label>描述</label><textarea id="colDesc"></textarea></div>
+      <div class="form-group"><label>封面图URL</label><input id="colCover" /></div>
+      <div class="form-group"><label>商品ID（逗号分隔）</label><input id="colPids" placeholder="1,2,3" /></div>
+      ${id?'<div class="form-group"><label>状态</label><select id="colStatus"><option value="active">启用</option><option value="inactive">停用</option></select></div>':''}
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="colSave">${id?'保存':'创建'}</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  if(id){
+    let col=null;
+    fetch('/api/admin/collections').then(r=>r.json()).then(d=>{col=d.data.find(x=>x.id===id);
+      if(col){overlay.querySelector('#colName').value=col.name;overlay.querySelector('#colDesc').value=col.description||'';overlay.querySelector('#colCover').value=col.cover_image||'';overlay.querySelector('#colPids').value=(col.product_ids||[]).join(',');if(col.status)overlay.querySelector('#colStatus').value=col.status;}
+    });
+  }
+  overlay.querySelector('#colSave').onclick=async()=>{
+    let data={name:overlay.querySelector('#colName').value,description:overlay.querySelector('#colDesc').value,
+      cover_image:overlay.querySelector('#colCover').value,
+      product_ids:overlay.querySelector('#colPids').value.split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n))};
+    if(id&&overlay.querySelector('#colStatus'))data.status=overlay.querySelector('#colStatus').value;
+    let url='/api/admin/collections',method='POST';
+    if(id){url+='/'+id;method='PUT';}
+    let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    let j=await r.json();
+    if(j.success){overlay.remove();loadCollections();}else alert(j.message);
+  };
+}
+async function deleteCollection(id){if(confirm('确认删除？')){await fetch('/api/admin/collections/'+id,{method:'DELETE'});loadCollections();}}
+
+// ====== Tab 4: 非卖商品 ======
+async function loadNonSellable(page){
+  page=page||1;
+  let r=await fetch('/api/products?status=non_sellable&page='+page+'&per_page=20');
+  let d=(await r.json()).data;
+  let h=`<div class="panel"><div class="panel-header"><h3>非卖商品 (${d.total})</h3></div>
+  <div class="panel-body"><table><thead><tr><th>商品</th><th>价格</th><th>库存</th><th>分类</th><th>操作</th></tr></thead><tbody>`;
+  d.items.forEach(p=>{
+    let img=p.images&&p.images.length>0?p.images[0]:'';
+    h+=`<tr><td style="display:flex;align-items:center;gap:8px">${img?'<img src="'+img+'" style="width:36px;height:36px;border-radius:4px;object-fit:cover" />':''}${p.name}</td>
+      <td>¥${p.price.toFixed(2)}</td><td>${p.stock}</td><td>${p.category_name||'-'}</td>
+      <td><button class="btn btn-success btn-sm" onclick="restoreProduct(${p.id})">恢复在售</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">删除</button></td></tr>`;
+  });
+  h+='</tbody></table>'+renderPaginationSimple(d.total,d.page,d.per_page,'loadNonSellable')+'</div></div>';
+  document.getElementById('nonSellableView').innerHTML=h;
+}
+async function restoreProduct(id){
+  await fetch('/api/products/'+id+'/status',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'active'})});
+  loadNonSellable();
+}
+
+// ====== Tab 5: 新增商品 ======
+let addFormSpecs=[], addFormSkus=[];
+
+function renderAddForm(){
+  addFormSpecs=[]; addFormSkus=[];
+  let h=`<div class="panel"><div class="panel-header"><h3>新增商品</h3></div>
+  <div class="panel-body">
+    <div class="form-group"><label>商品名称 *</label><input id="addName" placeholder="请输入商品名称" /></div>
+    <div class="form-group"><label>商品图片</label>
+      <div class="img-upload-area" id="addImages"></div>
+      <div class="upload-btn mt-3"><button class="btn btn-cancel btn-sm">上传图片</button><input type="file" accept="image/*" onchange="uploadAddImage(this)" /></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>分类</label><select id="addCat">${categories.map(c=>'<option value="'+c.id+'">'+c.name+'</option>').join('')}</select></div>
+      <div class="form-group"><label>品牌</label><select id="addBrand"><option value="">无</option>${brands.map(b=>'<option value="'+b.id+'">'+b.name+'</option>').join('')}</select></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>售价 *</label><input type="number" step="0.01" id="addPrice" placeholder="0.00" /></div>
+      <div class="form-group"><label>原价（划线价）</label><input type="number" step="0.01" id="addOrigPrice" placeholder="选填" /></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>库存 *</label><input type="number" id="addStock" placeholder="0" /></div>
+      <div class="form-group"><label>状态</label><select id="addStatus"><option value="active">在售（上架）</option><option value="draft">草稿</option></select></div>
+    </div>
+    <div class="form-group"><label>简短描述</label><textarea id="addDesc" placeholder="一句话描述商品卖点"></textarea></div>
+
+    <div class="form-group">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <label style="margin-bottom:0">规格/SKU</label>
+        <button class="btn btn-cancel btn-sm" onclick="toggleAddSpecs()" id="btnToggleSpecs">展开编辑</button>
+      </div>
+      <div id="addSpecsPanel" style="display:none">
+        <div id="addSpecsArea"></div>
+        <button class="btn btn-cancel btn-sm mt-3" onclick="addSpecGroup_add()">+ 添加规格组</button>
+        <div class="form-group mt-3"><label>统一设置价格 <input type="number" step="0.01" id="skuPriceAll_add" style="width:120px" /> <button class="btn btn-cancel btn-sm" onclick="setAllAddSkuPrice()">应用</button></label></div>
+        <div class="form-group"><label>统一设置库存 <input type="number" id="skuStockAll_add" style="width:120px" /> <button class="btn btn-cancel btn-sm" onclick="setAllAddSkuStock()">应用</button></label></div>
+        <table class="sku-table" id="skuTableAdd"><thead><tr><th>规格</th><th>价格</th><th>库存</th><th>编码</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="form-group"><label>商品详情</label>
+      <div class="editor-toolbar">
+        <button onclick="document.getElementById('addDetail').focus();document.execCommand('bold')"><b>B</b></button>
+        <button onclick="document.getElementById('addDetail').focus();document.execCommand('italic')"><i>I</i></button>
+        <button onclick="document.getElementById('addDetail').focus();document.execCommand('underline')"><u>U</u></button>
+        <button onclick="document.getElementById('addDetail').focus();document.execCommand('insertUnorderedList')">列表</button>
+        <button onclick="document.getElementById('addDetail').focus();document.execCommand('formatBlock','<h3>')">H3</button>
+        <button class="upload-btn">插入图片<input type="file" accept="image/*" onchange="insertAddDetailImage(this)" /></button>
+      </div>
+      <div class="editor-content" id="addDetail" contenteditable="true" style="min-height:200px"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="doAddProduct()" style="padding:12px 48px;font-size:15px">上架商品</button>
+    </div>
+  </div></div>`;
+  document.getElementById('addProductForm').innerHTML=h;
+}
+
+async function uploadAddImage(input){
+  let fd=new FormData();fd.append('file',input.files[0]);
+  let r=await fetch('/api/upload',{method:'POST',body:fd});
+  let j=await r.json();
+  if(j.success){
+    let area=document.getElementById('addImages');
+    let box=document.createElement('div');
+    box.className='img-upload-box';
+    box.innerHTML=`<img src="${j.data.url}" /><span class="remove" onclick="this.parentElement.remove()">×</span>`;
+    area.appendChild(box);
+  }
+}
+
+async function insertAddDetailImage(input){
+  let fd=new FormData();fd.append('file',input.files[0]);
+  let r=await fetch('/api/upload',{method:'POST',body:fd});
+  let j=await r.json();
+  if(j.success)document.execCommand('insertImage',false,j.data.url);
+}
+
+function toggleAddSpecs(){
+  let btn=document.getElementById('btnToggleSpecs');
+  if(panel.style.display==='none'){
+    panel.style.display='block';
+    btn.textContent='收起';
+  }else{
+    panel.style.display='none';
+    btn.textContent='展开编辑';
+  }
+}
+
+function renderAddSpecEditor(){
+  let area=document.getElementById('addSpecsArea');
+  let h='';
+  addFormSpecs.forEach((spec,i)=>{
+    h+=`<div class="spec-group"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <input value="${spec.name||''}" placeholder="规格名（如颜色）" onchange="addFormSpecs[${i}].name=this.value;genAddSkuTable()" style="flex:1" />
+      <button class="btn btn-danger btn-sm" onclick="addFormSpecs.splice(${i},1);renderAddSpecEditor()">删除</button>
+    </div>
+    <div id="addSpecVals${i}">${(spec.values||[]).map((v,j)=>`<div class="spec-row">
+      <input value="${v}" placeholder="规格值（如红色）" onchange="addFormSpecs[${i}].values[${j}]=this.value;genAddSkuTable()" />
+      <button class="btn btn-danger btn-sm" onclick="addFormSpecs[${i}].values.splice(${j},1);renderAddSpecEditor()">×</button>
+    </div>`).join('')}</div>
+    <button class="btn btn-cancel btn-sm" onclick="addSpecValue_add(${i})">+ 添加值</button></div>`;
+  });
+  area.innerHTML=h;
+  setTimeout(()=>genAddSkuTable(),100);
+}
+
+function addSpecGroup_add(){
+  addFormSpecs.push({name:'',values:[]});
+  renderAddSpecEditor();
+  document.getElementById('addSpecsPanel').style.display='block';
+  document.getElementById('btnToggleSpecs').textContent='收起';
+}
+
+function addSpecValue_add(i){
+  addFormSpecs[i].values.push('');
+  renderAddSpecEditor();
+}
+
+function genAddSkuTable(){
+  let tbody=document.querySelector('#skuTableAdd tbody');
+  if(addFormSpecs.length===0||addFormSpecs.some(s=>!s.values||s.values.length===0)){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#999">请先添加规格组和值</td></tr>';return;}
+  function cartesian(arrays){return arrays.reduce((a,b)=>a.flatMap(d=>b.map(e=>[...d,e])),[[]]);}
+  let vals=addFormSpecs.map(s=>s.values.filter(v=>v));
+  if(vals.some(v=>v.length===0)){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#999">请填写完整的规格值</td></tr>';return;}
+  let combos=cartesian(vals);
+  let defaultPrice=parseFloat(document.getElementById('addPrice')?.value)||0;
+  let h='';
+  combos.forEach((combo,i)=>{
+    let label=combo.join(' / ');
+    let existing=addFormSkus.find(s=>JSON.stringify(s.spec_values)===JSON.stringify(combo));
+    let price=existing?existing.price:defaultPrice;
+    let stock=existing?existing.stock:0;
+    let code=existing?existing.sku_code||'':'';
+    h+=`<tr><td>${label}</td>
+      <td><input type="number" step="0.01" value="${price}" data-sku-idx="${i}" data-field="price" /></td>
+      <td><input type="number" value="${stock}" data-sku-idx="${i}" data-field="stock" /></td>
+      <td><input value="${code}" data-sku-idx="${i}" data-field="sku_code" /></td></tr>`;
+  });
+  tbody.innerHTML=h;
+}
+
+function collectAddSkus(){
+  if(addFormSpecs.length===0||addFormSpecs.some(s=>!s.values||s.values.length===0))return[];
+  let vals=addFormSpecs.map(s=>s.values.filter(v=>v));
+  if(vals.some(v=>v.length===0))return[];
+  function cartesian(arrays){return arrays.reduce((a,b)=>a.flatMap(d=>b.map(e=>[...d,e])),[[]]);}
+  let combos=cartesian(vals);
+  let skus=[];
+  document.querySelectorAll('#skuTableAdd tbody input').forEach(inp=>{
+    let idx=parseInt(inp.dataset.skuIdx);
+    let field=inp.dataset.field;
+    if(!skus[idx])skus[idx]={spec_values:combos[idx],price:0,stock:0,sku_code:''};
+    if(field==='price')skus[idx].price=parseFloat(inp.value)||0;
+    if(field==='stock')skus[idx].stock=parseInt(inp.value)||0;
+    if(field==='sku_code')skus[idx].sku_code=inp.value;
+  });
+  return skus;
+}
+
+function setAllAddSkuPrice(){
+  let v=parseFloat(document.getElementById('skuPriceAll_add').value)||0;
+  document.querySelectorAll('#skuTableAdd tbody input[data-field="price"]').forEach(i=>i.value=v);
+}
+function setAllAddSkuStock(){
+  let v=parseInt(document.getElementById('skuStockAll_add').value)||0;
+  document.querySelectorAll('#skuTableAdd tbody input[data-field="stock"]').forEach(i=>i.value=v);
+}
+
+async function insertAddDetailImage(input){
+  let fd=new FormData();fd.append('file',input.files[0]);
+  let r=await fetch('/api/upload',{method:'POST',body:fd});
+  let j=await r.json();
+  if(j.success)document.execCommand('insertImage',false,j.data.url);
+}
+
+async function doAddProduct(){
+  let name=document.getElementById('addName').value.trim();
+  if(!name){alert('请输入商品名称');return;}
+  if(!document.getElementById('addPrice').value){alert('请输入售价');return;}
+
+  let imgs=[...document.querySelectorAll('#addImages img')].map(i=>i.src);
+  let skus=collectAddSkus();
+
+  let data={
+    name:name,
+    description:document.getElementById('addDesc').value,
+    detail_html:document.getElementById('addDetail').innerHTML,
+    price:parseFloat(document.getElementById('addPrice').value)||0,
+    original_price:parseFloat(document.getElementById('addOrigPrice').value)||null,
+    stock:parseInt(document.getElementById('addStock').value)||0,
+    category_id:document.getElementById('addCat').value?parseInt(document.getElementById('addCat').value):null,
+    brand_id:document.getElementById('addBrand').value?parseInt(document.getElementById('addBrand').value):null,
+    status:document.getElementById('addStatus').value,
+    images:imgs,
+    specs:addFormSpecs,
+    skus:skus
+  };
+
+  let r=await fetch('/api/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  let j=await r.json();
+  if(j.success){
+    window.location.href='/product/'+j.data.id;
+  }else{
+    alert(j.message);
+  }
+}
+
+// Init
+init();
+loadProducts();
+</script>
+</body>
+</html>
