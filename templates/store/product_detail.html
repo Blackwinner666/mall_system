@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品详情 - 百货商城</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f5f5;color:#333}
+a{color:inherit;text-decoration:none}
+
+/* Header */
+.header{background:#fff;border-bottom:1px solid #f0f0f0;position:sticky;top:0;z-index:50}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px}
+.header-left{display:flex;align-items:center;gap:10px}
+.header-logo{width:36px;height:36px;border-radius:8px;background:#eeedfe;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.header-logo img{width:100%;height:100%;object-fit:cover}
+.header-logo svg{width:22px;height:22px;fill:#534ab7}
+.header-title{font-size:16px;font-weight:600;color:#1a1a1a}
+.header-right{display:flex;align-items:center;gap:12px}
+.header-btn{padding:6px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:1px solid #e0e0e0;background:#fff;color:#666;transition:.15s;text-decoration:none}
+.header-btn:hover{border-color:#534ab7;color:#534ab7}
+
+/* Breadcrumb */
+.breadcrumb{max-width:1200px;margin:0 auto;padding:12px 16px;font-size:12px;color:#999}
+.breadcrumb a:hover{color:#534ab7}
+.breadcrumb span{color:#666}
+
+/* Main layout */
+.main{max-width:1200px;margin:0 auto;padding:0 16px 24px;display:flex;gap:24px}
+.gallery{width:420px;flex-shrink:0}
+.gallery-main{width:420px;height:420px;background:#fff;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:1px solid #f0f0f0;cursor:zoom-in;position:relative}
+.gallery-main img{width:100%;height:100%;object-fit:cover}
+.gallery-main .no-img{font-size:80px;color:#e0e0e0}
+.gallery-thumbs{display:flex;gap:8px;margin-top:10px}
+.gallery-thumb{width:64px;height:64px;border-radius:8px;border:2px solid transparent;overflow:hidden;cursor:pointer;opacity:.6;transition:.2s}
+.gallery-thumb:hover{opacity:1}
+.gallery-thumb.active{border-color:#534ab7;opacity:1}
+.gallery-thumb img{width:100%;height:100%;object-fit:cover}
+
+/* Info panel */
+.info{flex:1;min-width:0}
+.info-panel{background:#fff;border-radius:12px;padding:24px;border:1px solid #f0f0f0}
+.info-name{font-size:20px;font-weight:600;line-height:1.4;margin-bottom:12px;color:#1a1a1a}
+.info-subtitle{font-size:13px;color:#999;margin-bottom:16px}
+.info-price-wrap{background:linear-gradient(135deg,#fff5f5,#fff0f0);border-radius:10px;padding:16px;margin-bottom:16px}
+.info-price-row{display:flex;align-items:baseline;gap:8px}
+.info-price{font-size:32px;font-weight:700;color:#e24b4a}
+.info-price .symbol{font-size:20px}
+.info-orig{font-size:14px;color:#ccc;text-decoration:line-through;margin-left:4px}
+.info-discount{display:inline-block;background:#e24b4a;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;margin-left:8px;vertical-align:middle}
+.info-meta{display:flex;gap:24px;margin-bottom:16px;font-size:13px;color:#666}
+.info-meta span{display:flex;align-items:center;gap:4px}
+.info-meta .label{color:#999}
+
+/* Specs */
+.spec-section{margin-bottom:16px}
+.spec-section .spec-label{font-size:13px;color:#666;margin-bottom:8px;font-weight:500}
+.spec-values{display:flex;gap:8px;flex-wrap:wrap}
+.spec-value{padding:6px 16px;border:1px solid #ddd;border-radius:6px;font-size:13px;cursor:pointer;transition:.2s;user-select:none;background:#fff}
+.spec-value:hover{border-color:#534ab7;color:#534ab7}
+.spec-value.active{background:#534ab7;color:#fff;border-color:#534ab7}
+.spec-value.disabled{background:#f5f5f5;color:#ccc;border-color:#eee;cursor:not-allowed}
+
+/* Quantity */
+.qty-section{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.qty-label{font-size:13px;color:#666;font-weight:500}
+.qty-ctrl{display:flex;align-items:center;border:1px solid #ddd;border-radius:6px;overflow:hidden}
+.qty-ctrl button{width:32px;height:32px;border:none;background:#f5f5f5;color:#666;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.qty-ctrl button:hover{background:#e8e8e8}
+.qty-ctrl button:disabled{color:#ccc;cursor:not-allowed}
+.qty-ctrl input{width:52px;height:32px;border:none;border-left:1px solid #ddd;border-right:1px solid #ddd;text-align:center;font-size:14px;outline:none}
+
+/* Stock warning */
+.stock-info{font-size:13px;color:#ea580c;margin-bottom:16px}
+
+/* Actions */
+.info-actions{display:flex;gap:12px;align-items:center}
+.btn-lg{height:48px;padding:0 32px;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:.2s;flex:1;max-width:200px}
+.btn-buy{background:linear-gradient(135deg,#e24b4a,#d63031);color:#fff}
+.btn-buy:hover{opacity:.9}
+.btn-buy:disabled{background:#ccc;cursor:not-allowed}
+.btn-cart{background:#fff;color:#534ab7;border:2px solid #534ab7}
+.btn-cart:hover{background:#f8f6ff}
+.btn-cart:disabled{color:#ccc;border-color:#ddd;background:#f5f5f5;cursor:not-allowed}
+.btn-fav{width:48px;height:48px;border:none;border-radius:10px;font-size:22px;cursor:pointer;transition:.2s;background:#fff;border:2px solid #e0e0e0;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.btn-fav:hover{border-color:#e24b4a;background:#fff5f5}
+.btn-fav.active{background:#e24b4a;border-color:#e24b4a;color:#fff}
+
+/* Detail tabs */
+.detail-section{max-width:1200px;margin:0 auto;padding:0 16px 60px}
+.detail-tabs{display:flex;gap:0;background:#fff;border-radius:12px 12px 0 0;overflow:hidden;border:1px solid #f0f0f0;border-bottom:none}
+.detail-tab{padding:14px 28px;font-size:14px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;transition:.2s;font-weight:500}
+.detail-tab:hover{color:#534ab7}
+.detail-tab.active{color:#534ab7;border-bottom-color:#534ab7}
+.detail-content{background:#fff;border-radius:0 0 12px 12px;padding:24px;min-height:300px;border:1px solid #f0f0f0;border-top:none}
+.detail-panel{display:none}
+.detail-panel.active{display:block}
+.detail-html{font-size:14px;line-height:1.8;color:#333}
+.detail-html img{max-width:100%;height:auto;display:block;margin:12px auto;border-radius:8px}
+.detail-html h3{font-size:16px;margin:16px 0 8px;color:#1a1a1a}
+.detail-html p{margin:6px 0}
+.specs-table{width:100%;border-collapse:collapse}
+.specs-table th,.specs-table td{padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}
+.specs-table th{width:120px;text-align:left;color:#999;font-weight:500}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;z-index:200;display:none;white-space:nowrap}
+.toast.show{display:block;animation:fadeInOut 2s}
+@keyframes fadeInOut{0%,100%{opacity:0}10%,80%{opacity:1}}
+
+/* Footer */
+.footer{background:#fff;border-top:1px solid #f0f0f0;padding:24px 16px;text-align:center;color:#bbb;font-size:12px}
+
+/* Loading */
+.loading{text-align:center;padding:60px;color:#999;font-size:14px}
+
+/* 404 */
+.not-found{text-align:center;padding:80px 20px}
+.not-found h2{font-size:24px;color:#999;margin-bottom:12px}
+.not-found p{color:#ccc;margin-bottom:20px}
+.not-found .btn{display:inline-block;padding:10px 24px;background:#534ab7;color:#fff;border-radius:8px;text-decoration:none;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <a href="/" class="header-logo" id="headerLogo">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+      </a>
+      <a href="/" class="header-title" id="headerTitle">百货商城</a>
+    </div>
+    <div class="header-right" id="headerRight">
+      <a href="/login" class="header-btn">登录</a>
+    </div>
+  </div>
+</div>
+
+<div class="breadcrumb" id="breadcrumb"><a href="/">首页</a> <span>&gt;</span> <span id="bcCategory">商品</span> <span>&gt;</span> <span id="bcName">详情</span></div>
+
+<div class="main" id="mainContent"><div class="loading">加载中...</div></div>
+
+<div class="detail-section" id="detailSection"></div>
+
+<div class="footer" id="footerInfo">百货商城</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const pid = parseInt(window.location.pathname.split('/').filter(Boolean).pop());
+let product = null;
+let selectedSpecs = {};
+let quantity = 1;
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function doLogout() {
+  fetch('/api/auth/logout', {method:'POST'}).then(() => location.href='/');
+}
+
+async function init() {
+  // Login state
+  const meRes = await fetch('/api/auth/me'); const meJson = await meRes.json();
+  const hr = document.getElementById('headerRight');
+  if (meJson.success && meJson.logged_in) {
+    const u = meJson.user;
+    hr.innerHTML = '<a href="/cart" class="header-btn" style="position:relative">&#128722; 购物车</a>' +
+      '<a href="/profile" class="header-btn">个人中心</a>' +
+      '<span style="font-size:13px;color:#333;font-weight:500">' + u.display_name + '</span>' +
+      '<button class="header-btn" onclick="doLogout()">退出</button>';
+  } else {
+    hr.innerHTML = '<a href="/login" class="header-btn">登录</a>';
+  }
+
+  // Store info
+  const sRes = await fetch('/api/settings'); const sJson = await sRes.json();
+  if (sJson.success && sJson.data) {
+    const d = sJson.data;
+    document.getElementById('headerTitle').textContent = d.store_name || '百货商城';
+    document.getElementById('footerInfo').textContent = d.store_name || '百货商城';
+    document.title = (d.store_name || '百货商城');
+    if (d.store_logo) {
+      document.getElementById('headerLogo').innerHTML = '<img src="' + d.store_logo + '" alt="logo">';
+    }
+  }
+
+  // Product detail
+  const res = await fetch('/api/products/' + pid);
+  const json = await res.json();
+  if (!json.success) {
+    document.getElementById('mainContent').innerHTML = '<div class="not-found"><h2>商品不存在或已下架</h2><p>该商品可能已被删除或暂未上架</p><a href="/" class="btn">返回首页</a></div>';
+    return;
+  }
+
+  product = json.data;
+  document.title = product.name + ' - ' + document.title;
+  document.getElementById('bcCategory').textContent = product.category_name || '商品';
+  document.getElementById('bcName').textContent = product.name;
+
+  renderMain();
+  renderDetail();
+  checkFavorite();
+}
+
+function getCurrentSku() {
+  if (!product || !product.specs || product.specs.length === 0) return null;
+  const specKeys = Object.keys(selectedSpecs);
+  if (specKeys.length !== product.specs.length) return null;
+  const vals = product.specs.map(s => selectedSpecs[s.name]);
+  return product.skus.find(s => JSON.stringify(s.spec_values) === JSON.stringify(vals)) || null;
+}
+
+function getCurrentPrice() {
+  const sku = getCurrentSku();
+  return sku ? sku.price : product.price;
+}
+
+function getCurrentStock() {
+  const sku = getCurrentSku();
+  return sku !== null ? sku.stock : product.stock;
+}
+
+function renderMain() {
+  const p = product;
+  const imgs = p.images || [];
+  const mainImg = imgs.length > 0 ? imgs[0] : '';
+
+  let galleryHtml = '';
+  if (imgs.length > 0) {
+    galleryHtml = '<div class="gallery-main" id="galleryMain"><img src="' + mainImg + '" alt="' + p.name + '" id="mainImg" /></div>';
+    if (imgs.length > 1) {
+      galleryHtml += '<div class="gallery-thumbs">' + imgs.map((img, i) =>
+        '<div class="gallery-thumb' + (i === 0 ? ' active' : '') + '" onclick="switchImage(' + i + ')"><img src="' + img + '" /></div>'
+      ).join('') + '</div>';
+    }
+  } else {
+    galleryHtml = '<div class="gallery-main"><span class="no-img">&#128247;</span></div>';
+  }
+
+  // Specs
+  let specsHtml = '';
+  if (p.specs && p.specs.length > 0) {
+    p.specs.forEach(spec => {
+      specsHtml += '<div class="spec-section"><div class="spec-label">' + spec.name + '</div><div class="spec-values">';
+      spec.values.forEach(v => {
+        specsHtml += '<span class="spec-value" data-spec="' + spec.name + '" data-val="' + v + '" onclick="selectSpec(this, \'' + spec.name + '\', \'' + v.replace(/'/g, "\\'") + '\')">' + v + '</span>';
+      });
+      specsHtml += '</div></div>';
+    });
+  }
+
+  // Discount
+  let discountHtml = '';
+  if (p.original_price && p.original_price > p.price) {
+    const disc = Math.round((1 - p.price / p.original_price) * 100);
+    discountHtml = '<span class="info-discount">' + disc + '% OFF</span>';
+  }
+
+  const currentPrice = getCurrentPrice();
+  const currentStock = getCurrentStock();
+  const allSpecsSelected = !p.specs || p.specs.length === 0 || Object.keys(selectedSpecs).length === p.specs.length;
+
+  let stockHtml = '';
+  if (allSpecsSelected) {
+    if (currentStock === 0) {
+      stockHtml = '<div class="stock-info">该商品暂时缺货</div>';
+    } else if (currentStock < 10) {
+      stockHtml = '<div class="stock-info">仅剩 ' + currentStock + ' 件</div>';
+    }
+  }
+
+  const disabled = currentStock === 0 || !allSpecsSelected;
+
+  document.getElementById('mainContent').innerHTML = galleryHtml + `
+    <div class="info">
+      <div class="info-panel">
+        <div class="info-name">${p.name}</div>
+        <div class="info-subtitle">${p.description || ''}</div>
+        <div class="info-price-wrap">
+          <div class="info-price-row">
+            <span class="info-price"><span class="symbol">¥</span><span id="displayPrice">${currentPrice.toFixed(2)}</span></span>
+            ${p.original_price ? '<span class="info-orig">¥' + p.original_price.toFixed(2) + '</span>' : ''}
+            ${discountHtml}
+          </div>
+        </div>
+        <div class="info-meta">
+          <span><span class="label">销量</span> ${p.sales_count} 件</span>
+          <span><span class="label">库存</span> <span id="displayStock">${allSpecsSelected ? currentStock : '-'}</span></span>
+          ${p.brand_name ? '<span><span class="label">品牌</span> ' + p.brand_name + '</span>' : ''}
+          <span><span class="label">分类</span> ${p.category_name || '-'}</span>
+        </div>
+        ${specsHtml}
+        ${stockHtml}
+        <div class="qty-section">
+          <span class="qty-label">数量</span>
+          <div class="qty-ctrl">
+            <button onclick="changeQty(-1)" id="qtyMinus"${disabled?' disabled':''}>−</button>
+            <input type="number" value="1" min="1" max="${currentStock}" id="qtyInput" onchange="onQtyInput()" ${disabled?' disabled':''}>
+            <button onclick="changeQty(1)" id="qtyPlus"${disabled?' disabled':''}>+</button>
+          </div>
+          ${!disabled ? '<span style="font-size:12px;color:#999">（库存 ' + currentStock + ' 件）</span>' : ''}
+        </div>
+        <div class="info-actions">
+          <button class="btn-lg btn-cart" id="btnCart" onclick="addToCart()"${disabled?' disabled':''}>加入购物车</button>
+          <button class="btn-lg btn-buy" id="btnBuy" onclick="buyNow()"${disabled?' disabled':''}>立即购买</button>
+          <button class="btn-fav" id="btnFav" onclick="toggleFavorite()" title="收藏">&#9825;</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function switchImage(i) {
+  const imgs = product.images || [];
+  if (i >= imgs.length) return;
+  document.getElementById('mainImg').src = imgs[i];
+  document.querySelectorAll('.gallery-thumb').forEach((t, idx) => t.classList.toggle('active', idx === i));
+}
+
+function selectSpec(el, specName, specVal) {
+  selectedSpecs[specName] = specVal;
+  // Update visuals
+  document.querySelectorAll('.spec-value[data-spec="' + specName + '"]').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+
+  const sku = getCurrentSku();
+  const allSelected = product.specs && Object.keys(selectedSpecs).length === product.specs.length;
+
+  // Update price
+  let price = product.price;
+  let stock = product.stock;
+  if (sku) { price = sku.price; stock = sku.stock; }
+  else if (allSelected) { stock = 0; }
+
+  document.getElementById('displayPrice').textContent = price.toFixed(2);
+
+  if (allSelected) {
+    document.getElementById('displayStock').textContent = stock;
+  }
+
+  // Update quantity
+  quantity = 1;
+  document.getElementById('qtyInput').value = 1;
+  document.getElementById('qtyInput').max = stock;
+
+  const disabled = stock === 0 || !allSelected;
+  document.getElementById('qtyMinus').disabled = disabled;
+  document.getElementById('qtyPlus').disabled = disabled;
+  document.getElementById('qtyInput').disabled = disabled;
+  document.getElementById('btnCart').disabled = disabled;
+  document.getElementById('btnBuy').disabled = disabled;
+
+  // Re-render stock warning
+  renderMain();
+}
+
+function changeQty(delta) {
+  const stock = getCurrentStock();
+  quantity = Math.max(1, Math.min(stock, quantity + delta));
+  document.getElementById('qtyInput').value = quantity;
+}
+
+function onQtyInput() {
+  const stock = getCurrentStock();
+  let v = parseInt(document.getElementById('qtyInput').value) || 1;
+  quantity = Math.max(1, Math.min(stock, v));
+  document.getElementById('qtyInput').value = quantity;
+}
+
+function renderDetail() {
+  const p = product;
+  document.getElementById('detailSection').innerHTML = `
+    <div class="detail-tabs">
+      <button class="detail-tab active" onclick="switchDetailTab(this, 'desc')">商品详情</button>
+      ${p.specs && p.specs.length > 0 ? '<button class="detail-tab" onclick="switchDetailTab(this, \'params\')">规格参数</button>' : ''}
+    </div>
+    <div class="detail-content">
+      <div class="detail-panel active" id="panel-desc">
+        <div class="detail-html">${p.detail_html || '<p style="color:#999;text-align:center;padding:40px">暂无详细描述</p>'}</div>
+      </div>
+      ${p.specs && p.specs.length > 0 ? `
+      <div class="detail-panel" id="panel-params">
+        ${p.specs.map(spec => `
+          <table class="specs-table">
+            <tr><th>${spec.name}</th><td>${(spec.values||[]).join('、')}</td></tr>
+          </table>
+        `).join('')}
+      </div>` : ''}
+    </div>`;
+}
+
+function switchDetailTab(el, name) {
+  document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.detail-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+async function addToCart() {
+  if (getCurrentStock() === 0) { showToast('商品已售罄'); return; }
+  const allSpecsSelected = !product.specs || product.specs.length === 0 || Object.keys(selectedSpecs).length === product.specs.length;
+  if (!allSpecsSelected) { showToast('请选择完整规格'); return; }
+
+  const sku = getCurrentSku();
+  const specDesc = product.specs && product.specs.length > 0
+    ? product.specs.map(s => selectedSpecs[s.name] || '').filter(Boolean).join(' / ')
+    : '';
+
+  try {
+    const res = await fetch('/api/cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_id: product.id,
+        sku_id: sku ? sku.id : null,
+        quantity: quantity,
+        spec_desc: specDesc
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const goCart = confirm(data.message + '，是否去购物车查看？');
+      if (goCart) location.href = '/cart';
+    } else if (data.need_login) {
+      location.href = '/login';
+    } else {
+      showToast(data.message || '操作失败');
+    }
+  } catch (e) {
+    showToast('网络错误，请稍后重试');
+  }
+}
+
+async function buyNow() {
+  if (getCurrentStock() === 0) { showToast('商品已售罄'); return; }
+  // 先加入购物车，再跳转
+  await addToCartSilent();
+  location.href = '/cart';
+}
+
+async function addToCartSilent() {
+  const sku = getCurrentSku();
+  const specDesc = product.specs && product.specs.length > 0
+    ? product.specs.map(s => selectedSpecs[s.name] || '').filter(Boolean).join(' / ')
+    : '';
+  try {
+    await fetch('/api/cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_id: product.id,
+        sku_id: sku ? sku.id : null,
+        quantity: quantity,
+        spec_desc: specDesc
+      })
+    });
+  } catch (e) {}
+}
+
+async function toggleFavorite() {
+  try {
+    const res = await fetch('/api/favorites/' + product.id, { method: 'POST' });
+    const data = await res.json();
+    if (data.need_login) { location.href = '/login'; return; }
+    if (data.success) {
+      updateFavIcon(data.favorited);
+      showToast(data.message);
+    } else {
+      showToast(data.message || '操作失败');
+    }
+  } catch (e) {
+    showToast('网络错误');
+  }
+}
+
+function updateFavIcon(favorited) {
+  const btn = document.getElementById('btnFav');
+  if (favorited) {
+    btn.innerHTML = '&#9829;';
+    btn.classList.add('active');
+    btn.title = '取消收藏';
+  } else {
+    btn.innerHTML = '&#9825;';
+    btn.classList.remove('active');
+    btn.title = '收藏';
+  }
+}
+
+async function checkFavorite() {
+  try {
+    const res = await fetch('/api/favorites/check/' + product.id);
+    const data = await res.json();
+    if (data.success) updateFavIcon(data.favorited);
+  } catch (e) {}
+}
+
+// 在 init 中调用 checkFavorite
+init();
+</script>
+</body>
+</html>
