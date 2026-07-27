@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>店铺管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#333}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;flex-shrink:0}
+.sidebar-header{padding:20px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:36px;height:36px;background:#4a6cf7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.sidebar-header .name{font-size:15px;font-weight:600}
+.nav-group{padding:0 12px;margin-bottom:8px}
+.nav-group-title{font-size:11px;color:rgba(255,255,255,.4);padding:8px 12px;letter-spacing:1px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:14px;transition:.2s;cursor:pointer;margin:2px 0}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:#4a6cf7;color:#fff}
+.nav-item .icon{width:20px;text-align:center;font-size:15px}
+.main{flex:1;overflow-y:auto}
+.topbar{background:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8}
+.topbar .breadcrumb{font-size:13px;color:#999}
+.topbar .user-info{display:flex;align-items:center;gap:10px;font-size:13px}
+.topbar .logout-btn{background:none;border:1px solid #ddd;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;color:#666}
+.content{padding:24px}
+.tabs{display:flex;gap:0;background:#fff;border-radius:12px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.tab{padding:12px 24px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;transition:.2s;font-weight:500}
+.tab:hover{color:#4a6cf7}
+.tab.active{color:#4a6cf7;border-bottom-color:#4a6cf7}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.panel-header{padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.panel-header h3{font-size:15px;font-weight:600}
+.panel-body{padding:20px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:6px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;transition:.2s}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#4a6cf7;box-shadow:0 0 0 3px rgba(74,108,247,.1)}
+.form-group textarea{resize:vertical;min-height:80px}
+.form-actions{margin-top:20px;display:flex;gap:10px}
+.btn{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:.2s}
+.btn-primary{background:#4a6cf7;color:#fff}
+.btn-primary:hover{background:#3b5de7}
+.btn-cancel{background:#f5f5f5;color:#666}
+.btn-success{background:#ecfdf5;color:#059669}
+.btn-danger{background:#fef2f2;color:#dc2626}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
+.btn-icon{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;border:none;font-size:14px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid #f0f0f0}
+th{font-weight:600;color:#555;font-size:12px;background:#f8f9fc}
+td{color:#333}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px}
+.tag-active{background:#ecfdf5;color:#059669}
+.tag-inactive{background:#f3f4f6;color:#6b7280}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.mb-3{margin-bottom:12px}
+.logo-preview{width:80px;height:80px;border-radius:8px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:8px}
+.logo-preview img{width:100%;height:100%;object-fit:cover}
+.block-card{border:1px solid #e8e8e8;border-radius:12px;padding:16px;margin-bottom:12px;display:flex;gap:16px;align-items:flex-start}
+.block-card .block-icon{width:80px;height:60px;border-radius:8px;background:#f0f0f0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px}
+.block-info{flex:1}
+.block-info .block-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.block-info .block-desc{font-size:12px;color:#999}
+.block-actions{display:flex;gap:6px;flex-shrink:0}
+.input-sm{width:60px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px;text-align:center}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;width:560px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{padding:16px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border:none;background:#f5f5f5;border-radius:8px;cursor:pointer;font-size:18px;color:#999}
+.modal-body{padding:20px 24px}
+.pagination{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.pagination button{padding:6px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
+.pagination button:hover{background:#f5f5f5}
+.pagination button.active{background:#4a6cf7;color:#fff;border-color:#4a6cf7}
+.empty{text-align:center;padding:40px;color:#999}
+.loading{text-align:center;padding:40px;color:#999}
+.upload-btn{position:relative;overflow:hidden;display:inline-block}
+.upload-btn input{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">店铺管理</div>
+      <div class="user-info"><span id="displayName"></span><button class="logout-btn" onclick="doLogout()">退出登录</button></div>
+    </div>
+    <div class="content">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="store-info">店铺信息</button>
+        <button class="tab" data-tab="homepage">主页管理</button>
+        <button class="tab" data-tab="brands">品牌管理</button>
+        <button class="tab" data-tab="categories">类目管理</button>
+        <button class="tab" data-tab="members">成员管理</button>
+      </div>
+
+      <!-- Tab 1: 店铺信息 -->
+      <div class="tab-panel active" id="tab-store-info">
+        <div class="panel"><div class="panel-header"><h3>店铺信息</h3></div>
+          <div class="panel-body"><div id="storeInfoForm"><div class="loading">加载中...</div></div></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: 主页管理 -->
+      <div class="tab-panel" id="tab-homepage">
+        <div class="panel">
+          <div class="panel-header"><h3>主页模块管理</h3><button class="btn btn-primary btn-sm" onclick="showBlockModal()">+ 添加模块</button></div>
+          <div class="panel-body" id="blocksList"><div class="loading">加载中...</div></div>
+        </div>
+      </div>
+
+      <!-- Tab 3: 品牌管理 -->
+      <div class="tab-panel" id="tab-brands">
+        <div class="panel">
+          <div class="panel-header"><h3>品牌管理</h3><button class="btn btn-primary btn-sm" onclick="showBrandModal()">+ 添加品牌</button></div>
+          <div class="panel-body" id="brandsList"><div class="loading">加载中...</div></div>
+        </div>
+      </div>
+
+      <!-- Tab 4: 类目管理 -->
+      <div class="tab-panel" id="tab-categories">
+        <div class="panel">
+          <div class="panel-header"><h3>类目管理</h3><button class="btn btn-primary btn-sm" onclick="showCategoryModal()">+ 添加类目</button></div>
+          <div class="panel-body" id="categoriesList"><div class="loading">加载中...</div></div>
+        </div>
+      </div>
+
+      <!-- Tab 5: 成员管理 -->
+      <div class="tab-panel" id="tab-members">
+        <div class="panel">
+          <div class="panel-header"><h3>店铺成员</h3><button class="btn btn-primary btn-sm" onclick="showMemberModal()">+ 添加成员</button></div>
+          <div class="panel-body" id="membersList"><div class="loading">加载中...</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== Sidebar ======
+renderSidebar();
+function renderSidebar() {
+  document.getElementById('sidebar').innerHTML = `<div class="sidebar-header"><div class="logo">M</div><div class="name" id="storeName">百货商城</div></div>
+    <nav style="padding:12px 0">
+      <div class="nav-group"><a class="nav-item" href="/admin"><span class="icon">◆</span>首页</a></div>
+      <div class="nav-group"><a class="nav-item active" href="/admin/store"><span class="icon">◇</span>店铺管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/products"><span class="icon">☆</span>商品管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/orders"><span class="icon">☑</span>订单管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/after-sales"><span class="icon">↺</span>售后管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/customers"><span class="icon">☺</span>客户管理</a></div>
+      <div class="nav-group"><a class="nav-item" href="/admin/settings"><span class="icon">⚙</span>商城设置</a></div></nav>`;
+}
+
+async function init(){
+  let r=await fetch('/api/auth/me');let u=await r.json();
+  if(u.success)document.getElementById('displayName').textContent=u.user.display_name;
+  r=await fetch('/api/settings');let s=await r.json();
+  if(s.success)document.getElementById('storeName').textContent=s.data.store_name||'百货商城';
+}
+
+// ====== Tabs ======
+document.getElementById('tabs').addEventListener('click',function(e){
+  if(e.target.classList.contains('tab')){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    e.target.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('tab-'+e.target.dataset.tab).classList.add('active');
+    let tab=e.target.dataset.tab;
+    if(tab==='store-info')loadStoreInfo();
+    if(tab==='homepage')loadBlocks();
+    if(tab==='brands')loadBrands();
+    if(tab==='categories')loadCategories();
+    if(tab==='members')loadMembers();
+  }
+});
+
+function doLogout(){fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/login');}
+
+// ====== Tab 1: 店铺信息 ======
+async function loadStoreInfo(){
+  let r=await fetch('/api/settings');
+  let d=(await r.json()).data;
+  let h=`<form id="storeInfoFormEl">
+    <div class="grid-2">
+      <div class="form-group"><label>店铺名称</label><input name="store_name" value="${d.store_name||''}" /></div>
+      <div class="form-group"><label>联系电话</label><input name="contact_phone" value="${d.contact_phone||''}" /></div>
+    </div>
+    <div class="form-group"><label>店铺描述</label><textarea name="store_description">${d.store_description||''}</textarea></div>
+    <div class="grid-2">
+      <div class="form-group"><label>联系邮箱</label><input name="contact_email" value="${d.contact_email||''}" /></div>
+      <div class="form-group"><label>店铺地址</label><input name="store_address" value="${d.store_address||''}" /></div>
+    </div>
+    <div class="form-group"><label>店铺Logo</label>
+      <div class="logo-preview">${d.store_logo?'<img src="'+d.store_logo+'" />':'暂无Logo'}</div>
+      <div class="upload-btn"><button class="btn btn-cancel btn-sm" type="button">上传Logo</button><input type="file" accept="image/*" onchange="uploadLogo(this)" /></div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" onclick="saveStoreInfo()">保存设置</button>
+    </div>
+  </form>`;
+  document.getElementById('storeInfoForm').innerHTML=h;
+}
+async function uploadLogo(input){
+  let fd=new FormData();fd.append('file',input.files[0]);
+  let r=await fetch('/api/upload',{method:'POST',body:fd});
+  let j=await r.json();
+  if(j.success){
+    let url=j.data.url;
+    document.querySelector('.logo-preview').innerHTML='<img src="'+url+'" />';
+    await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({store_logo:url})});
+    location.reload();
+  }
+}
+async function saveStoreInfo(){
+  let fd=new FormData(document.getElementById('storeInfoFormEl'));
+  let data={};for(let[k,v]of fd.entries())data[k]=v;
+  let r=await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  let j=await r.json();
+  alert(j.message);
+}
+
+// ====== Tab 2: 主页管理 ======
+async function loadBlocks(){
+  let r=await fetch('/api/admin/store-blocks');
+  let d=(await r.json()).data;
+  let types={banner:'Banner轮播',category:'分类展示',product:'商品推荐',activity:'活动模块'};
+  let h='';
+  if(d.length===0)h='<div class="empty">暂无模块，点击上方按钮添加</div>';
+  d.forEach(b=>{
+    let cfg=b.config||{};
+    h+=`<div class="block-card">
+      <div class="block-icon">${b.block_type==='banner'?'🖼':b.block_type==='product'?'🛍':'📋'}</div>
+      <div class="block-info">
+        <div class="block-title">${b.title||types[b.block_type]||b.block_type} <span class="tag tag-${b.status==='active'?'active':'inactive'}">${b.status==='active'?'启用':'停用'}</span></div>
+        <div class="block-desc">类型：${types[b.block_type]||b.block_type} | 排序：${b.sort_order}</div>
+        ${cfg.product_ids?`<div class="block-desc">商品ID：${Array.isArray(cfg.product_ids)?cfg.product_ids.join(', '):cfg.product_ids}</div>`:''}
+      </div>
+      <div class="block-actions">
+        <button class="btn btn-cancel btn-sm" onclick="showBlockModal(${b.id})">编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteBlock(${b.id})">删除</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('blocksList').innerHTML=h;
+}
+function showBlockModal(id){
+  let overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-header"><h3>${id?'编辑':'添加'}模块</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>模块标题</label><input id="blkTitle" /></div>
+      <div class="form-group"><label>模块类型</label><select id="blkType">
+        <option value="banner">Banner轮播</option>
+        <option value="category">分类展示</option>
+        <option value="product">商品推荐</option>
+        <option value="activity">活动模块</option>
+      </select></div>
+      <div class="form-group" id="blkProductIdsGrp" style="display:none"><label>商品ID（逗号分隔）</label><input id="blkProductIds" placeholder="1,2,3" /></div>
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="blkSave">${id?'保存':'添加'}</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('blkType').onchange=function(){
+    document.getElementById('blkProductIdsGrp').style.display=this.value==='product'?'block':'none';
+  };
+  document.getElementById('blkSave').onclick=async()=>{
+    let data={block_type:document.getElementById('blkType').value,title:document.getElementById('blkTitle').value,config:{}};
+    if(data.block_type==='product')data.config.product_ids=document.getElementById('blkProductIds').value.split(',').map(s=>s.trim()).filter(s=>s);
+    let url='/api/admin/store-blocks',method='POST';
+    if(id){url+='/'+id;method='PUT';}
+    let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    let j=await r.json();
+    if(j.success){overlay.remove();loadBlocks();}else alert(j.message);
+  };
+}
+async function deleteBlock(id){
+  if(!confirm('确认删除？'))return;
+  await fetch('/api/admin/store-blocks/'+id,{method:'DELETE'});
+  loadBlocks();
+}
+
+// ====== Tab 3: 品牌管理 ======
+async function loadBrands(){
+  let r=await fetch('/api/admin/brands');
+  let d=(await r.json()).data;
+  let h='<table><thead><tr><th>ID</th><th>品牌名称</th><th>Logo</th><th>描述</th><th>商品数</th><th>排序</th><th>操作</th></tr></thead><tbody>';
+  d.forEach(b=>{
+    h+=`<tr>
+      <td>${b.id}</td><td>${b.name}</td>
+      <td>${b.logo?'<img src="'+b.logo+'" style="width:30px;height:30px;border-radius:4px;object-fit:cover" />':'-'}</td>
+      <td>${b.description||'-'}</td><td>${b.product_count}</td><td>${b.sort_order}</td>
+      <td><button class="btn btn-cancel btn-sm" onclick="showBrandModal(${b.id})">编辑</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteBrand(${b.id})">删除</button></td></tr>`;
+  });
+  h+='</tbody></table>';
+  if(d.length===0)h='<div class="empty">暂无品牌</div>';
+  document.getElementById('brandsList').innerHTML=h;
+}
+function showBrandModal(id){
+  let overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-header"><h3>${id?'编辑':'添加'}品牌</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>品牌名称</label><input id="brName" /></div>
+      <div class="form-group"><label>Logo URL</label><input id="brLogo" /></div>
+      <div class="form-group"><label>描述</label><textarea id="brDesc"></textarea></div>
+      <div class="form-group"><label>排序</label><input type="number" id="brSort" value="0" /></div>
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="brSave">${id?'保存':'添加'}</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  if(id){
+    fetch('/api/admin/brands').then(r=>r.json()).then(d=>{
+      let b=d.data.find(x=>x.id===id);
+      if(b){
+        document.getElementById('brName').value=b.name;
+        document.getElementById('brLogo').value=b.logo||'';
+        document.getElementById('brDesc').value=b.description||'';
+        document.getElementById('brSort').value=b.sort_order;
+      }
+    });
+  }
+  document.getElementById('brSave').onclick=async()=>{
+    let data={name:document.getElementById('brName').value,logo:document.getElementById('brLogo').value,
+      description:document.getElementById('brDesc').value,sort_order:parseInt(document.getElementById('brSort').value)||0};
+    let url='/api/admin/brands',method='POST';
+    if(id){url+='/'+id;method='PUT';}
+    let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    let j=await r.json();
+    if(j.success){overlay.remove();loadBrands();}else alert(j.message);
+  };
+}
+async function deleteBrand(id){if(confirm('确认删除？')){await fetch('/api/admin/brands/'+id,{method:'DELETE'});loadBrands();}}
+
+// ====== Tab 4: 类目管理 ======
+async function loadCategories(){
+  let r=await fetch('/api/categories');
+  let d=(await r.json()).data;
+  let h='<table><thead><tr><th>ID</th><th>类目名称</th><th>商品数</th><th>排序</th><th>操作</th></tr></thead><tbody>';
+  d.forEach(c=>{
+    h+=`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.product_count||0}</td><td><input type="number" value="${c.sort_order}" class="input-sm" onchange="updateCategorySort(${c.id},this.value)" /></td>
+      <td><button class="btn btn-cancel btn-sm" onclick="showCategoryModal(${c.id},'${c.name}')">重命名</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCategory(${c.id})">删除</button></td></tr>`;
+  });
+  h+='</tbody></table>';
+  document.getElementById('categoriesList').innerHTML=h;
+}
+function showCategoryModal(id,name){
+  let overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-header"><h3>${id?'重命名':'添加'}类目</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>类目名称</label><input id="catName" value="${name||''}" placeholder="不超过20个字" maxlength="20" /></div>
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="catSave">${id?'保存':'添加'}</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('catSave').onclick=async()=>{
+    let nm=document.getElementById('catName').value.trim();
+    if(!nm)return alert('类目名称不能为空');
+    let url='/api/admin/categories',method='POST';
+    if(id){url+='/'+id;method='PUT';}
+    let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nm})});
+    let j=await r.json();
+    if(j.success){overlay.remove();loadCategories();}else alert(j.message);
+  };
+}
+async function updateCategorySort(id,val){
+  await fetch('/api/admin/categories/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({sort_order:parseInt(val)||0,name:''})});
+  loadCategories();
+}
+async function deleteCategory(id){if(confirm('确认删除？商品将变为未分类。')){await fetch('/api/admin/categories/'+id,{method:'DELETE'});loadCategories();}}
+
+// ====== Tab 5: 成员管理 ======
+async function loadMembers(){
+  let r=await fetch('/api/admin/members');
+  let d=(await r.json()).data;
+  let roles={admin:'超级管理员',manager:'店长',staff:'员工',editor:'编辑员'};
+  let h='<table><thead><tr><th>用户名</th><th>昵称</th><th>角色</th><th>手机号</th><th>邮箱</th><th>状态</th><th>最后登录</th><th>操作</th></tr></thead><tbody>';
+  d.forEach(m=>{
+    h+=`<tr><td>${m.username}${m.role==='admin'&&!m.store_role?' <span class="tag tag-active">超级管理员</span>':''}</td>
+      <td>${m.display_name||'-'}</td>
+      <td>${roles[m.store_role]||m.store_role||'—'}</td>
+      <td>${m.phone||'-'}</td><td>${m.email||'-'}</td>
+      <td><span class="tag tag-${m.status==='active'?'active':'inactive'}">${m.status==='active'?'正常':'停用'}</span></td>
+      <td>${m.last_login||'-'}</td>
+      <td>${m.username!=='admin'?`<button class="btn btn-cancel btn-sm" onclick="showMemberModal(${m.id})">编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id})">${m.status==='active'?'停用':'启用'}</button>`:'—'}</td>
+    </tr>`;
+  });
+  h+='</tbody></table>';
+  document.getElementById('membersList').innerHTML=h;
+}
+function showMemberModal(id){
+  let overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-header"><h3>${id?'编辑':'添加'}成员</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      ${!id?'<div class="form-group"><label>用户名</label><input id="mUser" /></div><div class="form-group"><label>密码</label><input type="password" id="mPass" /></div>':''}
+      <div class="form-group"><label>昵称</label><input id="mName" /></div>
+      <div class="grid-2">
+        <div class="form-group"><label>手机号</label><input id="mPhone" /></div>
+        <div class="form-group"><label>邮箱</label><input id="mEmail" /></div>
+      </div>
+      <div class="form-group"><label>店铺角色</label><select id="mRole"><option value="manager">店长</option><option value="staff">员工</option><option value="editor">编辑员</option></select></div>
+      ${id?'<div class="form-group"><label>新密码（不填则不改）</label><input type="password" id="mNewPass" /></div>':''}
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="mSave">${id?'保存':'添加'}</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  if(id){
+    fetch('/api/admin/members').then(r=>r.json()).then(d=>{
+      let m=d.data.find(x=>x.id===id);
+      if(m){
+        document.getElementById('mName').value=m.display_name||'';
+        document.getElementById('mPhone').value=m.phone||'';
+        document.getElementById('mEmail').value=m.email||'';
+        document.getElementById('mRole').value=m.store_role||'staff';
+      }
+    });
+  }
+  document.getElementById('mSave').onclick=async()=>{
+    let data={display_name:document.getElementById('mName').value,phone:document.getElementById('mPhone').value,
+      email:document.getElementById('mEmail').value,store_role:document.getElementById('mRole').value};
+    if(!id){data.username=document.getElementById('mUser').value;data.password=document.getElementById('mPass').value;}
+    if(id){let pw=document.getElementById('mNewPass').value;if(pw)data.password=pw;}
+    let url='/api/admin/members',method='POST';
+    if(id){url+='/'+id;method='PUT';}
+    let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    let j=await r.json();
+    if(j.success){overlay.remove();loadMembers();}else alert(j.message);
+  };
+}
+async function deleteMember(id){
+  let r=await fetch('/api/admin/members/'+id,{method:'DELETE'});
+  let j=await r.json();
+  if(j.success)loadMembers();else alert(j.message);
+}
+
+// ====== Init ======
+init();
+loadStoreInfo();
+</script>
+</body>
+</html>
