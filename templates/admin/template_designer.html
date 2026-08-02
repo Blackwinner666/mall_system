@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>可视化拖拽创作 - 公众号管理</title>
+<title>模板制作 - 公众号管理</title>
 <style>
 :root{--primary:#534ab7;--primary-light:#eeedfe;--primary-dark:#3c3489;--bg:#f5f6fa;--card:#fff;--text:#1a1a2e;--text2:#555;--text3:#999;--border:#e8e8e8;--danger:#e24b4a;--warning:#ff9800;--success:#4caf50;--radius:12px;}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -121,11 +121,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
         <a class="nav-item" href="/publish">
           <span class="icon">&#9999;</span> 文章发布
         </a>
-        <a class="nav-item" href="/template-editor">
-          <span class="icon">&#127912;</span> 模板管理
-        </a>
         <a class="nav-item active" href="/admin/template-designer">
-          <span class="icon">&#129513;</span> 可视化拖拽创作
+          <span class="icon">&#129513;</span> 模板制作
+        </a>
+        <a class="nav-item" href="/admin/builtin-templates">
+          <span class="icon">&#128208;</span> 内置模板管理
         </a>
         <a class="nav-item" href="/admin/generation-records">
           <span class="icon">&#128221;</span> 生成记录
@@ -135,7 +135,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
   </aside>
   <div class="main">
     <div class="topbar">
-      <div class="breadcrumb">公众号管理 / 可视化拖拽创作</div>
+      <div class="breadcrumb">公众号管理 / 模板制作</div>
       <div class="user-info">
         <a href="/admin" class="logout-btn">切换系统</a>
         <a href="/portal" class="logout-btn">工作台</a>
@@ -178,6 +178,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
           <span style="font-size:12px;font-weight:700;color:#c2410c;">&#128310; 发布为内置模板</span>
           <input id="builtin-cat" class="form-input" style="width:130px;" placeholder="分类(可选)">
           <button class="btn btn-warning btn-sm" onclick="publishAsBuiltin()">发布当前设计为内置模板</button>
+          <a href="/admin/builtin-templates" style="font-size:12px;color:#c2410c;text-decoration:underline;">去「内置模板管理」查看/编辑 &rsaquo;</a>
           <span id="builtin-edit-hint" style="font-size:12px;color:#9a3412;"></span>
         </div>
         <div class="dg-layout">
@@ -214,11 +215,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
         <div class="tpl-grid" id="admin-template-grid"><div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text3);font-size:13px;">加载中...</div></div>
       </div>
 
-      <!-- 内置模板库（管理员发布的内置排版模板） -->
-      <div class="card" id="builtin-card" style="display:none;">
-        <div class="card-title">&#128310; 内置模板库 <span style="font-size:12px;color:var(--text3);font-weight:400;">（你发布的内置排版模板，用户在发布页的「内置模板」中可选用；它作为排版样式预设套用在用户自己的文章内容上）</span></div>
-        <div class="tpl-grid" id="builtin-grid"><div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text3);font-size:13px;">加载中...</div></div>
-      </div>
     </div>
   </div>
 </div>
@@ -695,14 +691,11 @@ async function init() {
     }
   } catch(e) {}
   await loadUserTemplates();
-  // 管理员：显示「发布为内置模板」与「内置模板库」
+  // 管理员：显示「发布为内置模板」
   try {
     if (currentUser && currentUser.role === 'admin') {
       const pr = document.getElementById('builtin-publish-row');
-      const bc = document.getElementById('builtin-card');
       if (pr) pr.style.display = 'flex';
-      if (bc) bc.style.display = '';
-      loadBuiltinList();
     }
   } catch(e) {}
   // 恢复上次未保存的草稿
@@ -761,51 +754,13 @@ async function publishAsBuiltin(){
     if(editingBuiltinId){ url='/api/admin/builtin-templates/'+editingBuiltinId; method='PUT'; }
     const r = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const d = await r.json();
-    if(d.success){ toast('已发布为内置模板：'+name,'success'); editingBuiltinId=null; const h=document.getElementById('builtin-edit-hint'); if(h) h.textContent=''; loadBuiltinList(); }
+    if(d.success){
+      toast('已发布为内置模板：'+name+'，可到「内置模板管理」查看','success');
+      editingBuiltinId=null;
+      const h=document.getElementById('builtin-edit-hint'); if(h) h.textContent='';
+    }
     else { toast('发布失败：'+d.message,'err'); }
   }catch(e){ toast('发布失败：'+e.message,'err'); }
-}
-
-async function loadBuiltinList(){
-  const grid = document.getElementById('builtin-grid'); if(!grid) return;
-  try{
-    const r = await fetch('/api/admin/builtin-templates');
-    const d = await r.json();
-    if(d.success && d.templates.length){
-      grid.innerHTML = d.templates.map(t=>{
-        const off = t.is_active ? '' : '<span class="badge-off">已停用</span>';
-        return '<div class="tpl-card"><div class="tpl-swatch" style="background:'+(t.bg||'#fff')+';"><div class="dot" style="background:'+(t.accent||'#888')+';"></div></div>'+
-          '<div class="tpl-body"><div class="tpl-name">'+esc(t.name)+' <span class="cat-tag">'+esc(t.category||'通用')+'</span> '+off+'</div>'+
-          '<div class="tpl-desc">'+esc(t.description||'')+'</div></div>'+
-          '<div class="tpl-actions"><button class="btn btn-ghost btn-sm" onclick="previewBuiltin('+t.id+')">预览</button>'+
-          '<button class="btn btn-danger btn-sm" onclick="removeBuiltin('+t.id+',\''+esc(t.name)+'\')">删除</button></div></div>';
-      }).join('');
-    } else { grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text3);font-size:13px;">还没有发布的内置模板，用上方设计器做好后点「发布为内置模板」。</div>'; }
-  }catch(e){ grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:#dc2626;font-size:13px;">加载失败</div>'; }
-}
-
-async function previewBuiltin(id){
-  try{
-    const r = await fetch('/api/admin/builtin-templates/'+id);
-    const d = await r.json();
-    if(!d.success){ toast('读取失败','err'); return; }
-    const t = d.template;
-    const pr = await fetch('/api/admin/builtin-templates/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({style_json:t.style_json, body_json:t.body_json, header_html:t.header_html, footer_html:t.footer_html})});
-    const pd = await pr.json();
-    showDragResult(pd.success?'预览已生成':'预览失败','ok');
-    const w=window.open('','_blank');
-    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:20px;background:#f5f5f5;}</style></head><body>'+(pd.html||'')+'</body></html>');
-    w.document.close();
-  }catch(e){ toast('预览失败：'+e.message,'err'); }
-}
-
-async function removeBuiltin(id,name){
-  if(!confirm('确定删除内置模板「'+name+'」？')) return;
-  try{
-    const r=await fetch('/api/admin/builtin-templates/'+id,{method:'DELETE'});
-    const d=await r.json();
-    if(d.success){ toast('已删除','success'); loadBuiltinList(); } else { toast('删除失败：'+d.message,'err'); }
-  }catch(e){ toast('删除失败：'+e.message,'err'); }
 }
 
 // 初始化拖拽编辑器
