@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作台 - 应用中心</title>
+<style>
+:root {
+  --primary: #534ab7; --primary-light: #eeedfe; --primary-dark: #3c3489;
+  --bg: #f5f6fa; --card: #fff; --text: #1a1a2e; --text2: #555; --text3: #999;
+  --border: #e8e8e8; --radius: 12px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* Header */
+.header { background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+.header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 60px; }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-logo { width: 38px; height: 38px; border-radius: 9px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; }
+.header-logo svg { width: 22px; height: 22px; fill: var(--primary); }
+.header-title { font-size: 17px; font-weight: 600; }
+.header-sub { font-size: 12px; color: var(--primary); padding: 2px 9px; background: var(--primary-light); border-radius: 4px; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.user-box { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.user-name { font-weight: 600; color: var(--text); }
+.role-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--primary-light); color: var(--primary); }
+.logout-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: #fff; color: var(--text2); transition: all .15s; }
+.logout-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+/* Content */
+.wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 60px; }
+.welcome { margin-bottom: 32px; }
+.welcome h1 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.welcome p { font-size: 14px; color: var(--text3); }
+.section-title { font-size: 15px; font-weight: 600; color: var(--text2); margin: 28px 0 16px; display: flex; align-items: center; gap: 8px; }
+.section-title::before { content: ''; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; }
+
+/* App grid */
+.app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.app-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 28px 24px; cursor: pointer; transition: all .2s ease; position: relative; overflow: hidden;
+}
+.app-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(83,74,183,.12); border-color: var(--primary); }
+.app-icon {
+  width: 56px; height: 56px; border-radius: 14px; background: var(--primary-light);
+  display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 18px;
+}
+.app-name { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.app-desc { font-size: 13px; color: var(--text3); line-height: 1.6; min-height: 42px; }
+.app-enter { margin-top: 16px; font-size: 13px; color: var(--primary); font-weight: 500; display: flex; align-items: center; gap: 4px; }
+.app-card:hover .app-enter { gap: 8px; }
+
+/* loading */
+.loading { text-align: center; color: var(--text3); padding: 60px 0; font-size: 14px; }
+.footer { text-align: center; color: var(--text3); font-size: 12px; padding: 30px 0; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-logo">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      </div>
+      <span class="header-title">工作台</span>
+      <span class="header-sub">应用中心</span>
+    </div>
+    <div class="header-right">
+      <div class="user-box">
+        <span class="user-name" id="userName">用户</span>
+        <span class="role-badge" id="roleBadge">member</span>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">退出登录</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="welcome">
+    <h1 id="welcomeTitle">欢迎回来</h1>
+    <p>选择一个系统进入，所有系统共用同一账号</p>
+  </div>
+
+  <div class="section-title">我的系统</div>
+  <div class="app-grid" id="appGrid">
+    <div class="loading">加载中...</div>
+  </div>
+
+  <div class="footer">百货商城 · 公众号AI创作发布平台 · 统一工作台</div>
+</div>
+
+<script>
+function doLogout() {
+  fetch('/api/auth/logout', { method: 'POST' })
+    .then(() => { location.href = '/login'; })
+    .catch(() => { location.href = '/login'; });
+}
+
+async function loadApps() {
+  try {
+    const res = await fetch('/api/portal/apps');
+    const data = await res.json();
+    if (!data.success) { renderError(); return; }
+    // 用户信息
+    if (data.user) {
+      document.getElementById('userName').textContent = data.user.display_name || '用户';
+      const rb = document.getElementById('roleBadge');
+      rb.textContent = data.user.role === 'admin' ? '管理员' : '会员';
+      document.getElementById('welcomeTitle').textContent =
+        '欢迎回来，' + (data.user.display_name || '用户');
+    }
+    renderApps(data.apps || []);
+  } catch (e) {
+    renderError();
+  }
+}
+
+function renderApps(apps) {
+  const grid = document.getElementById('appGrid');
+  if (!apps.length) {
+    grid.innerHTML = '<div class="loading">暂无可用系统</div>';
+    return;
+  }
+  grid.innerHTML = apps.map(a => `
+    <div class="app-card" onclick="location.href='${a.url}'">
+      <div class="app-icon">${a.icon || '📦'}</div>
+      <div class="app-name">${a.name}</div>
+      <div class="app-desc">${a.desc || ''}</div>
+      <div class="app-enter">进入系统 &rsaquo;</div>
+    </div>
+  `).join('');
+}
+
+function renderError() {
+  document.getElementById('appGrid').innerHTML =
+    '<div class="loading">加载失败，请刷新重试</div>';
+}
+
+loadApps();
+</script>
+</body>
+</html>
