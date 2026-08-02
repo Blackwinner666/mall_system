@@ -109,7 +109,7 @@ th{font-weight:600;color:#555;font-size:12px;background:#f8f9fc}
   <div class="main">
     <div class="topbar">
       <div class="breadcrumb">商品管理</div>
-      <div class="user-info"><span id="displayName"></span><button class="logout-btn" onclick="doLogout()">退出登录</button></div>
+      <div class="user-info"><span data-user-slot></span><button class="logout-btn" onclick="doLogout()">退出登录</button></div>
     </div>
     <div class="content">
       <div class="tabs" id="tabs">
@@ -157,7 +157,7 @@ let currentPage=1, currentFilters={}, categories=[], brands=[];
 
 async function init(){
   let r=await fetch('/api/auth/me');let u=await r.json();
-  if(u.success)document.getElementById('displayName').textContent=u.user.display_name;
+
   r=await fetch('/api/settings');let s=await r.json();
   if(s.success)document.getElementById('storeName').textContent=s.data.store_name||'百货商城';
   r=await fetch('/api/categories');categories=(await r.json()).data||[];
@@ -821,5 +821,6 @@ async function doAddProduct(){
 init();
 loadProducts();
 </script>
+<script src="/static/common_header.js"></script>
 </body>
 </html>
