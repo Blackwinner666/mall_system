@@ -220,14 +220,22 @@ let dragSelected = null;
 let dragIdSeq = 1;
 const DRAG_PALETTE = [
   {type:'box',     ic:'▦', label:'大框 / 小框', desc:'可嵌套的容器'},
-  {type:'heading', ic:'H', label:'标题',       desc:'粗体大标题'},
+  {type:'h1',      ic:'🅣', label:'主标题',     desc:'居中大标题'},
+  {type:'subtitle',ic:'💬', label:'导语/副标题',desc:'引导语'},
+  {type:'heading', ic:'H', label:'小标题',     desc:'粗体小标题'},
   {type:'text',    ic:'¶', label:'正文',       desc:'普通段落'},
   {type:'quote',   ic:'❝', label:'引用',       desc:'斜体引用块'},
+  {type:'list',    ic:'☰', label:'列表',       desc:'有序/无序列表'},
+  {type:'card',    ic:'🗂', label:'卡片',       desc:'标题+正文卡片'},
+  {type:'notice',  ic:'💡', label:'提示框',     desc:'信息/警告/成功/错误'},
+  {type:'tag',     ic:'🏷', label:'标签胶囊',   desc:'圆角标签'},
+  {type:'btn',     ic:'🔘', label:'按钮',       desc:'行动按钮样式'},
+  {type:'code',    ic:'⟨⟩', label:'代码块',     desc:'等宽代码'},
   {type:'image',   ic:'▣', label:'图片',       desc:'插入图片'},
   {type:'divider', ic:'—', label:'分割线',     desc:'分隔线'},
 ];
 function uid(){ return 'd'+(dragIdSeq++); }
-function typeLabel(t){ return ({root:'画布根',box:'大框/小框',heading:'标题',text:'正文',quote:'引用',image:'图片',divider:'分割线'})[t]||t; }
+function typeLabel(t){ return ({root:'画布根',box:'大框/小框',h1:'主标题',subtitle:'导语',heading:'小标题',text:'正文',quote:'引用',list:'列表',card:'卡片',notice:'提示框',tag:'标签胶囊',btn:'按钮',code:'代码块',image:'图片',divider:'分割线'})[t]||t; }
 function pad(v){ return Math.max(0, parseInt(v)||0); }
 function rad(v){ return Math.max(0, parseInt(v)||0); }
 function isDark(hex){
@@ -239,12 +247,26 @@ function isDark(hex){
 function newDragBlock(type){
   const id=uid(); const base={id,type,children:[]};
   if(type==='box') base.style={bg:'#eef2f7',radius:12,padding:16};
+  else if(type==='h1') base.style={bg:'transparent',color:'#1e293b',radius:0,padding:12,fontSize:26,align:'center',bold:true};
+  else if(type==='subtitle') base.style={bg:'transparent',color:'#64748b',radius:0,padding:8,fontSize:15,align:'center',bold:false};
   else if(type==='heading') base.style={bg:'transparent',color:'#1e293b',radius:0,padding:10,borderLeft:true,borderColor:'#3b82f6',fontSize:18,align:'left',bold:true};
   else if(type==='text') base.style={bg:'transparent',color:'#334155',radius:0,padding:8,fontSize:15,align:'left',bold:false};
   else if(type==='quote') base.style={bg:'transparent',color:'#64748b',radius:0,padding:12,borderLeft:true,borderColor:'#94a3b8',fontSize:14,align:'left',bold:false};
+  else if(type==='list') base.style={bg:'transparent',color:'#334155',radius:0,padding:8,fontSize:15,align:'left',ordered:false};
+  else if(type==='card') base.style={bg:'#ffffff',radius:12,padding:16,borderColor:'#e2e8f0',titleColor:'#1e293b',bodyColor:'#475569',fontSize:14};
+  else if(type==='notice') base.style={bg:'#eff6ff',color:'#1e40af',radius:10,padding:14,variant:'info',borderColor:'#bfdbfe'};
+  else if(type==='tag') base.style={bg:'#eef2ff',color:'#534ab7',radius:999,padding:6,fontSize:13};
+  else if(type==='btn') base.style={bg:'#534ab7',color:'#ffffff',radius:8,padding:10,fontSize:14,align:'center'};
+  else if(type==='code') base.style={bg:'#1e293b',color:'#e2e8f0',radius:8,padding:14,fontSize:13};
   else if(type==='image') base.style={bg:'transparent',radius:12,padding:0};
   else if(type==='divider') base.style={color:'#cbd5e1'};
-  if(['heading','text','quote'].includes(type)) base.text={heading:'小标题文字',text:'在这里输入正文内容……',quote:'“引用内容……”'}[type];
+  if(['heading','text','quote','h1','subtitle'].includes(type)) base.text={heading:'小标题文字',text:'在这里输入正文内容……',quote:'“引用内容……”',h1:'主标题文字',subtitle:'这是一段导语文字，用于引导读者……'}[type];
+  else if(type==='list') base.text='第一项\n第二项\n第三项';
+  else if(type==='card'){ base.title='卡片标题'; base.text='卡片的正文内容描述。'; }
+  else if(type==='notice') base.text='这是一条提示信息，用于强调重要内容。';
+  else if(type==='tag') base.text='标签';
+  else if(type==='btn') base.text='按钮文字';
+  else if(type==='code') base.text='console.log("Hello World");';
   return base;
 }
 function findNode(node,id){ if(node.id===id) return node; if(node.children){ for(const c of node.children){ const r=findNode(c,id); if(r) return r; } } return null; }
@@ -254,9 +276,10 @@ function isDescendant(node,id){ if(!node.children) return false; for(const c of 
 
 function renderPalette(){
   document.getElementById('dg-palette').innerHTML = DRAG_PALETTE.map(function(p){
-    return '<div class="dg-pal" draggable="true" ondragstart="palDragStart(event,\'' + p.type + '\')">' +
+    return '<div class="dg-pal" draggable="true" onclick="addPaletteItem(\'' + p.type + '\')" ondragstart="palDragStart(event,\'' + p.type + '\')" title="点击直接添加，或拖拽到画布">' +
       '<div style="display:flex;align-items:center;gap:8px;"><span class="dg-pal-ic">' + p.ic + '</span><b>' + p.label + '</b></div>' +
-      '<span>' + p.desc + '</span></div>';
+      '<span>' + p.desc + '</span>' +
+      '<span style="font-size:10px;color:var(--primary);margin-top:2px;">＋ 点击添加 / 拖到画布</span></div>';
   }).join('');
 }
 function palDragStart(e,type){ e.dataTransfer.setData('text/plain', JSON.stringify({kind:'new',type:type})); e.dataTransfer.effectAllowed='copy'; }
@@ -272,7 +295,10 @@ function renderDragNode(node){
   const st=node.style||{};
   const isBox=(node.type==='box');
   const bg = (st.bg==='transparent'||!st.bg) ? (node._parentBg||'rgba(0,0,0,0.03)') : st.bg;
-  let h='<div class="dg-node'+(isBox?' dg-box':'')+(dragSelected===node.id?' dg-sel':'')+'" data-id="'+node.id+'" draggable="true" ondragstart="nodeDragStart(event,\''+node.id+'\')" style="background:'+bg+';border-radius:'+rad(st.radius)+'px;padding:'+pad(st.padding)+'px;'+(st.borderLeft?'border-left:4px solid '+(st.borderColor||'#3b82f6')+';':'')+'">';
+  let extraStyle='';
+  if(st.borderLeft) extraStyle+='border-left:4px solid '+(st.borderColor||'#3b82f6')+';';
+  if(node.type==='card' && st.borderColor) extraStyle+='border:1px solid '+st.borderColor+';';
+  let h='<div class="dg-node'+(isBox?' dg-box':'')+(dragSelected===node.id?' dg-sel':'')+'" data-id="'+node.id+'" draggable="true" ondragstart="nodeDragStart(event,\''+node.id+'\')" style="background:'+bg+';border-radius:'+rad(st.radius)+'px;padding:'+pad(st.padding)+'px;'+extraStyle+'">';
   h+='<div class="dg-head"><span class="dg-tag">'+typeLabel(node.type)+'</span>'+
      '<span class="dg-ops"><button onclick="selectDrag(\''+node.id+'\')">编辑</button>'+
      '<button onclick="moveDrag(\''+node.id+'\',-1)">↑</button>'+
@@ -285,8 +311,24 @@ function renderDragNode(node){
     h+='<div class="dg-img" onclick="selectDrag(\''+node.id+'\')">'+(node.src?'<img src="'+node.src+'" style="max-width:100%;border-radius:6px;">':'<div class="dg-ph">点击右侧属性填写图片URL</div>')+'</div>';
   } else if(node.type==='divider'){
     h+='<hr style="border:none;border-top:1px solid '+(st.color||'#cbd5e1')+';margin:4px 0;">';
+  } else if(node.type==='list'){
+    const items=(node.text||'').split('\n').map(function(it){return '<li>'+esc(it)+'</li>';}).join('');
+    h+='<'+(st.ordered?'ol':'ul')+' style="margin:0;padding-left:22px;color:'+(st.color||'#334155')+';font-size:'+rad(st.fontSize)+'px;line-height:1.8;">'+items+'</'+(st.ordered?'ol':'ul')+'>';
+  } else if(node.type==='card'){
+    h+='<div style="font-weight:700;color:'+(st.titleColor||'#1e293b')+';font-size:'+(rad(st.fontSize)+3)+'px;margin-bottom:6px;">'+esc(node.title||'')+'</div>';
+    h+='<div style="color:'+(st.bodyColor||'#475569')+';font-size:'+rad(st.fontSize)+'px;line-height:1.7;">'+esc(node.text||'')+'</div>';
+  } else if(node.type==='notice'){
+    const ic={info:'💡',success:'✅',warning:'⚠️',danger:'⛔'}[st.variant||'info'];
+    h+='<div style="display:flex;gap:8px;align-items:flex-start;"><span style="font-size:16px;line-height:1.4;">'+ic+'</span><div style="flex:1;color:'+(st.color||'#1e40af')+';font-size:14px;line-height:1.7;">'+esc(node.text||'')+'</div></div>';
+  } else if(node.type==='code'){
+    h+='<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:'+(st.color||'#e2e8f0')+';font-size:'+rad(st.fontSize)+'px;font-family:Consolas,Menlo,monospace;line-height:1.6;">'+esc(node.text||'')+'</pre>';
+  } else if(node.type==='tag' || node.type==='btn'){
+    const tag=node.type==='tag';
+    h+='<div style="display:inline-block;background:'+(st.bg==='transparent'?bg:st.bg)+';color:'+(st.color||'#534ab7')+';border-radius:'+rad(st.radius)+'px;padding:'+pad(st.padding)+'px '+(pad(st.padding)+10)+'px;font-size:'+rad(st.fontSize)+'px;font-weight:600;'+(tag?'':'cursor:pointer;')+'">'+esc(node.text||'')+'</div>';
   } else {
-    h+='<div class="dg-text" onclick="selectDrag(\''+node.id+'\')" ondblclick="beginInlineEdit(\''+node.id+'\')" title="双击直接修改文字">'+esc(node.text||'')+'</div>';
+    const al=st.align?('text-align:'+st.align+';'):'';
+    const wt=st.bold?'font-weight:bold;':'';
+    h+='<div class="dg-text" style="'+al+wt+'" onclick="selectDrag(\''+node.id+'\')" ondblclick="beginInlineEdit(\''+node.id+'\')" title="双击直接修改文字">'+esc(node.text||'')+'</div>';
   }
   h+='</div>';
   return h;
@@ -298,7 +340,7 @@ function renderDragCanvas(){
   el.innerHTML=renderDragNode(dragRoot);
   scheduleSave();
 }
-function dragOver(e){ e.preventDefault(); const z=e.currentTarget; if(z.classList.contains('dg-drop')) z.classList.add('dg-over'); }
+function dragOver(e){ e.preventDefault(); try{ e.dataTransfer.dropEffect='copy'; }catch(_){} const z=e.currentTarget; if(z.classList.contains('dg-drop')) z.classList.add('dg-over'); }
 function dragLeave(e){ const z=e.currentTarget; z.classList.remove('dg-over'); }
 function onDrop(e,targetId){
   e.preventDefault(); const z=e.currentTarget; z.classList.remove('dg-over');
@@ -333,32 +375,84 @@ function setDragBgTransparent(id,checked){
   renderDragCanvas(); updateDragProps();
 }
 function setDragText(id,val){ const n=findNode(dragRoot,id); if(!n) return; n.text=val; renderDragCanvas(); }
+function setDragField(id,key,val){ const n=findNode(dragRoot,id); if(!n) return; n[key]=val; renderDragCanvas(); }
+// 点击左侧元素时，插入到「当前选中的大框」内；选中叶子则插入其所在大框；否则插入根画布
+function getInsertContainer(){
+  if(dragSelected && dragSelected!=='root'){
+    const sel=findNode(dragRoot,dragSelected);
+    if(sel && sel.type==='box') return sel;
+    const parent=findParent(dragRoot.children, dragSelected, null);
+    if(parent && parent.type==='box') return parent;
+  }
+  return dragRoot;
+}
+function addPaletteItem(type){
+  pushHistory();
+  const container=getInsertContainer();
+  container.children=container.children||[];
+  container.children.push(newDragBlock(type));
+  renderDragCanvas(); updateDragProps();
+  toast('已添加：'+typeLabel(type),'success');
+}
 
 function updateDragProps(){
   const body=document.getElementById('dg-props-body');
-  if(!dragSelected){ body.innerHTML='<p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑，可改背景色、文字色、圆角与内边距。</p>'; return; }
+  if(!dragSelected){ body.innerHTML='<p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑，可改背景色、文字色、圆角与内边距。也可从左侧点击 / 拖拽元素添加。</p>'; return; }
   const node=findNode(dragRoot,dragSelected);
   if(!node){ body.innerHTML='<p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑。</p>'; return; }
-  const st=node.style||{}; const isBox=(node.type==='box'||node.type==='root'); const hasText=['heading','text','quote'].includes(node.type);
+  const st=node.style||{}; const isBox=(node.type==='box'||node.type==='root');
+  const hasText=['heading','text','quote','h1','subtitle'].includes(node.type);
   let h='<div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px;">'+typeLabel(node.type)+'</div>';
+
+  // 背景（容器 / 透明背景元素）
   if(isBox){
     h+='<div class="form-group"><label>背景色</label><div class="dg-color-row"><input type="color" value="'+(st.bg||'#eef2f7')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.bg||'')+'</span></div></div>';
-  } else if(hasText||node.type==='image'){
+  } else if(hasText||node.type==='image'||node.type==='tag'||node.type==='btn'||node.type==='card'){
     const transparent = !st.bg || st.bg==='transparent';
     h+='<div class="form-group"><label><input type="checkbox" '+(transparent?'checked':'')+' onchange="setDragBgTransparent(\''+node.id+'\',this.checked)"> 背景随父框（透明）</label>';
     if(!transparent){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+st.bg+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+st.bg+'</span></div>'; }
     h+='</div>';
   }
-  if(hasText){
+
+  // 卡片专属：标题 + 正文色 + 边框色
+  if(node.type==='card'){
+    h+='<div class="form-group"><label>标题文字</label><input type="text" class="form-input" value="'+esc(node.title||'')+'" onfocus="beginEdit()" onblur="commitEdit()" oninput="setDragField(\''+node.id+'\',\'title\',this.value)"></div>';
+    h+='<div class="form-group"><label>标题色</label><div class="dg-color-row"><input type="color" value="'+(st.titleColor||'#1e293b')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'titleColor\',this.value)"></div></div>';
+    h+='<div class="form-group"><label>正文色</label><div class="dg-color-row"><input type="color" value="'+(st.bodyColor||'#475569')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'bodyColor\',this.value)"></div></div>';
+    h+='<div class="form-group"><label>边框色</label><div class="dg-color-row"><input type="color" value="'+(st.borderColor||'#e2e8f0')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'borderColor\',this.value)"></div></div>';
+  }
+
+  // 提示框专属：样式变体
+  if(node.type==='notice'){
+    const v=st.variant||'info';
+    h+='<div class="form-group"><label>提示样式</label><div style="display:flex;gap:6px;">'+
+      ['info','success','warning','danger'].map(function(a){ var on=v===a; var lbl={info:'信息',success:'成功',warning:'警告',danger:'错误'}[a]; return '<button type="button" class="btn btn-sm '+(on?'btn-primary':'btn-outline')+'" style="flex:1;padding:0 4px;" onclick="beginEdit();setDragStyle(\''+node.id+'\',\'variant\',\''+a+'\');commitEdit();updateDragProps()">'+lbl+'</button>'; }).join('')+'</div></div>';
+  }
+
+  // 列表专属：有序 / 无序
+  if(node.type==='list'){
+    h+='<div class="form-group"><label><input type="checkbox" '+(st.ordered?'checked':'')+' onchange="beginEdit();setDragStyle(\''+node.id+'\',\'ordered\',this.checked);commitEdit();updateDragProps()"> 有序列表（数字编号）</label></div>';
+  }
+
+  // 通用文字内容
+  if(hasText || node.type==='list' || node.type==='card' || node.type==='tag' || node.type==='btn' || node.type==='code' || node.type==='notice'){
+    h+='<div class="form-group"><label>文字内容'+(node.type==='list'?'（每行一项）':'')+'</label><textarea class="form-textarea" style="min-height:70px;" onfocus="beginEdit()" onblur="commitEdit()" oninput="setDragText(\''+node.id+'\',this.value)">'+esc(node.text||'')+'</textarea></div>';
+  }
+  if(hasText || node.type==='tag' || node.type==='btn' || node.type==='code'){
     h+='<div class="form-group"><label>文字色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#334155')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.color||'')+'</span></div></div>';
-    h+='<div class="form-group"><label>文字内容</label><textarea class="form-textarea" style="min-height:70px;" onfocus="beginEdit()" onblur="commitEdit()" oninput="setDragText(\''+node.id+'\',this.value)">'+esc(node.text||'')+'</textarea></div>';
     h+='<div class="form-group"><label>字号 <span id="dg-fs-v">'+rad(st.fontSize)+'</span> px</label><input type="range" min="12" max="40" value="'+rad(st.fontSize)+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'fontSize\',this.value);document.getElementById(\'dg-fs-v\').innerText=this.value"></div>';
+  }
+  if(hasText){
     h+='<div class="form-group"><label>对齐</label><div style="display:flex;gap:6px;">'+
         ['left','center','right'].map(function(a){ var on=(st.align||'left')===a; return '<button type="button" class="btn btn-sm '+(on?'btn-primary':'btn-outline')+'" style="flex:1;padding:0 6px;" onclick="beginEdit();setDragStyle(\''+node.id+'\',\'align\',\''+a+'\');commitEdit();updateDragProps()">'+(a==='left'?'左':a==='center'?'中':'右')+'</button>'; }).join('')+'</div></div>';
     h+='<div class="form-group"><label><input type="checkbox" '+(st.bold?'checked':'')+' onchange="beginEdit();setDragStyle(\''+node.id+'\',\'bold\',this.checked);commitEdit()"> 加粗</label></div>';
     h+='<div class="form-group"><label><input type="checkbox" '+(st.borderLeft?'checked':'')+' onchange="beginEdit();setDragStyle(\''+node.id+'\',\'borderLeft\',this.checked);commitEdit();updateDragProps()"> 左边框装饰</label>';
     if(st.borderLeft){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+(st.borderColor||'#3b82f6')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'borderColor\',this.value)"><span>边框色</span></div>'; }
     h+='</div>';
+  }
+  if(node.type==='btn'){
+    h+='<div class="form-group"><label>对齐</label><div style="display:flex;gap:6px;">'+
+        ['left','center','right'].map(function(a){ var on=(st.align||'center')===a; return '<button type="button" class="btn btn-sm '+(on?'btn-primary':'btn-outline')+'" style="flex:1;padding:0 6px;" onclick="beginEdit();setDragStyle(\''+node.id+'\',\'align\',\''+a+'\');commitEdit();updateDragProps()">'+(a==='left'?'左':a==='center'?'中':'右')+'</button>'; }).join('')+'</div></div>';
   }
   if(node.type==='image'){ h+='<div class="form-group"><label>图片 URL</label><input type="text" class="form-input" value="'+(node.src||'')+'" placeholder="https://..." onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'src\',this.value)"></div>'; }
   if(node.type==='divider'){ h+='<div class="form-group"><label>分割线颜色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#cbd5e1')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value)"></div></div>'; }
@@ -415,6 +509,46 @@ function renderDragToHTML(node, parentBg, title){
   if(node.type==='divider'){
     const color=st.color||'#cbd5e1';
     return '<section style="margin:0;padding:8px 0;background-color:'+parentBg+';text-align:center;"><span style="display:inline-block;width:60%;height:1px;background-color:'+color+';"></span></section>';
+  }
+  if(node.type==='h1'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#1e293b';
+    const fs=st.fontSize?st.fontSize+'px':'26px'; const al=st.align?'text-align:'+st.align+';':'text-align:center;';
+    const wt=st.bold?'font-weight:bold;':'font-weight:normal;';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'+al+'border-radius:'+rad(st.radius)+'px;"><span style="'+wt+'font-size:'+fs+';color:'+color+';letter-spacing:1px;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+  }
+  if(node.type==='subtitle'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#64748b';
+    const fs=st.fontSize?st.fontSize+'px':'15px'; const al=st.align?'text-align:'+st.align+';':'text-align:center;';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'+al+'font-size:'+fs+';color:'+color+';line-height:1.9;">'+esc(st.text||'')+'</section>';
+  }
+  if(node.type==='list'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#334155';
+    const items=(node.text||'').split('\n').map(function(it){return '<li style="margin:4px 0;">'+esc(it)+'</li>';}).join('');
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';"><'+(st.ordered?'ol':'ul')+' style="margin:0;padding-left:22px;color:'+color+';font-size:'+rad(st.fontSize)+'px;line-height:1.9;">'+items+'</'+(st.ordered?'ol':'ul')+'></section>';
+  }
+  if(node.type==='card'){
+    const bg=st.bg||'#ffffff';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';border:1px solid '+(st.borderColor||'#e2e8f0')+';border-radius:'+rad(st.radius)+'px;">'+
+      '<div style="font-weight:700;color:'+(st.titleColor||'#1e293b')+';font-size:'+(rad(st.fontSize)+3)+'px;margin-bottom:6px;">'+esc(node.title||'')+'</div>'+
+      '<div style="color:'+(st.bodyColor||'#475569')+';font-size:'+rad(st.fontSize)+'px;line-height:1.7;">'+esc(node.text||'')+'</div></section>';
+  }
+  if(node.type==='notice'){
+    const colors={info:['#eff6ff','#1e40af','#bfdbfe'],success:['#ecfdf5','#065f46','#6ee7b7'],warning:['#fffbeb','#92400e','#fde68a'],danger:['#fef2f2','#991b1b','#fca5a5']}[st.variant||'info'];
+    const ic={info:'💡',success:'✅',warning:'⚠️',danger:'⛔'}[st.variant||'info'];
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+colors[0]+';border:1px solid '+colors[2]+';border-radius:'+rad(st.radius)+'px;display:flex;gap:8px;align-items:flex-start;"><span style="font-size:16px;">'+ic+'</span><span style="flex:1;color:'+colors[1]+';font-size:14px;line-height:1.7;">'+esc(node.text||'')+'</span></section>';
+  }
+  if(node.type==='tag'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#534ab7';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';"><span style="display:inline-block;background-color:'+(st.bg==='transparent'?parentBg:st.bg)+';color:'+color+';border-radius:'+rad(st.radius)+'px;padding:'+pad(st.padding)+'px '+(pad(st.padding)+10)+'px;font-size:'+rad(st.fontSize)+'px;font-weight:600;">'+esc(node.text||'')+'</span></section>';
+  }
+  if(node.type==='btn'){
+    const bg=st.bg||'#534ab7'; const color=st.color||'#ffffff';
+    const al=st.align?'text-align:'+st.align+';':'text-align:center;';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+((st.bg==='transparent'||!st.bg)?parentBg:st.bg)+';'+al+'"><span style="display:inline-block;background-color:'+bg+';color:'+color+';border-radius:'+rad(st.radius)+'px;padding:'+pad(st.padding)+'px 22px;font-size:'+rad(st.fontSize)+'px;font-weight:600;">'+esc(node.text||'')+'</span></section>';
+  }
+  if(node.type==='code'){
+    const bg=st.bg||'#1e293b'; const color=st.color||'#e2e8f0';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';border-radius:'+rad(st.radius)+'px;"><pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:'+color+';font-size:'+rad(st.fontSize)+'px;font-family:Consolas,Menlo,monospace;line-height:1.6;">'+esc(node.text||'')+'</pre></section>';
   }
   return '';
 }
