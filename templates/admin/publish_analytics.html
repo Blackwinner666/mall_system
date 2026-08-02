@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>发布数据分析 - 管理后台</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+         background:#f5f6fa; color:#1a1a2e; font-size:14px; line-height:1.6; }
+  .topbar { background:#fff; border-bottom:1px solid #e8e8e8; padding:14px 24px; font-size:16px; font-weight:600;
+            display:flex; align-items:center; gap:12px; }
+  .topbar a { font-size:13px; color:#534ab7; text-decoration:none; }
+  .wrap { max-width:1100px; margin:20px auto; padding:0 20px; }
+  .cards { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
+  .stat { flex:1; min-width:180px; background:#fff; border:1px solid #e8e8e8; border-radius:10px; padding:18px 20px; }
+  .stat .num { font-size:28px; font-weight:700; color:#534ab7; }
+  .stat .lab { font-size:13px; color:#888; margin-top:4px; }
+  .stat.ok .num { color:#1d9e75; }
+  .stat.bad .num { color:#e24b4a; }
+  .panel { background:#fff; border:1px solid #e8e8e8; border-radius:10px; padding:20px; margin-bottom:20px; }
+  .panel h3 { font-size:15px; margin-bottom:14px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid #f0f0f0; }
+  th { color:#888; font-weight:600; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; }
+  .tag.ok { background:#e7f7f0; color:#1d9e75; }
+  .tag.bad { background:#fdeaea; color:#e24b4a; }
+  .bar { height:10px; background:#eee; border-radius:5px; overflow:hidden; min-width:80px; }
+  .bar > i { display:block; height:100%; background:#534ab7; }
+  .empty { color:#999; padding:20px; text-align:center; }
+  .back { margin-left:auto; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/admin">返回后台</a>
+  <span>发布数据分析</span>
+  <a class="back" href="/admin/publish-analytics" onclick="loadData();return false;">刷新</a>
+</div>
+<div class="wrap">
+  <div class="cards" id="cards">
+    <div class="stat"><div class="num" id="s-total">-</div><div class="lab">发布总次数</div></div>
+    <div class="stat ok"><div class="num" id="s-ok">-</div><div class="lab">成功</div></div>
+    <div class="stat bad"><div class="num" id="s-fail">-</div><div class="lab">失败</div></div>
+    <div class="stat"><div class="num" id="s-rate">-</div><div class="lab">成功率(%)</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>按渠道统计</h3>
+    <table id="tbl-channel"><thead><tr><th>渠道</th><th>次数</th><th>成功</th><th>占比</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h3>按天统计（近30天）</h3>
+    <table id="tbl-day"><thead><tr><th>日期</th><th>次数</th><th>成功</th><th>趋势</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h3>定时 / 批量进度</h3>
+    <table id="tbl-prog"><thead><tr><th>类型</th><th>状态</th><th>数量</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h3>最近发布记录</h3>
+    <table id="tbl-recent"><thead><tr><th>时间</th><th>渠道</th><th>标题</th><th>状态</th><th>详情</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script>
+function loadData(){
+  fetch('/api/admin/publish-analytics').then(r=>r.json()).then(res=>{
+    if(!res.success) return;
+    var d = res.data;
+    document.getElementById('s-total').textContent = d.total;
+    document.getElementById('s-ok').textContent = d.success;
+    document.getElementById('s-fail').textContent = d.fail;
+    document.getElementById('s-rate').textContent = d.success_rate;
+    fillChannel(d.by_channel);
+    fillDay(d.by_day);
+    fillProg(d.scheduled, d.queue);
+    fillRecent(d.recent);
+  }).catch(function(e){ console.warn(e); });
+}
+function fillChannel(rows){
+  var tb = document.querySelector('#tbl-channel tbody'); tb.innerHTML='';
+  var max = Math.max(1, ...rows.map(r=>r.c));
+  rows.forEach(function(r){
+    tb.innerHTML += '<tr><td>'+esc(r.channel)+'</td><td>'+r.c+'</td><td>'+r.ok+'</td>'+
+      '<td><div class="bar"><i style="width:'+(r.c/max*100)+'%"></i></div></td></tr>';
+  });
+  if(!rows.length) tb.innerHTML='<tr><td colspan="4" class="empty">暂无数据</td></tr>';
+}
+function fillDay(rows){
+  var tb = document.querySelector('#tbl-day tbody'); tb.innerHTML='';
+  var max = Math.max(1, ...rows.map(r=>r.c));
+  rows.forEach(function(r){
+    tb.innerHTML += '<tr><td>'+esc(r.day)+'</td><td>'+r.c+'</td><td>'+r.ok+'</td>'+
+      '<td><div class="bar"><i style="width:'+(r.c/max*100)+'%"></i></div></td></tr>';
+  });
+  if(!rows.length) tb.innerHTML='<tr><td colspan="4" class="empty">暂无数据</td></tr>';
+}
+function fillProg(sched, queue){
+  var tb = document.querySelector('#tbl-prog tbody'); tb.innerHTML='';
+  (sched||[]).forEach(function(r){ tb.innerHTML+='<tr><td>定时任务</td><td>'+esc(r.status)+'</td><td>'+r.c+'</td></tr>'; });
+  (queue||[]).forEach(function(r){ tb.innerHTML+='<tr><td>批量队列</td><td>'+esc(r.status)+'</td><td>'+r.c+'</td></tr>'; });
+  if(!tb.innerHTML) tb.innerHTML='<tr><td colspan="3" class="empty">暂无任务</td></tr>';
+}
+function fillRecent(rows){
+  var tb = document.querySelector('#tbl-recent tbody'); tb.innerHTML='';
+  rows.forEach(function(r){
+    var cls = r.status==='success' ? 'ok' : 'bad';
+    tb.innerHTML += '<tr><td>'+esc(r.ts)+'</td><td>'+esc(r.channel)+'</td><td>'+esc(r.title)+'</td>'+
+      '<td><span class="tag '+cls+'">'+esc(r.status)+'</span></td><td>'+esc(r.detail)+'</td></tr>';
+  });
+  if(!rows.length) tb.innerHTML='<tr><td colspan="5" class="empty">暂无记录</td></tr>';
+}
+function esc(s){ s = s==null?'':String(s); return s.replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+loadData();
+</script>
+</body>
+</html>
