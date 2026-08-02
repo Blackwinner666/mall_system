@@ -157,7 +157,7 @@ async function doLogin() {
       if (data.user.role === 'admin') {
         window.location.href = '/admin';
       } else {
-        window.location.href = '/';
+        window.location.href = '/portal';
       }
     } else {
       showMsg(data.message || '登录失败', false);
