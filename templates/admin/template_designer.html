@@ -147,6 +147,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
           <button class="btn btn-outline btn-sm" onclick="exportDragHTML()">导出 HTML</button>
           <span id="drag-result" class="dg-result" style="display:none;"></span>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;background:#eef2fb;border-radius:8px;padding:9px 12px;">
+          <button class="btn btn-outline btn-sm" onclick="undoDrag()" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+          <button class="btn btn-outline btn-sm" onclick="redoDrag()" title="重做 (Ctrl+Y)">↷ 重做</button>
+          <button class="btn btn-outline btn-sm" onclick="duplicateSelected()" title="复制选中元素 (Ctrl+D)">⧉ 复制元素</button>
+          <span style="flex:1;"></span>
+          <button class="btn btn-outline btn-sm" onclick="exportDragJSON()">⭳ 导出设计</button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('importJSON').click()">⭱ 导入设计</button>
+          <input type="file" id="importJSON" accept="application/json" style="display:none;" onchange="importDragJSON(event)">
+        </div>
         <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;background:#f1f5f9;border-radius:8px;padding:10px 12px;">
           <input id="drag-tpl-name" class="form-input" style="flex:1;min-width:180px;" placeholder="给这套排版起个名字">
           <button class="btn btn-success btn-sm" onclick="saveDragTemplate()">&#128190; 保存为模板</button>
@@ -158,7 +167,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
           <div>
             <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:7px;">拖拽元素</div>
             <div class="dg-palette" id="dg-palette"></div>
-            <p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.55;">提示：把元素拖到画布虚线区即可实现大框套小框；拖动已有元素可改变位置或嵌套。</p>
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin:14px 0 7px;">预设区块（点击直接加入画布）</div>
+            <div style="display:flex;flex-direction:column;gap:7px;">
+              <div class="dg-pal" onclick="insertPreset('coverTitle')">
+                <div style="display:flex;align-items:center;gap:8px;"><span class="dg-pal-ic">🏷️</span><b>封面大标题</b></div>
+                <span>深色底 + 居中大标题，适合开头</span>
+              </div>
+              <div class="dg-pal" onclick="insertPreset('imageText')">
+                <div style="display:flex;align-items:center;gap:8px;"><span class="dg-pal-ic">🖼️</span><b>图文卡片</b></div>
+                <span>图片 + 标题 + 描述，一套成型</span>
+              </div>
+            </div>
+            <p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.55;">提示：把元素拖到画布虚线区即可实现大框套小框；拖动已有元素可改变位置或嵌套。双击文字可直接修改。</p>
           </div>
           <div>
             <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:7px;">画布（文章大框）</div>
@@ -229,9 +249,9 @@ function isDark(hex){
 function newDragBlock(type){
   const id=uid(); const base={id,type,children:[]};
   if(type==='box') base.style={bg:'#eef2f7',radius:12,padding:16};
-  else if(type==='heading') base.style={bg:'transparent',color:'#1e293b',radius:0,padding:10,borderLeft:true,borderColor:'#3b82f6'};
-  else if(type==='text') base.style={bg:'transparent',color:'#334155',radius:0,padding:8};
-  else if(type==='quote') base.style={bg:'transparent',color:'#64748b',radius:0,padding:12,borderLeft:true,borderColor:'#94a3b8'};
+  else if(type==='heading') base.style={bg:'transparent',color:'#1e293b',radius:0,padding:10,borderLeft:true,borderColor:'#3b82f6',fontSize:18,align:'left',bold:true};
+  else if(type==='text') base.style={bg:'transparent',color:'#334155',radius:0,padding:8,fontSize:15,align:'left',bold:false};
+  else if(type==='quote') base.style={bg:'transparent',color:'#64748b',radius:0,padding:12,borderLeft:true,borderColor:'#94a3b8',fontSize:14,align:'left',bold:false};
   else if(type==='image') base.style={bg:'transparent',radius:12,padding:0};
   else if(type==='divider') base.style={color:'#cbd5e1'};
   if(['heading','text','quote'].includes(type)) base.text={heading:'小标题文字',text:'在这里输入正文内容……',quote:'“引用内容……”'}[type];
@@ -276,7 +296,7 @@ function renderDragNode(node){
   } else if(node.type==='divider'){
     h+='<hr style="border:none;border-top:1px solid '+(st.color||'#cbd5e1')+';margin:4px 0;">';
   } else {
-    h+='<div class="dg-text" onclick="selectDrag(\''+node.id+'\')">'+esc(node.text||'')+'</div>';
+    h+='<div class="dg-text" onclick="selectDrag(\''+node.id+'\')" ondblclick="beginInlineEdit(\''+node.id+'\')" title="双击直接修改文字">'+esc(node.text||'')+'</div>';
   }
   h+='</div>';
   return h;
@@ -286,11 +306,13 @@ function renderDragCanvas(){
   const el=document.getElementById('drag-canvas');
   el.style.background = dragRoot.style.bg||'#f4f6f9';
   el.innerHTML=renderDragNode(dragRoot);
+  scheduleSave();
 }
 function dragOver(e){ e.preventDefault(); const z=e.currentTarget; if(z.classList.contains('dg-drop')) z.classList.add('dg-over'); }
 function dragLeave(e){ const z=e.currentTarget; z.classList.remove('dg-over'); }
 function onDrop(e,targetId){
   e.preventDefault(); const z=e.currentTarget; z.classList.remove('dg-over');
+  pushHistory();
   let data; try{ data=JSON.parse(e.dataTransfer.getData('text/plain')); }catch(_){ return; }
   const container = targetId==='root'?dragRoot:findNode(dragRoot,targetId);
   if(!container || (container.type!=='root' && container.type!=='box')) return;
@@ -304,10 +326,11 @@ function onDrop(e,targetId){
 }
 function selectDrag(id){ dragSelected=id; renderDragCanvas(); updateDragProps(); }
 function moveDrag(id,dir){
+  pushHistory();
   function rec(a){ for(let i=0;i<a.length;i++){ if(a[i].id===id){ const ni=i+dir; if(ni<0||ni>=a.length) return true; const t=a[i]; a[i]=a[ni]; a[ni]=t; return true; } if(a[i].children && rec(a[i].children)) return true; } return false; }
   rec(dragRoot.children); renderDragCanvas();
 }
-function removeDrag(id){ cutNode(id); if(dragSelected===id) dragSelected=null; renderDragCanvas(); updateDragProps(); }
+function removeDrag(id){ pushHistory(); cutNode(id); if(dragSelected===id) dragSelected=null; renderDragCanvas(); updateDragProps(); }
 
 function setDragStyle(id,key,val){
   const n=findNode(dragRoot,id); if(!n) return; n.style=n.style||{};
@@ -329,25 +352,29 @@ function updateDragProps(){
   const st=node.style||{}; const isBox=(node.type==='box'||node.type==='root'); const hasText=['heading','text','quote'].includes(node.type);
   let h='<div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px;">'+typeLabel(node.type)+'</div>';
   if(isBox){
-    h+='<div class="form-group"><label>背景色</label><div class="dg-color-row"><input type="color" value="'+(st.bg||'#eef2f7')+'" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.bg||'')+'</span></div></div>';
+    h+='<div class="form-group"><label>背景色</label><div class="dg-color-row"><input type="color" value="'+(st.bg||'#eef2f7')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.bg||'')+'</span></div></div>';
   } else if(hasText||node.type==='image'){
     const transparent = !st.bg || st.bg==='transparent';
     h+='<div class="form-group"><label><input type="checkbox" '+(transparent?'checked':'')+' onchange="setDragBgTransparent(\''+node.id+'\',this.checked)"> 背景随父框（透明）</label>';
-    if(!transparent){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+st.bg+'" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+st.bg+'</span></div>'; }
+    if(!transparent){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+st.bg+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+st.bg+'</span></div>'; }
     h+='</div>';
   }
   if(hasText){
-    h+='<div class="form-group"><label>文字色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#334155')+'" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.color||'')+'</span></div></div>';
-    h+='<div class="form-group"><label>文字内容</label><textarea class="form-textarea" style="min-height:70px;" oninput="setDragText(\''+node.id+'\',this.value)">'+esc(node.text||'')+'</textarea></div>';
-    h+='<div class="form-group"><label><input type="checkbox" '+(st.borderLeft?'checked':'')+' onchange="setDragStyle(\''+node.id+'\',\'borderLeft\',this.checked)"> 左边框装饰</label>';
-    if(st.borderLeft){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+(st.borderColor||'#3b82f6')+'" oninput="setDragStyle(\''+node.id+'\',\'borderColor\',this.value)"><span>边框色</span></div>'; }
+    h+='<div class="form-group"><label>文字色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#334155')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.color||'')+'</span></div></div>';
+    h+='<div class="form-group"><label>文字内容</label><textarea class="form-textarea" style="min-height:70px;" onfocus="beginEdit()" onblur="commitEdit()" oninput="setDragText(\''+node.id+'\',this.value)">'+esc(node.text||'')+'</textarea></div>';
+    h+='<div class="form-group"><label>字号 <span id="dg-fs-v">'+rad(st.fontSize)+'</span> px</label><input type="range" min="12" max="40" value="'+rad(st.fontSize)+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'fontSize\',this.value);document.getElementById(\'dg-fs-v\').innerText=this.value"></div>';
+    h+='<div class="form-group"><label>对齐</label><div style="display:flex;gap:6px;">'+
+        ['left','center','right'].map(function(a){ var on=(st.align||'left')===a; return '<button type="button" class="btn btn-sm '+(on?'btn-primary':'btn-outline')+'" style="flex:1;padding:0 6px;" onclick="beginEdit();setDragStyle(\''+node.id+'\',\'align\',\''+a+'\');commitEdit();updateDragProps()">'+(a==='left'?'左':a==='center'?'中':'右')+'</button>'; }).join('')+'</div></div>';
+    h+='<div class="form-group"><label><input type="checkbox" '+(st.bold?'checked':'')+' onchange="beginEdit();setDragStyle(\''+node.id+'\',\'bold\',this.checked);commitEdit()"> 加粗</label></div>';
+    h+='<div class="form-group"><label><input type="checkbox" '+(st.borderLeft?'checked':'')+' onchange="beginEdit();setDragStyle(\''+node.id+'\',\'borderLeft\',this.checked);commitEdit();updateDragProps()"> 左边框装饰</label>';
+    if(st.borderLeft){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+(st.borderColor||'#3b82f6')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'borderColor\',this.value)"><span>边框色</span></div>'; }
     h+='</div>';
   }
-  if(node.type==='image'){ h+='<div class="form-group"><label>图片 URL</label><input type="text" class="form-input" value="'+(node.src||'')+'" placeholder="https://..." oninput="setDragStyle(\''+node.id+'\',\'src\',this.value)"></div>'; }
-  if(node.type==='divider'){ h+='<div class="form-group"><label>分割线颜色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#cbd5e1')+'" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value)"></div></div>'; }
+  if(node.type==='image'){ h+='<div class="form-group"><label>图片 URL</label><input type="text" class="form-input" value="'+(node.src||'')+'" placeholder="https://..." onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'src\',this.value)"></div>'; }
+  if(node.type==='divider'){ h+='<div class="form-group"><label>分割线颜色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#cbd5e1')+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value)"></div></div>'; }
   if(node.type!=='root'){
-    h+='<div class="form-group"><label>圆角 <span id="dg-rad-v">'+rad(st.radius)+'</span> px</label><input type="range" min="0" max="32" value="'+rad(st.radius)+'" oninput="setDragStyle(\''+node.id+'\',\'radius\',this.value);document.getElementById(\'dg-rad-v\').innerText=this.value"></div>';
-    h+='<div class="form-group"><label>内边距 <span id="dg-pad-v">'+pad(st.padding)+'</span> px</label><input type="range" min="0" max="48" value="'+pad(st.padding)+'" oninput="setDragStyle(\''+node.id+'\',\'padding\',this.value);document.getElementById(\'dg-pad-v\').innerText=this.value"></div>';
+    h+='<div class="form-group"><label>圆角 <span id="dg-rad-v">'+rad(st.radius)+'</span> px</label><input type="range" min="0" max="32" value="'+rad(st.radius)+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'radius\',this.value);document.getElementById(\'dg-rad-v\').innerText=this.value"></div>';
+    h+='<div class="form-group"><label>内边距 <span id="dg-pad-v">'+pad(st.padding)+'</span> px</label><input type="range" min="0" max="48" value="'+pad(st.padding)+'" onfocus="beginEdit()" onchange="commitEdit()" oninput="setDragStyle(\''+node.id+'\',\'padding\',this.value);document.getElementById(\'dg-pad-v\').innerText=this.value"></div>';
   }
   h+='<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#dc2626;border-color:#fca5a5;" onclick="removeDrag(\''+node.id+'\')">删除此元素</button>';
   body.innerHTML=h;
@@ -369,17 +396,26 @@ function renderDragToHTML(node, parentBg, title){
   }
   if(node.type==='heading'){
     const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#1e293b';
-    let s='margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'; if(st.borderLeft) s+='border-left:4px solid '+(st.borderColor||'#3b82f6')+';'; s+='border-radius:'+rad(st.radius)+'px;';
-    return '<section style="'+s+'"><span style="font-size:18px;font-weight:bold;color:'+color+';letter-spacing:1px;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+    const fs = st.fontSize ? st.fontSize+'px' : '18px';
+    const al = st.align ? 'text-align:'+st.align+';' : 'text-align:left;';
+    const wt = st.bold ? 'font-weight:bold;' : 'font-weight:normal;';
+    let s='margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'+al; if(st.borderLeft) s+='border-left:4px solid '+(st.borderColor||'#3b82f6')+';'; s+='border-radius:'+rad(st.radius)+'px;';
+    return '<section style="'+s+'"><span style="'+wt+'font-size:'+fs+';color:'+color+';letter-spacing:1px;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
   }
   if(node.type==='text'){
     const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#334155';
-    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';text-align:justify;line-height:1.9;border-radius:'+rad(st.radius)+'px;"><span style="font-size:15px;line-height:1.9;color:'+color+';"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+    const fs = st.fontSize ? st.fontSize+'px' : '15px';
+    const al = st.align ? 'text-align:'+st.align+';' : 'text-align:justify;';
+    const wt = st.bold ? 'font-weight:bold;' : 'font-weight:normal;';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'+al+'line-height:1.9;border-radius:'+rad(st.radius)+'px;"><span style="'+wt+'font-size:'+fs+';line-height:1.9;color:'+color+';"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
   }
   if(node.type==='quote'){
     const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#64748b';
-    let s='margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'; if(st.borderLeft) s+='border-left:4px solid '+(st.borderColor||'#94a3b8')+';'; s+='border-radius:'+rad(st.radius)+'px;';
-    return '<section style="'+s+'"><span style="font-size:14px;color:'+color+';font-style:italic;line-height:1.8;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+    const fs = st.fontSize ? st.fontSize+'px' : '14px';
+    const al = st.align ? 'text-align:'+st.align+';' : 'text-align:left;';
+    const wt = st.bold ? 'font-weight:bold;' : 'font-weight:normal;';
+    let s='margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'+al; if(st.borderLeft) s+='border-left:4px solid '+(st.borderColor||'#94a3b8')+';'; s+='border-radius:'+rad(st.radius)+'px;';
+    return '<section style="'+s+'"><span style="'+wt+'font-size:'+fs+';color:'+color+';font-style:italic;line-height:1.8;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
   }
   if(node.type==='image'){
     const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const src=node.src||'';
@@ -400,9 +436,97 @@ function copyHTMLToClipboard(html,msg){
 }
 function showDragResult(msg,kind){ const el=document.getElementById('drag-result'); el.className='dg-result '+(kind||'ok'); el.style.display='inline-block'; el.innerText=msg; setTimeout(function(){el.style.display='none';},4000); }
 function copyDragToWeChat(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); copyHTMLToClipboard(html,'已复制拖拽排版，请 Ctrl+V 粘贴到微信'); }
-function previewDrag(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); const w=window.open('','_blank'); w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:20px;margin:0;background:#f5f5f5;}</style></head><body>'+html+'<script src="/static/common_header.js"></script>
-</body></html>'); w.document.close(); }
+function previewDrag(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); const w=window.open('','_blank'); w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:20px;margin:0;background:#f5f5f5;}</style></head><body>'+html+'<script src="/static/common_header.js"></script></body></html>'); w.document.close(); }
 function exportDragHTML(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); const blob=new Blob([html],{type:'text/html'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='drag-layout.html'; a.click(); URL.revokeObjectURL(a.href); }
+
+// ===== 增强：历史 / 复制 / 行内编辑 / 草稿 / 导入导出 / 预设 =====
+let dragHistory=[], dragFuture=[], pendingBefore=null, _saveT=null;
+const DRAFT_KEY='mall_drag_draft_v1';
+function snapshot(){ return JSON.stringify(dragRoot); }
+function pushHistory(before){ dragHistory.push(before!==undefined?before:snapshot()); if(dragHistory.length>60) dragHistory.shift(); dragFuture=[]; }
+function beginEdit(){ pendingBefore=snapshot(); }
+function commitEdit(){ if(pendingBefore!==null){ pushHistory(pendingBefore); pendingBefore=null; scheduleSave(); } }
+function undoDrag(){ if(!dragHistory.length){ toast('没有可撤销的操作','warning'); return; } dragFuture.push(snapshot()); dragRoot=JSON.parse(dragHistory.pop()); dragSelected=null; renderDragCanvas(); updateDragProps(); scheduleSave(); showDragResult('已撤销','ok'); }
+function redoDrag(){ if(!dragFuture.length){ toast('没有可重做的操作','warning'); return; } dragHistory.push(snapshot()); dragRoot=JSON.parse(dragFuture.pop()); dragSelected=null; renderDragCanvas(); updateDragProps(); scheduleSave(); showDragResult('已重做','ok'); }
+
+function containerOf(id){
+  if(id==='root') return null;
+  let res=null;
+  function rec(a){ for(const n of a){ if(n.id===id){ res=a; return true; } if(n.children&&rec(n.children)) return true; } return false; }
+  rec(dragRoot.children); return res;
+}
+function cloneSubtree(n){ const c=JSON.parse(JSON.stringify(n)); c.id=uid(); (c.children||[]).forEach(cloneSubtree); return c; }
+function duplicateSelected(){
+  if(!dragSelected || dragSelected==='root'){ toast('请先选中一个元素再复制','warning'); return; }
+  const node=findNode(dragRoot,dragSelected); if(!node){ toast('未找到该元素','warning'); return; }
+  const arr=containerOf(dragSelected); if(!arr){ toast('无法复制根元素','warning'); return; }
+  const idx=arr.indexOf(node);
+  const copy=cloneSubtree(node);
+  arr.splice(idx+1,0,copy);
+  pushHistory(); dragSelected=copy.id; renderDragCanvas(); updateDragProps(); scheduleSave();
+  showDragResult('已复制元素','ok');
+}
+function beginInlineEdit(id){
+  dragSelected=id; renderDragCanvas(); updateDragProps();
+  const wrap=document.querySelector('[data-id="'+id+'"]');
+  const el=wrap?wrap.querySelector('.dg-text'):null;
+  if(!el) return;
+  if(wrap) wrap.setAttribute('draggable','false');
+  el.setAttribute('contenteditable','true'); el.focus();
+  const range=document.createRange(); range.selectNodeContents(el); const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  el.onblur=function(){ const v=el.innerText; setDragText(id, v); el.removeAttribute('contenteditable'); if(wrap) wrap.setAttribute('draggable','true'); commitEdit(); renderDragCanvas(); updateDragProps(); };
+  el.onkeydown=function(e){ if(e.key==='Escape'){ el.blur(); } if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); el.blur(); } e.stopPropagation(); };
+}
+function saveDraft(){ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({root:dragRoot, name:document.getElementById('drag-tpl-name').value||'', ts:Date.now()})); }catch(e){} }
+function scheduleSave(){ clearTimeout(_saveT); _saveT=setTimeout(saveDraft,400); }
+function loadDraft(){ try{ const s=localStorage.getItem(DRAFT_KEY); if(!s) return null; const d=JSON.parse(s); if(d && d.root && d.root.children && d.root.children.length) return d; return null; }catch(e){ return null; } }
+function restoreDraft(){ const d=loadDraft(); if(!d) return; dragRoot=JSON.parse(JSON.stringify(d.root)); if(d.name) document.getElementById('drag-tpl-name').value=d.name; dragSelected=null; renderDragCanvas(); updateDragProps(); toast('已恢复上次草稿','success'); }
+function discardDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} clearDrag(); toast('草稿已清空','success'); }
+
+function exportDragJSON(){
+  const data={root:dragRoot, name:document.getElementById('drag-tpl-name').value||'', ts:Date.now()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='drag-design.json'; a.click(); URL.revokeObjectURL(a.href);
+}
+function importDragJSON(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=function(){
+    try{
+      const d=JSON.parse(rd.result);
+      if(d && d.root){ pushHistory(); dragRoot=d.root; dragSelected=null; if(d.name) document.getElementById('drag-tpl-name').value=d.name; renderDragCanvas(); updateDragProps(); scheduleSave(); toast('设计已导入','success'); }
+      else { toast('文件格式不正确','err'); }
+    }catch(e){ toast('解析失败：'+e.message,'err'); }
+  };
+  rd.readAsText(f); ev.target.value='';
+}
+function insertPreset(kind){
+  pushHistory();
+  if(kind==='coverTitle'){
+    dragRoot.children.push({id:uid(),type:'box',style:{bg:'#0f172a',radius:14,padding:28},children:[
+      {id:uid(),type:'heading',style:{bg:'transparent',color:'#f8fafc',radius:0,padding:10,align:'center',bold:true,fontSize:24},text:'在这里写封面大标题',children:[]}
+    ]});
+  } else if(kind==='imageText'){
+    dragRoot.children.push({id:uid(),type:'box',style:{bg:'#ffffff',radius:12,padding:16},children:[
+      {id:uid(),type:'image',style:{bg:'transparent',radius:10,padding:0},src:'',children:[]},
+      {id:uid(),type:'heading',style:{bg:'transparent',color:'#1e293b',radius:0,padding:8,borderLeft:true,borderColor:'#3b82f6',fontSize:17,bold:true,align:'left'},text:'小标题',children:[]},
+      {id:uid(),type:'text',style:{bg:'transparent',color:'#475569',radius:0,padding:6,fontSize:14,align:'left',bold:false},text:'这里是图片的描述文字，介绍这张图想表达的内容。',children:[]}
+    ]});
+  }
+  renderDragCanvas(); updateDragProps(); scheduleSave();
+}
+document.addEventListener('keydown', function(e){
+  if(e.target && e.target.isContentEditable) return;
+  if(e.ctrlKey || e.metaKey){
+    if(e.key==='z' && !e.shiftKey){ e.preventDefault(); undoDrag(); }
+    else if(e.key==='y' || (e.key==='z' && e.shiftKey)){ e.preventDefault(); redoDrag(); }
+    else if(e.key==='d'){ e.preventDefault(); duplicateSelected(); }
+  } else if((e.key==='Delete'||e.key==='Backspace') && dragSelected && dragSelected!=='root'){
+    if(e.target && ['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+    e.preventDefault(); removeDrag(dragSelected);
+  }
+});
+
 
 // ===== 拖拽模板：保存 / 载入 / 管理 =====
 async function saveDragTemplate() {
@@ -435,6 +559,7 @@ function loadDragTemplate(t) {
   try {
     const root = (typeof t === 'object') ? t : userTemplates.find(x => x.id === t);
     if (!root) return;
+    pushHistory();
     dragRoot = JSON.parse(JSON.stringify(root.blocks || { id: 'root', type: 'root', style: { bg: '#f4f6f9', radius: 16, padding: 24 }, children: [] }));
     dragSelected = null;
     renderDragCanvas(); updateDragProps();
@@ -473,6 +598,7 @@ async function publishUserTemplate(tid, makePublic, ev) {
 }
 
 function loadDragExample(){
+  pushHistory();
   dragRoot={ id:'root', type:'root', style:{bg:'#0f172a',radius:16,padding:24}, children:[
     {id:uid(),type:'heading',style:{bg:'transparent',color:'#f8fafc',radius:0,padding:10,borderLeft:true,borderColor:'#60a5fa'},text:'探索未来的科技美学',children:[]},
     {id:uid(),type:'text',style:{bg:'transparent',color:'#cbd5e1',radius:0,padding:8},text:'这是一段正文，放在深色大框里，整体浑然一体，没有任何白缝。',children:[]},
@@ -485,7 +611,7 @@ function loadDragExample(){
   ]};
   dragSelected=null; renderDragCanvas(); updateDragProps();
 }
-function clearDrag(){ dragRoot={id:'root',type:'root',style:{bg:'#f4f6f9',radius:16,padding:24},children:[]}; dragSelected=null; renderDragCanvas(); updateDragProps(); }
+function clearDrag(){ pushHistory(); dragRoot={id:'root',type:'root',style:{bg:'#f4f6f9',radius:16,padding:24},children:[]}; dragSelected=null; renderDragCanvas(); updateDragProps(); }
 
 // ===== 管理员：模板列表（含发布/取消/删除） =====
 function escapeHtmlPub(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -547,6 +673,12 @@ async function init() {
     }
   } catch(e) {}
   await loadUserTemplates();
+  // 恢复上次未保存的草稿
+  try {
+    if (loadDraft()) {
+      if (confirm('检测到上次未保存的草稿，是否恢复？')) { restoreDraft(); }
+    }
+  } catch(e) {}
 }
 
 // 初始化拖拽编辑器

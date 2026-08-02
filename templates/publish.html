@@ -379,9 +379,9 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
         <div id="ai-status" style="margin-top:10px;font-size:13px;color:var(--text2);display:none;"></div>
       </div>
 
-      <!-- W2: 外部素材库 -->
+      <!-- 外部素材库 -->
       <div class="card" style="border:1px solid #38bdf8;background:#f0f9ff;">
-        <div class="card-title" style="color:#0369a1;">&#127760; 外部素材库（W2）</div>
+        <div class="card-title" style="color:#0369a1;">&#127760; 外部素材库</div>
         <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">一键从外部抓取新闻/文章作为创作素材，点「加入参考」即进入上方 AI 生成的参考网址。</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="text" class="form-input" id="material-query" placeholder="关键词，如：AI芯片 新能源" style="flex:1;min-width:160px;">
@@ -2632,7 +2632,7 @@ function showDragResult(msg,kind){ const el=document.getElementById('drag-result
 function copyDragToWeChat(){ const title=document.getElementById('article-title').value||''; const author=(document.getElementById('article-author')||{}).value||''; const html=renderDragToHTML(dragRoot,null,title); copyWxHtmlSync(html,'已复制拖拽排版，标题/作者已带上，请到微信粘贴',{title:title,author:author}); }
 function copyEditToWeChat(){ const title=document.getElementById('article-title').value||''; const author=(document.getElementById('article-author')||{}).value||''; const html=generateHTML(); copyWxHtmlSync(html,'已复制正文，标题/作者已带上，请到微信粘贴',{title:title,author:author}); logPublishEvent('manual',title); }
 
-/* ============ W2 外部素材库 ============ */
+/* ============ 外部素材库 ============ */
 function fetchMaterials(){
   var q = document.getElementById('material-query').value.trim();
   var st = document.getElementById('material-status');

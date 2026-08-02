@@ -441,6 +441,23 @@ def init_db():
             detail TEXT DEFAULT '',
             type TEXT DEFAULT 'article'
         );
+
+        -- 内置固定排版模板（可在后台「内置模板管理」增删改查）
+        CREATE TABLE IF NOT EXISTS builtin_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT DEFAULT '通用',
+            description TEXT DEFAULT '',
+            accent TEXT DEFAULT '#888888',
+            bg TEXT DEFAULT '#f0f0f0',
+            style_json TEXT DEFAULT '{}',
+            body_json TEXT DEFAULT '{}',
+            header_html TEXT DEFAULT '',
+            footer_html TEXT DEFAULT '',
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     # --- 迁移：补充可能缺失的字段 ---
@@ -511,6 +528,9 @@ def init_db():
         ]
         for k, v in defaults:
             c.execute("INSERT INTO store_settings (key, value) VALUES (?, ?)", (k, v))
+
+    # 内置固定排版模板：首次启动写入数据库（后台可增删改查）
+    seed_builtin_templates(c)
 
     conn.commit()
     conn.close()
@@ -5340,30 +5360,201 @@ def template_yida(title, intro, ordered_sections):
     return f'{banner}\n{shikumen}\n{body}\n{boat}'
 
 
-# 模板注册表
-BUILTIN_TEMPLATES = {
-    1: {'name': '简约清新', 'category': '通用', 'func': template_clean_minimal, 'desc': '薄荷绿点缀 · 大量留白，清爽通透，适合科技与生活方式', 'accent': '#14b8a6', 'bg': '#e8f4f8'},
-    2: {'name': '杂志风', 'category': '长文', 'func': template_magazine, 'desc': '编辑红下划线标题 · 暖纸底，经典杂志感，适合深度长文', 'accent': '#dc2626', 'bg': '#fdfaf6'},
-    3: {'name': '文艺风', 'category': '生活', 'func': template_literary, 'desc': '陶土橙居中标题 · 米色底，温润文艺，适合随笔与情感', 'accent': '#d97706', 'bg': '#fbf3e7'},
-    4: {'name': '商务风', 'category': '企业', 'func': template_business, 'desc': '商务蓝左条标题 · 白底，专业克制，适合行业分析', 'accent': '#2563eb', 'bg': '#ffffff'},
-    5: {'name': '卡片风', 'category': '现代', 'func': template_card, 'desc': '靛蓝描边 · 每段独立卡片，现代扁平，适合清单与资讯', 'accent': '#6366f1', 'bg': '#f5f7fb'},
-    6: {'name': '深色科技', 'category': '科技', 'func': template_dark, 'desc': '青蓝霓虹 · 近黑底深色卡片，适合科技类与夜间阅读', 'accent': '#38bdf8', 'bg': '#0f172a'},
-    7: {'name': '党政风', 'category': '党政', 'func': template_party, 'desc': '党建红 + 金色五角星与和平鸽装饰，庄重端正，适合党建宣传与政策解读', 'accent': '#c8102e', 'bg': '#c8102e'},
-    8: {'name': '数字一大·初心之旅', 'category': '党政', 'func': template_yida, 'desc': '淡黄底红字 · 石库门/南湖红船/日出东方元素，适合党建题材与红色主题宣传', 'accent': '#c8102e', 'bg': '#fdf6e0'},
-}
+# ============================================================
+# 内置固定排版模板：数据驱动定义（用于初始化 / 种子到 builtin_templates 表）
+# 管理员可在后台「内置模板管理」对这些模板增删改查；渲染统一走 render_builtin_from_record
+# ============================================================
+
+def _party_banner_html():
+    """党建风顶部红色横幅（和平鸽 + 金色五角星 + 标题）。"""
+    return (
+        '<section style="background-color:#c8102e;padding:20px 16px;margin:0 0 8px;text-align:center;border-radius:6px;">'
+        '<div style="display:flex;justify-content:center;align-items:center;gap:14px;margin-bottom:10px;">'
+        f'{_party_dove_svg(30)}{_party_star_svg(26)}{_party_dove_svg(30)}'
+        '</div>'
+        '<div style="color:#f6c453;font-size:12px;letter-spacing:3px;font-weight:bold;line-height:1.6;">党 建 学 习 · 政 策 解 读</div>'
+        '</section>'
+    )
+
+
+def _yida_header_html():
+    """数字一大：头图横幅 + 石库门场景（淡黄底卡片）。"""
+    banner = (
+        '<section style="margin:0 0 10px;border-radius:6px;overflow:hidden;">'
+        '<img src="/static/uploads/yida_banner.png" alt="数字一大·初心之旅"'
+        ' style="width:100%;display:block;border-radius:6px;" />'
+        '</section>'
+    )
+    shikumen = (
+        '<section style="background-color:#fdf6e0;border:2px solid #c8102e;border-radius:8px;'
+        'padding:16px 12px 14px;margin:0 0 10px;text-align:center;">'
+        f'<div>{_yida_sun_svg(120, 44)}</div>'
+        f'<div style="margin-top:2px;">{_yida_shikumen_svg(150, 96)}</div>'
+        '<div style="color:#8c1515;font-size:13px;letter-spacing:2px;margin-top:10px;font-weight:bold;line-height:1.7;">日出东方 · 从石库门到天安门</div>'
+        '</section>'
+    )
+    return banner + '\n' + shikumen
+
+
+def _yida_footer_html():
+    """数字一大：尾部南湖红船（淡黄底卡片）。"""
+    return (
+        '<section style="background-color:#fdf6e0;border:2px solid #c8102e;border-radius:8px;'
+        'padding:16px 12px 12px;margin:10px 0 0;text-align:center;">'
+        f'<div>{_yida_boat_svg(140, 64)}</div>'
+        '<div style="color:#8c1515;font-size:13px;letter-spacing:2px;margin-top:8px;font-weight:bold;line-height:1.7;">南湖红船 · 初心不改 砥砺前行</div>'
+        '<div style="color:#b5533c;font-size:11px;letter-spacing:1px;margin-top:4px;line-height:1.6;">星火初燃 · 伟大的开端</div>'
+        '</section>'
+    )
+
+
+BUILTIN_TEMPLATE_SEED = [
+    {
+        'name': '简约清新', 'category': '通用',
+        'desc': '薄荷绿点缀 · 大量留白，清爽通透，适合科技与生活方式',
+        'accent': '#14b8a6', 'bg': '#e8f4f8',
+        'st': {'body': {'color': '#374151', 'size': '15px', 'lh': '1.9'},
+               'h2': {'deco': 'bar', 'color': '#0d9488', 'accent': '#14b8a6', 'size': '18px'},
+               'quote': {'deco': 'tint', 'color': '#047857', 'bg': '#ecfdf5', 'accent': '#14b8a6', 'italic': True},
+               'img': 'max-width:100%;border-radius:12px;display:block;margin:0 auto;box-shadow:0 6px 16px rgba(20,184,166,0.12);'},
+        'body': {'bg': '#ffffff', 'padding': '6px', 'extra': ''},
+        'header_html': '', 'footer_html': '',
+    },
+    {
+        'name': '杂志风', 'category': '长文',
+        'desc': '编辑红下划线标题 · 暖纸底，经典杂志感，适合深度长文',
+        'accent': '#dc2626', 'bg': '#fdfaf6',
+        'st': {'body': {'color': '#3a3a3a', 'size': '15.5px', 'lh': '1.95'},
+               'h2': {'deco': 'underline', 'color': '#1a1a1a', 'accent': '#dc2626', 'size': '20px'},
+               'quote': {'deco': 'plain', 'color': '#9a3412', 'italic': True},
+               'img': 'max-width:100%;border-radius:2px;display:block;margin:0 auto;'},
+        'body': {'bg': '#fdfaf6', 'padding': '6px', 'extra': ''},
+        'header_html': '', 'footer_html': '',
+    },
+    {
+        'name': '文艺风', 'category': '生活',
+        'desc': '陶土橙居中标题 · 米色底，温润文艺，适合随笔与情感',
+        'accent': '#d97706', 'bg': '#fbf3e7',
+        'st': {'body': {'color': '#5b4a3a', 'size': '15.5px', 'lh': '2.0'},
+               'h2': {'deco': 'center', 'color': '#92400e', 'accent': '#d97706', 'size': '18px'},
+               'quote': {'deco': 'plain', 'color': '#a16207', 'italic': True},
+               'img': 'max-width:100%;border-radius:14px;display:block;margin:0 auto;'},
+        'body': {'bg': '#fbf3e7', 'padding': '6px', 'extra': ''},
+        'header_html': '', 'footer_html': '',
+    },
+    {
+        'name': '商务风', 'category': '企业',
+        'desc': '商务蓝左条标题 · 白底，专业克制，适合行业分析',
+        'accent': '#2563eb', 'bg': '#ffffff',
+        'st': {'body': {'color': '#374151', 'size': '15px', 'lh': '1.9'},
+               'h2': {'deco': 'bar', 'color': '#1e3a5f', 'accent': '#2563eb', 'size': '18px'},
+               'quote': {'deco': 'tint', 'color': '#1e40af', 'bg': '#eff6ff', 'accent': '#2563eb', 'italic': False},
+               'img': 'max-width:100%;border-radius:8px;display:block;margin:0 auto;'},
+        'body': {'bg': '#ffffff', 'padding': '6px', 'extra': ''},
+        'header_html': '', 'footer_html': '',
+    },
+    {
+        'name': '卡片风', 'category': '现代',
+        'desc': '靛蓝描边 · 每段独立卡片，现代扁平，适合清单与资讯',
+        'accent': '#6366f1', 'bg': '#f5f7fb',
+        'st': {'body': {'color': '#374151', 'size': '15px', 'lh': '1.85'},
+               'h2': {'deco': 'bar', 'color': '#4338ca', 'accent': '#6366f1', 'size': '18px'},
+               'quote': {'deco': 'tint', 'color': '#4338ca', 'bg': '#eef2ff', 'accent': '#6366f1', 'italic': True},
+               'img': 'max-width:100%;border-radius:10px;display:block;margin:0 auto;',
+               'body_section': 'background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;',
+               'img_wrap': 'background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:8px;'},
+        'body': {'bg': '#f5f7fb', 'padding': '16px', 'extra': ''},
+        'header_html': '', 'footer_html': '',
+    },
+    {
+        'name': '深色科技', 'category': '科技',
+        'desc': '青蓝霓虹 · 近黑底深色卡片，适合科技类与夜间阅读',
+        'accent': '#38bdf8', 'bg': '#0f172a',
+        'st': {'body': {'color': '#cbd5e1', 'size': '15px', 'lh': '1.9'},
+               'h2': {'deco': 'bar', 'color': '#38bdf8', 'accent': '#38bdf8', 'size': '18px'},
+               'quote': {'deco': 'tint', 'color': '#94a3b8', 'bg': '#1e293b', 'accent': '#38bdf8', 'italic': True},
+               'img': 'max-width:100%;border-radius:10px;display:block;margin:0 auto;border:1px solid #334155;',
+               'body_section': 'background-color:#111827;border:1px solid #1f2937;border-radius:12px;padding:14px 16px;',
+               'img_wrap': 'background-color:#111827;border:1px solid #1f2937;border-radius:12px;padding:8px;'},
+        'body': {'bg': '#0f172a', 'padding': '20px', 'extra': 'border-radius:14px;'},
+        'header_html': '', 'footer_html': '',
+    },
+    {
+        'name': '党政风', 'category': '党政',
+        'desc': '党建红 + 金色五角星与和平鸽装饰，庄重端正，适合党建宣传与政策解读',
+        'accent': '#c8102e', 'bg': '#c8102e',
+        'st': {'body': {'color': '#3a2e2e', 'size': '15.5px', 'lh': '1.95'},
+               'h2': {'deco': 'bar', 'color': '#9e1b1b', 'accent': '#c8102e', 'size': '18px'},
+               'quote': {'deco': 'tint', 'color': '#9e1b1b', 'bg': '#fbeaed', 'accent': '#c8102e', 'italic': False},
+               'img': 'max-width:100%;border-radius:8px;display:block;margin:0 auto;border:3px solid #c8102e;padding:4px;background-color:#ffffff;'},
+        'body': {'bg': '#ffffff', 'padding': '6px', 'extra': ''},
+        'header_html': _party_banner_html(), 'footer_html': '',
+    },
+    {
+        'name': '数字一大·初心之旅', 'category': '党政',
+        'desc': '淡黄底红字 · 石库门/南湖红船/日出东方元素，适合党建题材与红色主题宣传',
+        'accent': '#c8102e', 'bg': '#fdf6e0',
+        'st': {'body': {'color': '#a11d1d', 'size': '15.5px', 'lh': '1.95'},
+               'h2': {'deco': 'pill', 'color': '#ffffff', 'accent': '#c8102e', 'size': '16px'},
+               'quote': {'deco': 'tint', 'color': '#8c1515', 'bg': '#fdeecb', 'accent': '#c8102e', 'italic': False},
+               'img': 'max-width:100%;border-radius:4px;display:block;margin:0 auto;border:3px solid #c8102e;padding:4px;background-color:#fff9ec;',
+               'body_section': 'background-color:#fdf6e0;border-radius:8px;padding:12px 14px;',
+               'img_wrap': 'background-color:#fdf6e0;border-radius:8px;padding:10px;'},
+        'body': {'bg': '#fdf6e0', 'padding': '10px', 'extra': 'border-radius:8px;'},
+        'header_html': _yida_header_html(), 'footer_html': _yida_footer_html(),
+    },
+]
+
+
+def render_builtin_from_record(rec, ordered_sections):
+    """根据 builtin_templates 表记录渲染排版 HTML（通用渲染器）。"""
+    import json
+    if not isinstance(rec, dict):
+        rec = dict(rec)
+    st = json.loads(rec['style_json'] or '{}')
+    body = json.loads(rec['body_json'] or '{}')
+    header_html = rec.get('header_html') or ''
+    footer_html = rec.get('footer_html') or ''
+    bg = body.get('bg', '#ffffff')
+    padding = body.get('padding', '6px')
+    extra = body.get('extra', '')
+    body_style = f"background-color:{bg};padding:{padding};" + (extra if extra else '')
+    inner = _render_body(ordered_sections, st)
+    body_section = f'<section style="{body_style}">\n{inner}\n</section>'
+    return f'{header_html}\n{body_section}\n{footer_html}'.strip()
+
+
+def seed_builtin_templates(c):
+    """首次启动把内置模板写入 builtin_templates 表（仅当表为空时）。"""
+    import json
+    c.execute("SELECT COUNT(*) FROM builtin_templates")
+    if c.fetchone()[0] > 0:
+        return
+    for d in BUILTIN_TEMPLATE_SEED:
+        c.execute(
+            """INSERT INTO builtin_templates
+               (name, category, description, accent, bg, style_json, body_json, header_html, footer_html, is_active)
+               VALUES (?,?,?,?,?,?,?,?,?,1)""",
+            (d['name'], d['category'], d['desc'], d['accent'], d['bg'],
+             json.dumps(d['st'], ensure_ascii=False),
+             json.dumps(d['body'], ensure_ascii=False),
+             d.get('header_html', ''), d.get('footer_html', ''))
+        )
 
 
 @app.route('/api/publish/built-in-templates', methods=['GET'])
 def get_builtin_templates():
-    """获取内置排版模板列表"""
-    return jsonify({
-        'success': True,
-        'templates': [
-            {'id': k, 'name': v['name'], 'category': v['category'], 'desc': v['desc'],
-             'accent': v.get('accent', '#888'), 'bg': v.get('bg', '#f0f0f0')}
-            for k, v in BUILTIN_TEMPLATES.items()
-        ]
-    })
+    """获取内置排版模板列表（仅返回启用中的）"""
+    db = get_db()
+    rows = db.execute(
+        "SELECT id, name, category, description, accent, bg, is_active "
+        "FROM builtin_templates WHERE is_active = 1 ORDER BY id"
+    ).fetchall()
+    templates = [{
+        'id': r['id'], 'name': r['name'], 'category': r['category'],
+        'desc': r['description'], 'accent': r['accent'] or '#888', 'bg': r['bg'] or '#f0f0f0'
+    } for r in rows]
+    return jsonify({'success': True, 'templates': templates})
 
 
 @app.route('/api/publish/apply-built-in-template', methods=['POST'])
@@ -5379,10 +5570,16 @@ def apply_builtin_template():
     sections = data.get('sections', [])
     images = data.get('images', [])
     
-    if template_id not in BUILTIN_TEMPLATES:
+    try:
+        template_id = int(template_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': '模板ID 无效'})
+
+    db = get_db()
+    rec = db.execute("SELECT * FROM builtin_templates WHERE id = ?", (template_id,)).fetchone()
+    if not rec:
         return jsonify({'success': False, 'message': f'模板ID {template_id} 不存在'})
-    
-    template = BUILTIN_TEMPLATES[template_id]
+    template_name = rec['name']
 
     # 按原始顺序构建内容块（保留图片在正文中的分布位置）
     ordered_sections = []
@@ -5398,11 +5595,11 @@ def apply_builtin_template():
                 ordered_sections.append({'type': t, 'value': val})
 
     try:
-        html = template['func'](title, digest, ordered_sections)
+        html = render_builtin_from_record(rec, ordered_sections)
         return jsonify({
             'success': True,
             'html': html,
-            'template_name': template['name'],
+            'template_name': template_name,
             'template_id': template_id,
             'stats': {
                 'subtitles': sum(1 for s in ordered_sections if s['type'] == 'h2'),
@@ -5414,6 +5611,140 @@ def apply_builtin_template():
     except Exception as e:
         import traceback
         return jsonify({'success': False, 'message': f'模板生成失败: {str(e)}', 'traceback': traceback.format_exc()})
+
+
+# ============================================================
+# 管理员：内置固定排版模板 增删改查
+# ============================================================
+
+def _norm_json(v, default='{}'):
+    """把风格/正文区配置统一成 JSON 字符串（接受 dict 或已序列化字符串）。"""
+    import json
+    if isinstance(v, (dict, list)):
+        return json.dumps(v, ensure_ascii=False)
+    if v is None or v == '':
+        return default
+    return v
+
+
+@app.route('/api/admin/builtin-templates', methods=['GET'])
+@admin_required
+def admin_list_builtin_templates():
+    db = get_db()
+    rows = db.execute(
+        "SELECT id, name, category, description, accent, bg, is_active, created_at, updated_at "
+        "FROM builtin_templates ORDER BY id"
+    ).fetchall()
+    items = [{
+        'id': r['id'], 'name': r['name'], 'category': r['category'],
+        'description': r['description'], 'accent': r['accent'] or '#888',
+        'bg': r['bg'] or '#f0f0f0', 'is_active': r['is_active'],
+        'created_at': r['created_at'], 'updated_at': r['updated_at']
+    } for r in rows]
+    return jsonify({'success': True, 'templates': items})
+
+
+@app.route('/api/admin/builtin-templates/<int:tid>', methods=['GET'])
+@admin_required
+def admin_get_builtin_template(tid):
+    db = get_db()
+    r = db.execute("SELECT * FROM builtin_templates WHERE id = ?", (tid,)).fetchone()
+    if not r:
+        return jsonify({'success': False, 'message': '模板不存在'})
+    return jsonify({
+        'success': True,
+        'template': {
+            'id': r['id'], 'name': r['name'], 'category': r['category'],
+            'description': r['description'], 'accent': r['accent'], 'bg': r['bg'],
+            'style_json': r['style_json'], 'body_json': r['body_json'],
+            'header_html': r['header_html'], 'footer_html': r['footer_html'],
+            'is_active': r['is_active']
+        }
+    })
+
+
+@app.route('/api/admin/builtin-templates', methods=['POST'])
+@admin_required
+def admin_create_builtin_template():
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'message': '请输入模板名称'})
+    db = get_db()
+    cur = db.execute(
+        """INSERT INTO builtin_templates
+           (name, category, description, accent, bg, style_json, body_json, header_html, footer_html, is_active)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (name, data.get('category', '通用'), data.get('description', ''),
+         data.get('accent', '#888888'), data.get('bg', '#f0f0f0'),
+         _norm_json(data.get('style_json')), _norm_json(data.get('body_json')),
+         data.get('header_html', ''), data.get('footer_html', ''),
+         1 if data.get('is_active', 1) else 0)
+    )
+    db.commit()
+    return jsonify({'success': True, 'id': cur.lastrowid, 'message': '模板已创建'})
+
+
+@app.route('/api/admin/builtin-templates/<int:tid>', methods=['PUT'])
+@admin_required
+def admin_update_builtin_template(tid):
+    data = request.get_json() or {}
+    db = get_db()
+    r = db.execute("SELECT id FROM builtin_templates WHERE id = ?", (tid,)).fetchone()
+    if not r:
+        return jsonify({'success': False, 'message': '模板不存在'})
+    db.execute(
+        """UPDATE builtin_templates SET
+           name=?, category=?, description=?, accent=?, bg=?, style_json=?, body_json=?,
+           header_html=?, footer_html=?, is_active=?, updated_at=CURRENT_TIMESTAMP
+           WHERE id=?""",
+        (data.get('name', '未命名'), data.get('category', '通用'), data.get('description', ''),
+         data.get('accent', '#888888'), data.get('bg', '#f0f0f0'),
+         _norm_json(data.get('style_json')), _norm_json(data.get('body_json')),
+         data.get('header_html', ''), data.get('footer_html', ''),
+         1 if data.get('is_active', 1) else 0, tid)
+    )
+    db.commit()
+    return jsonify({'success': True, 'message': '模板已更新'})
+
+
+@app.route('/api/admin/builtin-templates/<int:tid>', methods=['DELETE'])
+@admin_required
+def admin_delete_builtin_template(tid):
+    db = get_db()
+    db.execute("DELETE FROM builtin_templates WHERE id = ?", (tid,))
+    db.commit()
+    return jsonify({'success': True, 'message': '模板已删除'})
+
+
+@app.route('/api/admin/builtin-templates/preview', methods=['POST'])
+@admin_required
+def admin_preview_builtin_template():
+    """用当前编辑中的配置渲染一段示例，供后台实时预览（不落库）。"""
+    data = request.get_json() or {}
+    fake = {
+        'name': '预览模板', 'category': '通用', 'description': '',
+        'accent': data.get('accent', '#888888'), 'bg': data.get('bg', '#ffffff'),
+        'style_json': _norm_json(data.get('style_json')),
+        'body_json': _norm_json(data.get('body_json')),
+        'header_html': data.get('header_html', ''),
+        'footer_html': data.get('footer_html', ''),
+        'is_active': 1,
+    }
+    sample = [
+        {'type': 'h2', 'value': '示例小标题：一段副标题文字'},
+        {'type': 'p', 'value': '这是一段示例正文，用于预览当前模板的字体颜色、字号、行高与段落间距效果，确保排版符合预期。'},
+        {'type': 'blockquote', 'value': '这是一段示例引用文字，通常用于强调观点或金句。'},
+        {'type': 'img', 'value': 'http://example.com/sample.png'},
+    ]
+    html = render_builtin_from_record(fake, sample)
+    return jsonify({'success': True, 'html': html})
+
+
+@app.route('/admin/builtin-templates')
+@admin_required
+def admin_builtin_templates():
+    return read_template('admin/builtin_templates.html')
 
 
 @app.route('/admin/generation-records')
