@@ -92,15 +92,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hira
 .toast.error{background:#e74c3c}
 </style>
 </head>
-<body>
+<body data-nav-auto="off" data-nav-group="wechat">
 <div class="layout">
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="logo">M</div>
       <div class="name" id="storeName">百货商城</div>
     </div>
     <nav class="sidebar-nav" id="sidebarNav">
-      <!-- 动态渲染 -->
+      <!-- 管理员由 /static/admin_nav.js 统一渲染；普通用户渲染「我的」菜单 -->
     </nav>
   </div>
 
@@ -164,6 +164,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hira
 
 <div class="toast" id="toast"></div>
 
+<script src="/static/admin_nav.js"></script>
 <script>
 // ===== 状态 =====
 let blocks = [];
@@ -906,21 +907,16 @@ async function loadCurrentUser() {
 function renderSidebar() {
   const nav = document.getElementById('sidebarNav');
   if (isCurrentUserAdmin) {
+    // 管理员：交给全站统一侧栏组件渲染（单一数据源），保证与其他后台页完全一致
+    if (window.renderAdminSidebar) { window.renderAdminSidebar(); return; }
+  }
+  if (!nav) return;
+  if (isCurrentUserAdmin) {
     nav.innerHTML = `
       <div class="nav-group">
         <div class="nav-group-title">管理</div>
-        <a class="nav-item" href="/admin"><span class="icon">&#128202;</span> 仪表盘</a>
-        <a class="nav-item" href="/admin/products"><span class="icon">&#128230;</span> 商品管理</a>
-        <a class="nav-item" href="/admin/orders"><span class="icon">&#128230;</span> 订单管理</a>
-        <a class="nav-item" href="/admin/customers"><span class="icon">&#128100;</span> 客户管理</a>
-        <a class="nav-item" href="/admin/after-sales"><span class="icon">&#128736;</span> 售后管理</a>
-        <a class="nav-item" href="/admin/settings"><span class="icon">&#9881;</span> 系统设置</a>
-      </div>
-      <div class="nav-group">
-        <div class="nav-group-title">内容</div>
-        <a class="nav-item" href="/publish"><span class="icon">&#9999;</span> 文章发布</a>
-        <a class="nav-item active" href="/template-editor"><span class="icon">&#127912;</span> 模板编辑器</a>
-        <a class="nav-item" href="/admin/generation-records"><span class="icon">&#128221;</span> 生成记录</a>
+        <a class="nav-item" href="/admin"><span class="icon">&#8644;</span> 切换系统</a>
+        <a class="nav-item" href="/admin/mall"><span class="icon">&#128202;</span> 数据概览</a>
       </div>`;
   } else {
     nav.innerHTML = `

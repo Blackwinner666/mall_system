@@ -71,30 +71,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
 .hint{font-size:11px;color:#aaa;margin-top:4px}
 </style>
 </head>
-<body>
+<body data-nav-group="wechat">
 <div class="layout">
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="logo">M</div>
-      <div class="name">公众号管理</div>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-group">
-        <a class="nav-item" href="/admin" style="background:rgba(74,108,247,.15);color:#aab6ff;">
-          <span class="icon">⇄</span> 切换系统
-        </a>
-      </div>
-      <div class="nav-group">
-        <div class="nav-group-title">公众号管理</div>
-        <a class="nav-item" href="/admin/wechat"><span class="icon">◆</span> 概览</a>
-        <a class="nav-item" href="/publish"><span class="icon">✎</span> 文章发布</a>
-        <a class="nav-item" href="/admin/template-designer"><span class="icon">🧩</span> 模板制作</a>
-        <a class="nav-item active" href="/admin/builtin-templates"><span class="icon">📐</span> 内置模板管理</a>
-        <a class="nav-item" href="/admin/generation-records"><span class="icon">📚</span> 生成记录</a>
-        <a class="nav-item" href="/admin/publish-analytics"><span class="icon">📊</span> 发布数据分析</a>
-      </div>
-    </nav>
-  </aside>
+  <aside class="sidebar" id="sidebar"></aside>
   <div class="main">
     <div class="topbar">
       <div class="breadcrumb">公众号管理 / 内置固定排版模板管理</div>
@@ -184,6 +163,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
   </div>
 </div>
 
+<script src="/static/admin_nav.js"></script>
 <script>
 const DEFAULT_STYLE = JSON.stringify({
   body: { color: "#374151", size: "15px", lh: "1.9" },

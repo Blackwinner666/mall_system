@@ -142,21 +142,10 @@ td{color:#333}
   </div>
 </div>
 
+<script src="/static/admin_nav.js"></script>
 <script>
 // ====== Sidebar ======
 renderSidebar();
-function renderSidebar() {
-  document.getElementById('sidebar').innerHTML = `<div class="sidebar-header"><div class="logo">M</div><div class="name" id="storeName">百货商城</div></div>
-    <nav style="padding:12px 0">
-      <div class="nav-group"><a class="nav-item" href="/admin"><span class="icon">◆</span>首页</a></div>
-      <div class="nav-group"><a class="nav-item active" href="/admin/store"><span class="icon">◇</span>店铺管理</a></div>
-      <div class="nav-group"><a class="nav-item" href="/admin/products"><span class="icon">☆</span>商品管理</a></div>
-      <div class="nav-group"><a class="nav-item" href="/admin/orders"><span class="icon">☑</span>订单管理</a></div>
-      <div class="nav-group"><a class="nav-item" href="/admin/after-sales"><span class="icon">↺</span>售后管理</a></div>
-      <div class="nav-group"><a class="nav-item" href="/admin/customers"><span class="icon">☺</span>客户管理</a></div>
-      <div class="nav-group"><a class="nav-item" href="/admin/settings"><span class="icon">⚙</span>商城设置</a></div></nav>`;
-}
-
 async function init(){
   let r=await fetch('/api/auth/me');let u=await r.json();
 

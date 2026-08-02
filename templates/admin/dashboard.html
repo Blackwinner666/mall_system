@@ -133,49 +133,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hira
   </div>
 </div>
 
+<script src="/static/admin_nav.js"></script>
 <script>
 // ====== 侧边栏 ======
-function renderSidebar() {
-  document.getElementById('sidebar').innerHTML = `
-    <div class="sidebar-header">
-      <div class="logo">M</div>
-      <div class="name" id="storeName">百货商城</div>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-group">
-        <a class="nav-item" href="/admin" style="background:rgba(74,108,247,.15);color:#aab6ff;">
-          <span class="icon">⇄</span> 切换系统
-        </a>
-      </div>
-      <div class="nav-group">
-        <div class="nav-group-title">商城管理</div>
-        <a class="nav-item active" href="/admin/mall">
-          <span class="icon">◆</span> 数据概览
-        </a>
-        <a class="nav-item" href="/admin/store">
-          <span class="icon">◇</span> 店铺管理
-        </a>
-        <a class="nav-item" href="/admin/products">
-          <span class="icon">☆</span> 商品管理
-        </a>
-        <a class="nav-item" href="/admin/orders">
-          <span class="icon">☑</span> 订单管理
-        </a>
-        <a class="nav-item" href="/admin/after-sales">
-          <span class="icon">↺</span> 售后管理
-        </a>
-        <a class="nav-item" href="/admin/customers">
-          <span class="icon">☺</span> 客户管理
-        </a>
-      </div>
-      <div class="nav-group">
-        <a class="nav-item" href="/admin/settings">
-          <span class="icon">⚙</span> 商城设置
-        </a>
-      </div>
-    </nav>`;
-}
-
 // ====== 初始化 ======
 async function init() {
   renderSidebar();

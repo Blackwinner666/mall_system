@@ -64,13 +64,21 @@ tr:hover td { background:#fafafa; }
 
 .loading { text-align:center; padding:40px; color:var(--text3); }
 @media (max-width:768px) { .stats { grid-template-columns:repeat(2,1fr); } }
+/* 统一后台外壳（侧栏样式与布局修复由 /static/admin_nav.js 注入） */
+.header { flex-shrink:0; }
+.header h2 { font-size:16px; font-weight:600; }
+.container { max-width:1200px; margin:24px auto; padding:0 24px; }
 </style>
 </head>
-<body>
-<div class="header">
-  <h2>公众号AI创作 - 生成记录</h2>
-  <a href="/admin">返回管理后台</a><span data-user-slot style="margin-left:12px;"></span>
-</div>
+<body data-nav-group="wechat">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <div class="header topbar">
+      <h2>公众号AI创作 - 生成记录</h2>
+      <span data-user-slot></span>
+    </div>
+    <div class="content">
 <div class="container">
   <div class="stats" id="stats"></div>
   <div class="filters">
@@ -90,7 +98,11 @@ tr:hover td { background:#fafafa; }
     <div id="table-container"><div class="loading">加载中...</div></div>
   </div>
 </div>
+    </div>
+  </div>
+</div>
 
+<script src="/static/admin_nav.js"></script>
 <script>
 const state = { page:1, total:0, per_page:30 };
 

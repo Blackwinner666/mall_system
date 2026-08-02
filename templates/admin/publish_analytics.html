@@ -30,14 +30,19 @@
   .bar > i { display:block; height:100%; background:#534ab7; }
   .empty { color:#999; padding:20px; text-align:center; }
   .back { margin-left:auto; }
+  /* 统一后台外壳（侧栏样式与布局修复由 /static/admin_nav.js 注入） */
+  .topbar { flex-shrink:0; }
 </style>
 </head>
-<body>
-<div class="topbar">
-  <a href="/admin">返回后台</a>
-  <span>发布数据分析</span>
-  <a class="back" href="/admin/publish-analytics" onclick="loadData();return false;">刷新</a>
-</div>
+<body data-nav-group="wechat">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <span>发布数据分析</span>
+      <a class="back" href="/admin/publish-analytics" onclick="loadData();return false;">刷新</a>
+    </div>
+    <div class="content">
 <div class="wrap">
   <div class="cards" id="cards">
     <div class="stat"><div class="num" id="s-total">-</div><div class="lab">发布总次数</div></div>
@@ -66,7 +71,11 @@
     <table id="tbl-recent"><thead><tr><th>时间</th><th>渠道</th><th>标题</th><th>状态</th><th>详情</th></tr></thead><tbody></tbody></table>
   </div>
 </div>
+    </div>
+  </div>
+</div>
 
+<script src="/static/admin_nav.js"></script>
 <script>
 function loadData(){
   fetch('/api/admin/publish-analytics').then(r=>r.json()).then(res=>{
