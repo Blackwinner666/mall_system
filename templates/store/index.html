@@ -154,7 +154,8 @@ async function init() {
   const headerRight = document.getElementById('headerRight');
   if (meJson.success && meJson.logged_in) {
     const u = meJson.user;
-    headerRight.innerHTML = '<a href="/publish" class="header-btn" style="background:#eeedfe;color:#534ab7;border-color:#534ab7;font-weight:500;">AI创作发布</a>' +
+    headerRight.innerHTML = '<a href="/portal" class="header-btn" style="background:#eeedfe;color:#534ab7;border-color:#534ab7;font-weight:500;">工作台</a>' +
+      '<a href="/publish" class="header-btn" style="background:#eeedfe;color:#534ab7;border-color:#534ab7;font-weight:500;">AI创作发布</a>' +
       '<a href="/cart" class="header-btn" style="position:relative">&#128722; 购物车</a>' +
       '<a href="/profile" class="header-btn">个人中心</a>' +
       '<span style="font-size:13px;color:#333;font-weight:500;">' + u.display_name + '</span>' +
