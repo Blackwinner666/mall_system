@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公众号管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#333}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-header{padding:20px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:36px;height:36px;background:#4a6cf7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.sidebar-header .name{font-size:15px;font-weight:600}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-group{padding:0 12px;margin-bottom:8px}
+.nav-group-title{font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;padding:8px 12px;letter-spacing:1px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:14px;transition:.2s;cursor:pointer;margin:2px 0}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:#4a6cf7;color:#fff}
+.nav-item .icon{width:20px;text-align:center;font-size:15px}
+.main{flex:1;overflow-y:auto}
+.topbar{background:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8}
+.topbar .breadcrumb{font-size:13px;color:#999}
+.topbar .user-info{display:flex;align-items:center;gap:10px;font-size:13px}
+.topbar .logout-btn{background:none;border:1px solid #ddd;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;color:#666;text-decoration:none;display:inline-block;line-height:normal}
+.topbar .logout-btn:hover{background:#f5f5f5}
+.content{padding:24px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:16px}
+.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stat-icon.blue{background:#eef2ff;color:#4a6cf7}
+.stat-icon.green{background:#ecfdf5;color:#10b981}
+.stat-icon.orange{background:#fff7ed;color:#f97316}
+.stat-icon.purple{background:#f5f3ff;color:#8b5cf6}
+.stat-info .stat-value{font-size:24px;font-weight:700;color:#1a1a2e;line-height:1.2}
+.stat-info .stat-label{font-size:13px;color:#999;margin-top:2px}
+.panel{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.panel-header{padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.panel-header h3{font-size:15px;font-weight:600}
+.panel-header .more{font-size:12px;color:#4a6cf7;cursor:pointer;text-decoration:none}
+.panel-body{padding:16px 20px}
+.list-item{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #f5f5f5;gap:12px;font-size:13px}
+.list-item:last-child{border:none}
+.list-item .li-title{flex:1}
+.list-item .li-status{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.li-status.published{background:#ecfdf5;color:#10b981}
+.li-status.draft{background:#f3f4f6;color:#6b7280}
+.li-status.success{background:#ecfdf5;color:#10b981}
+.li-status.failed{background:#fef2f2;color:#dc2626}
+.list-item .li-time{color:#999;font-size:11px}
+.grid-2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+.quick-card{display:flex;gap:12px;align-items:center;padding:14px;background:#f8f9fc;border-radius:10px;margin-bottom:10px;cursor:pointer;border:1px solid transparent;transition:.2s}
+.quick-card:hover{border-color:#4a6cf7;background:#f0f3ff}
+.quick-card .qc-icon{width:40px;height:40px;border-radius:10px;background:#4a6cf7;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.quick-card .qc-title{font-size:14px;font-weight:600}
+.quick-card .qc-desc{font-size:12px;color:#999;margin-top:2px}
+.loading{text-align:center;padding:40px;color:#999}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">M</div>
+      <div class="name">公众号管理</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">
+        <a class="nav-item" href="/admin" style="background:rgba(74,108,247,.15);color:#aab6ff;">
+          <span class="icon">⇄</span> 切换系统
+        </a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">公众号管理</div>
+        <a class="nav-item active" href="/admin/wechat">
+          <span class="icon">◆</span> 概览
+        </a>
+        <a class="nav-item" href="/publish">
+          <span class="icon">&#9999;</span> 文章发布
+        </a>
+        <a class="nav-item" href="/template-editor">
+          <span class="icon">&#127912;</span> 模板管理
+        </a>
+        <a class="nav-item" href="/admin/template-designer">
+          <span class="icon">&#129513;</span> 可视化拖拽创作
+        </a>
+        <a class="nav-item" href="/admin/generation-records">
+          <span class="icon">&#128221;</span> 生成记录
+        </a>
+        <a class="nav-item" href="/admin/publish-analytics">
+          <span class="icon">&#128202;</span> 发布数据分析
+        </a>
+      </div>
+    </nav>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">公众号管理 / 概览</div>
+      <div class="user-info">
+        <a href="/admin" class="logout-btn">切换系统</a>
+        <a href="/portal" class="logout-btn">工作台</a>
+        <span id="displayName">管理员</span>
+        <button class="logout-btn" onclick="doLogout()">退出登录</button>
+      </div>
+    </div>
+    <div class="content" id="app">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function init() {
+  try {
+    let r = await fetch('/api/auth/me');
+    let u = await r.json();
+    if (u.success && u.user) document.getElementById('displayName').textContent = u.user.display_name || u.user.username;
+  } catch(e) {}
+  await loadOverview();
+}
+
+function doLogout() {
+  fetch('/api/auth/logout', {method:'POST'}).then(() => location.href='/login');
+}
+
+async function loadOverview() {
+  let app = document.getElementById('app');
+  try {
+    let [recR, tplR] = await Promise.all([
+      fetch('/api/admin/generation-records?per_page=100').then(r=>r.json()),
+      fetch('/api/publish/style-templates').then(r=>r.json())
+    ]);
+    let records = (recR.success && recR.data) ? recR.data.items : [];
+    let total = records.length;
+    let thisMonth = records.filter(r => r.created_at && r.created_at.startsWith(new Date().toISOString().slice(0,7))).length;
+    let successCnt = records.filter(r => r.status === 'success').length;
+    let tplCnt = (tplR.success && tplR.data) ? tplR.data.length : 0;
+
+    let html = '';
+    html += `<div class="stats-row">
+      <div class="stat-card"><div class="stat-icon blue">📝</div><div class="stat-info"><div class="stat-value">${total}</div><div class="stat-label">累计生成</div></div></div>
+      <div class="stat-card"><div class="stat-icon green">📅</div><div class="stat-info"><div class="stat-value">${thisMonth}</div><div class="stat-label">本月生成</div></div></div>
+      <div class="stat-card"><div class="stat-icon orange">✅</div><div class="stat-info"><div class="stat-value">${successCnt}</div><div class="stat-label">成功发布</div></div></div>
+      <div class="stat-card"><div class="stat-icon purple">🎨</div><div class="stat-info"><div class="stat-value">${tplCnt}</div><div class="stat-label">模板数量</div></div></div>
+    </div>`;
+
+    html += `<div class="grid-2">
+      <div class="panel">
+        <div class="panel-header"><h3>最近生成记录</h3><a class="more" href="/admin/generation-records">查看全部</a></div>
+        <div class="panel-body">`;
+
+    if (records.length > 0) {
+      records.slice(0, 8).forEach(r => {
+        let st = r.status === 'success' ? 'success' : (r.status === 'failed' ? 'failed' : 'draft');
+        let stTxt = r.status === 'success' ? '成功' : (r.status === 'failed' ? '失败' : '草稿');
+        let time = r.created_at ? r.created_at.replace('T',' ').slice(0,16) : '';
+        html += `<div class="list-item">
+          <span class="li-title">${esc(r.title || '(无标题)')} <span style="color:#999;font-size:11px;">· ${esc(r.username||'')}</span></span>
+          <span class="li-status ${st}">${stTxt}</span>
+          <span class="li-time">${time}</span>
+        </div>`;
+      });
+    } else {
+      html += '<div style="text-align:center;color:#999;padding:20px">暂无生成记录</div>';
+    }
+    html += `</div></div>`;
+
+    html += `<div class="panel">
+      <div class="panel-header"><h3>快捷入口</h3></div>
+      <div class="panel-body">
+        <div class="quick-card" onclick="location.href='/publish'"><div class="qc-icon">✍</div><div><div class="qc-title">AI 创作文章</div><div class="qc-desc">搜索新闻并生成公众号文章</div></div></div>
+        <div class="quick-card" onclick="location.href='/template-editor'"><div class="qc-icon">🎨</div><div><div class="qc-title">模板管理</div><div class="qc-desc">管理排版与风格模板</div></div></div>
+        <div class="quick-card" onclick="location.href='/admin/template-designer'"><div class="qc-icon">🧩</div><div><div class="qc-title">可视化拖拽创作</div><div class="qc-desc">大框套小框，创作可复用模板</div></div></div>
+        <div class="quick-card" onclick="location.href='/admin/generation-records'"><div class="qc-icon">📚</div><div><div class="qc-title">生成记录</div><div class="qc-desc">查看历史生成与发布情况</div></div></div>
+      </div></div>
+    </div>`;
+
+    app.innerHTML = html;
+  } catch(e) {
+    app.innerHTML = '<div class="loading">加载失败: ' + e.message + '</div>';
+  }
+}
+
+function esc(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+init();
+</script>
+</body>
+</html>
