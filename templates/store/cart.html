@@ -118,10 +118,10 @@ a{color:inherit;text-decoration:none}
 <div class="header">
   <div class="header-inner">
     <div class="header-left">
-      <a href="/" class="header-logo" id="headerLogo">
+      <a href="/store" class="header-logo" id="headerLogo">
         <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
       </a>
-      <a href="/" class="header-title" id="headerTitle">百货商城</a>
+      <a href="/store" class="header-title" id="headerTitle">百货商城</a>
     </div>
     <div class="header-right" id="headerRight">
       <a href="/login" class="header-btn">登录</a>
@@ -215,7 +215,7 @@ function renderCart(data) {
   const items = data.items || [];
 
   if (items.length === 0) {
-    wrap.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon">&#128722;</div><h3>购物车还是空的</h3><p>快去挑选您喜欢的商品吧</p><a href="/" class="btn-shop">去逛逛</a></div>';
+    wrap.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon">&#128722;</div><h3>购物车还是空的</h3><p>快去挑选您喜欢的商品吧</p><a href="/store" class="btn-shop">去逛逛</a></div>';
     document.getElementById('cartBottom').style.display = 'none';
     return;
   }
