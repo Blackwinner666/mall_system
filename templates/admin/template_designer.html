@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>可视化拖拽创作 - 公众号管理</title>
+<style>
+:root{--primary:#534ab7;--primary-light:#eeedfe;--primary-dark:#3c3489;--bg:#f5f6fa;--card:#fff;--text:#1a1a2e;--text2:#555;--text3:#999;--border:#e8e8e8;--danger:#e24b4a;--warning:#ff9800;--success:#4caf50;--radius:12px;}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:#333}
+.layout{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-header{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.sidebar-header .logo{width:34px;height:34px;background:#4a6cf7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:bold}
+.sidebar-header .name{font-size:14px;font-weight:600}
+.sidebar-nav{flex:1;padding:10px 0;overflow-y:auto}
+.nav-group{padding:0 10px;margin-bottom:6px}
+.nav-group-title{font-size:11px;color:rgba(255,255,255,.35);text-transform:uppercase;padding:7px 12px;letter-spacing:1px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:13px;transition:.15s;cursor:pointer;margin:1px 0}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:#4a6cf7;color:#fff}
+.nav-item .icon{width:20px;text-align:center;font-size:14px;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{background:#fff;padding:0 24px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.topbar .breadcrumb{font-size:13px;color:#999}
+.topbar .user-info{display:flex;align-items:center;gap:10px;font-size:12px}
+.topbar .logout-btn{background:none;border:1px solid #ddd;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;color:#666;text-decoration:none;display:inline-block;line-height:normal}
+.topbar .logout-btn:hover{background:#f5f5f5}
+.content{flex:1;overflow-y:auto;padding:20px 24px}
+.card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:20px;margin-bottom:16px;}
+.card-title{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:var(--text);line-height:1.3}
+.form-group{margin-bottom:14px;}
+.form-input{width:100%;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;color:var(--text);outline:none;transition:border .15s;background:#fafafa;}
+.form-input:focus{border-color:var(--primary);background:#fff;}
+.form-textarea{width:100%;min-height:90px;padding:11px;border:1px solid var(--border);border-radius:6px;font-size:14px;color:var(--text);outline:none;resize:vertical;font-family:inherit;line-height:1.7;background:#fafafa;}
+.form-textarea:focus{border-color:var(--primary);background:#fff;}
+.btn{height:36px;padding:0 18px;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-outline{background:#fff;color:var(--primary);border:1px solid var(--primary);}
+.btn-outline:hover{background:var(--primary-light);}
+.btn-success{background:var(--success);color:#fff;}
+.btn-success:hover{opacity:.9;}
+.btn-sm{height:31px;padding:0 13px;font-size:12px;}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;z-index:9999;display:none;max-width:480px;}
+.toast.show{display:block;animation:toastIn .3s ease;}
+.toast.success{background:var(--success);}
+.toast.error{background:var(--danger);}
+.toast.warning{background:var(--warning);color:#333;}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* Drag Editor Layout */
+.dg-layout{display:grid;grid-template-columns:190px minmax(0,1fr) 280px;gap:14px;align-items:start;}
+@media(max-width:1100px){.dg-layout{grid-template-columns:1fr;}}
+.dg-palette{display:flex;flex-direction:column;gap:7px;}
+.dg-pal{display:flex;flex-direction:column;gap:2px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:grab;user-select:none;transition:.15s;}
+.dg-pal:hover{border-color:var(--primary);box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.dg-pal:active{cursor:grabbing;}
+.dg-pal b{font-size:13px;color:var(--text);}
+.dg-pal span{font-size:11px;color:var(--text3);}
+.dg-pal-ic{font-size:17px;line-height:1;}
+.dg-canvas{min-height:400px;border:2px dashed #d4dce4;border-radius:12px;background:#fafbfc;padding:14px;overflow:auto;}
+.dg-node{position:relative;margin:7px 0;border-radius:10px;}
+.dg-root{border:none;margin:0;padding:0 !important;background:transparent !important;}
+.dg-box{border:1px dashed #c7d2fe;}
+.dg-sel{outline:2px solid var(--primary);outline-offset:2px;}
+.dg-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;}
+.dg-tag{font-size:11px;font-weight:700;color:var(--primary);background:var(--primary-light);padding:1px 7px;border-radius:4px;}
+.dg-ops{display:flex;gap:4px;}
+.dg-ops button{font-size:11px;padding:2px 6px;border:1px solid var(--border);background:#fff;border-radius:4px;cursor:pointer;color:var(--text2);}
+.dg-ops button:hover{border-color:var(--primary);color:var(--primary);}
+.dg-text{padding:5px 7px;font-size:14px;line-height:1.7;color:var(--text);white-space:pre-wrap;word-break:break-word;cursor:pointer;border-radius:5px;}
+.dg-text:hover{background:rgba(0,0,0,0.03);}
+.dg-drop{border:1.5px dashed #cbd5e1;border-radius:8px;padding:10px;text-align:center;font-size:12px;color:var(--text3);margin:7px 0;transition:.15s;}
+.dg-drop.dg-over{background:#eff6ff;border-color:var(--primary);color:var(--primary);}
+.dg-img img{max-width:100%;border-radius:6px;display:block;}
+.dg-ph{padding:14px;text-align:center;color:var(--text3);background:#f1f5f9;border-radius:6px;font-size:12px;}
+.dg-props{margin:0;}
+.dg-props .card-title{font-size:13px;margin-bottom:10px;}
+.dg-props .form-group{margin-bottom:10px;}
+.dg-props label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:5px;margin-bottom:4px;}
+.dg-color-row{display:flex;align-items:center;gap:7px;}
+.dg-color-row input[type=color]{width:38px;height:28px;border:1px solid var(--border);border-radius:6px;padding:2px;background:#fff;}
+.dg-color-row span{font-size:11px;color:var(--text3);}
+.dg-result{margin-top:10px;font-size:12px;padding:8px 11px;border-radius:8px;display:inline-block;}
+.dg-result.ok{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7;}
+.dg-result.err{background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;}
+.tpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">M</div>
+      <div class="name">公众号管理</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">
+        <a class="nav-item" href="/admin" style="background:rgba(74,108,247,.15);color:#aab6ff;">
+          <span class="icon">⇄</span> 切换系统
+        </a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">公众号管理</div>
+        <a class="nav-item" href="/admin/wechat">
+          <span class="icon">◆</span> 概览
+        </a>
+        <a class="nav-item" href="/publish">
+          <span class="icon">&#9999;</span> 文章发布
+        </a>
+        <a class="nav-item" href="/template-editor">
+          <span class="icon">&#127912;</span> 模板管理
+        </a>
+        <a class="nav-item active" href="/admin/template-designer">
+          <span class="icon">&#129513;</span> 可视化拖拽创作
+        </a>
+        <a class="nav-item" href="/admin/generation-records">
+          <span class="icon">&#128221;</span> 生成记录
+        </a>
+      </div>
+    </nav>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">公众号管理 / 可视化拖拽创作</div>
+      <div class="user-info">
+        <a href="/admin" class="logout-btn">切换系统</a>
+        <a href="/portal" class="logout-btn">工作台</a>
+        <span data-user-slot></span>
+        <button class="logout-btn" onclick="doLogout()">退出登录</button>
+      </div>
+    </div>
+    <div class="content">
+      <!-- 拖拽编辑器 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">&#129513; 可视化拖拽排版 <span style="font-size:12px;color:var(--text3);font-weight:400;">（从左侧拖元素到画布，大框可嵌套小框，每个框可单独改色 / 圆角 / 内边距）</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <input id="article-title" class="form-input" style="max-width:280px;" placeholder="文章标题（可选）">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-outline btn-sm" onclick="loadDragExample()">载入示例</button>
+          <button class="btn btn-outline btn-sm" onclick="clearDrag()">清空画布</button>
+          <button class="btn btn-primary btn-sm" onclick="copyDragToWeChat()">&#128203; 复制到微信</button>
+          <button class="btn btn-outline btn-sm" onclick="previewDrag()">预览效果</button>
+          <button class="btn btn-outline btn-sm" onclick="exportDragHTML()">导出 HTML</button>
+          <span id="drag-result" class="dg-result" style="display:none;"></span>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;background:#f1f5f9;border-radius:8px;padding:10px 12px;">
+          <input id="drag-tpl-name" class="form-input" style="flex:1;min-width:180px;" placeholder="给这套排版起个名字">
+          <button class="btn btn-success btn-sm" onclick="saveDragTemplate()">&#128190; 保存为模板</button>
+          <label style="font-size:12px;color:#047857;align-items:center;gap:6px;cursor:pointer;display:inline-flex;">
+            <input type="checkbox" id="drag-publish"> 发布给所有用户
+          </label>
+        </div>
+        <div class="dg-layout">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:7px;">拖拽元素</div>
+            <div class="dg-palette" id="dg-palette"></div>
+            <p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.55;">提示：把元素拖到画布虚线区即可实现大框套小框；拖动已有元素可改变位置或嵌套。</p>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:7px;">画布（文章大框）</div>
+            <div class="dg-canvas" id="drag-canvas"></div>
+          </div>
+          <div class="dg-props card" style="position:sticky;top:4px;">
+            <div class="card-title" style="font-size:13px;">属性面板</div>
+            <div id="dg-props-body"><p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑，可改背景色、文字色、圆角与内边距。</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模板管理 -->
+      <div class="card">
+        <div class="card-title">&#128214; 模板管理 <span style="font-size:12px;color:var(--text3);font-weight:400;">（管理员可发布给所有用户；普通用户只能看到自己创建或管理员发布的模板）</span></div>
+        <div class="tpl-grid" id="admin-template-grid"><div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text3);font-size:13px;">加载中...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 基础工具 =====
+function esc(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function toast(msg,type){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast '+(type||'')+' show'; setTimeout(()=>t.classList.remove('show'),3000); }
+function fallbackCopy(html){
+  const div=document.createElement('div'); div.contentEditable=true; div.innerHTML=html;
+  div.style.position='fixed'; div.style.left='-9999px'; div.style.top='0';
+  document.body.appendChild(div);
+  const range=document.createRange(); range.selectNodeContents(div);
+  const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  let ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(div);
+  if(ok) toast('已用兼容方式复制','success'); else toast('复制失败，请手动 Ctrl+C','error');
+}
+function doLogout(){ fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/login'); }
+
+// 状态
+let userTemplates = [];
+let currentUser = { role:'admin' };
+// 占位（本页无多标签，调用无害）
+function switchTab(){ return; }
+function applyUserTemplate(id){ toast('请在「文章发布」页应用该模板','warning'); }
+
+// ===== 可视化拖拽排版 =====
+let dragRoot = { id:'root', type:'root', style:{bg:'#f4f6f9', radius:16, padding:24}, children:[] };
+let dragSelected = null;
+let dragIdSeq = 1;
+const DRAG_PALETTE = [
+  {type:'box',     ic:'▦', label:'大框 / 小框', desc:'可嵌套的容器'},
+  {type:'heading', ic:'H', label:'标题',       desc:'粗体大标题'},
+  {type:'text',    ic:'¶', label:'正文',       desc:'普通段落'},
+  {type:'quote',   ic:'❝', label:'引用',       desc:'斜体引用块'},
+  {type:'image',   ic:'▣', label:'图片',       desc:'插入图片'},
+  {type:'divider', ic:'—', label:'分割线',     desc:'分隔线'},
+];
+function uid(){ return 'd'+(dragIdSeq++); }
+function typeLabel(t){ return ({root:'画布根',box:'大框/小框',heading:'标题',text:'正文',quote:'引用',image:'图片',divider:'分割线'})[t]||t; }
+function pad(v){ return Math.max(0, parseInt(v)||0); }
+function rad(v){ return Math.max(0, parseInt(v)||0); }
+function isDark(hex){
+  hex=(hex||'').replace('#',''); if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+  if(hex.length!==6) return false;
+  const r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+  return (0.299*r+0.587*g+0.114*b) < 140;
+}
+function newDragBlock(type){
+  const id=uid(); const base={id,type,children:[]};
+  if(type==='box') base.style={bg:'#eef2f7',radius:12,padding:16};
+  else if(type==='heading') base.style={bg:'transparent',color:'#1e293b',radius:0,padding:10,borderLeft:true,borderColor:'#3b82f6'};
+  else if(type==='text') base.style={bg:'transparent',color:'#334155',radius:0,padding:8};
+  else if(type==='quote') base.style={bg:'transparent',color:'#64748b',radius:0,padding:12,borderLeft:true,borderColor:'#94a3b8'};
+  else if(type==='image') base.style={bg:'transparent',radius:12,padding:0};
+  else if(type==='divider') base.style={color:'#cbd5e1'};
+  if(['heading','text','quote'].includes(type)) base.text={heading:'小标题文字',text:'在这里输入正文内容……',quote:'“引用内容……”'}[type];
+  return base;
+}
+function findNode(node,id){ if(node.id===id) return node; if(node.children){ for(const c of node.children){ const r=findNode(c,id); if(r) return r; } } return null; }
+function findParent(arr,id,parent){ for(const n of arr){ if(n.id===id) return parent; if(n.children){ const r=findParent(n.children,id,n); if(r) return r; } } return null; }
+function cutNode(id){ function rec(a){ for(let i=0;i<a.length;i++){ if(a[i].id===id) return a.splice(i,1)[0]; if(a[i].children){ const r=rec(a[i].children); if(r) return r; } } return null; } return rec(dragRoot.children); }
+function isDescendant(node,id){ if(!node.children) return false; for(const c of node.children){ if(c.id===id) return true; if(isDescendant(c,id)) return true; } return false; }
+
+function renderPalette(){
+  document.getElementById('dg-palette').innerHTML = DRAG_PALETTE.map(function(p){
+    return '<div class="dg-pal" draggable="true" ondragstart="palDragStart(event,\'' + p.type + '\')">' +
+      '<div style="display:flex;align-items:center;gap:8px;"><span class="dg-pal-ic">' + p.ic + '</span><b>' + p.label + '</b></div>' +
+      '<span>' + p.desc + '</span></div>';
+  }).join('');
+}
+function palDragStart(e,type){ e.dataTransfer.setData('text/plain', JSON.stringify({kind:'new',type:type})); e.dataTransfer.effectAllowed='copy'; }
+function nodeDragStart(e,id){ e.dataTransfer.setData('text/plain', JSON.stringify({kind:'move',id:id})); e.dataTransfer.effectAllowed='move'; }
+
+function renderDragNode(node){
+  if(node.type==='root'){
+    return '<div class="dg-node dg-root" data-id="root">' +
+      '<div class="dg-drop" data-drop="root" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="onDrop(event,\'root\')">＋ 拖入此处添加元素（大框 / 文字 / 图片 …）</div>' +
+      (node.children||[]).map(renderDragNode).join('') +
+    '</div>';
+  }
+  const st=node.style||{};
+  const isBox=(node.type==='box');
+  const bg = (st.bg==='transparent'||!st.bg) ? (node._parentBg||'rgba(0,0,0,0.03)') : st.bg;
+  let h='<div class="dg-node'+(isBox?' dg-box':'')+(dragSelected===node.id?' dg-sel':'')+'" data-id="'+node.id+'" draggable="true" ondragstart="nodeDragStart(event,\''+node.id+'\')" style="background:'+bg+';border-radius:'+rad(st.radius)+'px;padding:'+pad(st.padding)+'px;'+(st.borderLeft?'border-left:4px solid '+(st.borderColor||'#3b82f6')+';':'')+'">';
+  h+='<div class="dg-head"><span class="dg-tag">'+typeLabel(node.type)+'</span>'+
+     '<span class="dg-ops"><button onclick="selectDrag(\''+node.id+'\')">编辑</button>'+
+     '<button onclick="moveDrag(\''+node.id+'\',-1)">↑</button>'+
+     '<button onclick="moveDrag(\''+node.id+'\',1)">↓</button>'+
+     '<button onclick="removeDrag(\''+node.id+'\')">✕</button></span></div>';
+  if(node.type==='box'){
+    h+='<div class="dg-drop" data-drop="'+node.id+'" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="onDrop(event,\''+node.id+'\')">＋ 拖入此处嵌套子元素（大框套小框）</div>';
+    h+=(node.children||[]).map(renderDragNode).join('');
+  } else if(node.type==='image'){
+    h+='<div class="dg-img" onclick="selectDrag(\''+node.id+'\')">'+(node.src?'<img src="'+node.src+'" style="max-width:100%;border-radius:6px;">':'<div class="dg-ph">点击右侧属性填写图片URL</div>')+'</div>';
+  } else if(node.type==='divider'){
+    h+='<hr style="border:none;border-top:1px solid '+(st.color||'#cbd5e1')+';margin:4px 0;">';
+  } else {
+    h+='<div class="dg-text" onclick="selectDrag(\''+node.id+'\')">'+esc(node.text||'')+'</div>';
+  }
+  h+='</div>';
+  return h;
+}
+function renderDragCanvas(){
+  (function tag(n,pb){ n._parentBg=pb; const bg=(n.style&&n.style.bg&&n.style.bg!=='transparent')?n.style.bg:pb; (n.children||[]).forEach(function(c){tag(c,bg);}); })(dragRoot, dragRoot.style.bg||'#f4f6f9');
+  const el=document.getElementById('drag-canvas');
+  el.style.background = dragRoot.style.bg||'#f4f6f9';
+  el.innerHTML=renderDragNode(dragRoot);
+}
+function dragOver(e){ e.preventDefault(); const z=e.currentTarget; if(z.classList.contains('dg-drop')) z.classList.add('dg-over'); }
+function dragLeave(e){ const z=e.currentTarget; z.classList.remove('dg-over'); }
+function onDrop(e,targetId){
+  e.preventDefault(); const z=e.currentTarget; z.classList.remove('dg-over');
+  let data; try{ data=JSON.parse(e.dataTransfer.getData('text/plain')); }catch(_){ return; }
+  const container = targetId==='root'?dragRoot:findNode(dragRoot,targetId);
+  if(!container || (container.type!=='root' && container.type!=='box')) return;
+  if(data.kind==='new'){ container.children=container.children||[]; container.children.push(newDragBlock(data.type)); }
+  else if(data.kind==='move'){
+    if(data.id===targetId) return;
+    if(container.type!=='root' && isDescendant(container,data.id)){ toast('不能拖入自身或子框','warning'); return; }
+    const n=cutNode(data.id); if(n){ container.children=container.children||[]; container.children.push(n); }
+  }
+  renderDragCanvas(); updateDragProps();
+}
+function selectDrag(id){ dragSelected=id; renderDragCanvas(); updateDragProps(); }
+function moveDrag(id,dir){
+  function rec(a){ for(let i=0;i<a.length;i++){ if(a[i].id===id){ const ni=i+dir; if(ni<0||ni>=a.length) return true; const t=a[i]; a[i]=a[ni]; a[ni]=t; return true; } if(a[i].children && rec(a[i].children)) return true; } return false; }
+  rec(dragRoot.children); renderDragCanvas();
+}
+function removeDrag(id){ cutNode(id); if(dragSelected===id) dragSelected=null; renderDragCanvas(); updateDragProps(); }
+
+function setDragStyle(id,key,val){
+  const n=findNode(dragRoot,id); if(!n) return; n.style=n.style||{};
+  n.style[key] = (key==='radius'||key==='padding')?parseInt(val):val;
+  renderDragCanvas();
+}
+function setDragBgTransparent(id,checked){
+  const n=findNode(dragRoot,id); if(!n) return; n.style=n.style||{};
+  n.style.bg = checked ? 'transparent' : (n.style.bg && n.style.bg!=='transparent' ? n.style.bg : '#eef2f7');
+  renderDragCanvas(); updateDragProps();
+}
+function setDragText(id,val){ const n=findNode(dragRoot,id); if(!n) return; n.text=val; renderDragCanvas(); }
+
+function updateDragProps(){
+  const body=document.getElementById('dg-props-body');
+  if(!dragSelected){ body.innerHTML='<p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑，可改背景色、文字色、圆角与内边距。</p>'; return; }
+  const node=findNode(dragRoot,dragSelected);
+  if(!node){ body.innerHTML='<p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑。</p>'; return; }
+  const st=node.style||{}; const isBox=(node.type==='box'||node.type==='root'); const hasText=['heading','text','quote'].includes(node.type);
+  let h='<div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px;">'+typeLabel(node.type)+'</div>';
+  if(isBox){
+    h+='<div class="form-group"><label>背景色</label><div class="dg-color-row"><input type="color" value="'+(st.bg||'#eef2f7')+'" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.bg||'')+'</span></div></div>';
+  } else if(hasText||node.type==='image'){
+    const transparent = !st.bg || st.bg==='transparent';
+    h+='<div class="form-group"><label><input type="checkbox" '+(transparent?'checked':'')+' onchange="setDragBgTransparent(\''+node.id+'\',this.checked)"> 背景随父框（透明）</label>';
+    if(!transparent){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+st.bg+'" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+st.bg+'</span></div>'; }
+    h+='</div>';
+  }
+  if(hasText){
+    h+='<div class="form-group"><label>文字色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#334155')+'" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.color||'')+'</span></div></div>';
+    h+='<div class="form-group"><label>文字内容</label><textarea class="form-textarea" style="min-height:70px;" oninput="setDragText(\''+node.id+'\',this.value)">'+esc(node.text||'')+'</textarea></div>';
+    h+='<div class="form-group"><label><input type="checkbox" '+(st.borderLeft?'checked':'')+' onchange="setDragStyle(\''+node.id+'\',\'borderLeft\',this.checked)"> 左边框装饰</label>';
+    if(st.borderLeft){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+(st.borderColor||'#3b82f6')+'" oninput="setDragStyle(\''+node.id+'\',\'borderColor\',this.value)"><span>边框色</span></div>'; }
+    h+='</div>';
+  }
+  if(node.type==='image'){ h+='<div class="form-group"><label>图片 URL</label><input type="text" class="form-input" value="'+(node.src||'')+'" placeholder="https://..." oninput="setDragStyle(\''+node.id+'\',\'src\',this.value)"></div>'; }
+  if(node.type==='divider'){ h+='<div class="form-group"><label>分割线颜色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#cbd5e1')+'" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value)"></div></div>'; }
+  if(node.type!=='root'){
+    h+='<div class="form-group"><label>圆角 <span id="dg-rad-v">'+rad(st.radius)+'</span> px</label><input type="range" min="0" max="32" value="'+rad(st.radius)+'" oninput="setDragStyle(\''+node.id+'\',\'radius\',this.value);document.getElementById(\'dg-rad-v\').innerText=this.value"></div>';
+    h+='<div class="form-group"><label>内边距 <span id="dg-pad-v">'+pad(st.padding)+'</span> px</label><input type="range" min="0" max="48" value="'+pad(st.padding)+'" oninput="setDragStyle(\''+node.id+'\',\'padding\',this.value);document.getElementById(\'dg-pad-v\').innerText=this.value"></div>';
+  }
+  h+='<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#dc2626;border-color:#fca5a5;" onclick="removeDrag(\''+node.id+'\')">删除此元素</button>';
+  body.innerHTML=h;
+}
+
+function renderDragToHTML(node, parentBg, title){
+  const st=node.style||{};
+  if(node.type==='root'){
+    const bg=st.bg||'#f4f6f9';
+    let inner='';
+    if(title){ const tc=isDark(bg)?'#f8fafc':'#1e293b'; inner+='<section style="margin:0;padding:4px 18px 16px;background-color:'+bg+';text-align:center;"><span style="font-size:21px;font-weight:bold;color:'+tc+';letter-spacing:1px;"><font color="'+tc+'">'+esc(title)+'</font></span></section>\n'; }
+    inner+=(node.children||[]).map(function(c){return renderDragToHTML(c,bg);}).join('\n');
+    return '<section style="background-color:'+bg+';padding:'+pad(st.padding)+'px;line-height:1.8;font-family:-apple-system,BlinkMacSystemFont,PingFang SC,Microsoft YaHei,sans-serif;border-radius:'+rad(st.radius)+'px;">\n'+inner+'\n</section>';
+  }
+  if(node.type==='box'){
+    const bg=st.bg||'#eef2f7';
+    const inner=(node.children||[]).map(function(c){return renderDragToHTML(c,bg);}).join('\n');
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';border-radius:'+rad(st.radius)+'px;">\n'+inner+'\n</section>';
+  }
+  if(node.type==='heading'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#1e293b';
+    let s='margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'; if(st.borderLeft) s+='border-left:4px solid '+(st.borderColor||'#3b82f6')+';'; s+='border-radius:'+rad(st.radius)+'px;';
+    return '<section style="'+s+'"><span style="font-size:18px;font-weight:bold;color:'+color+';letter-spacing:1px;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+  }
+  if(node.type==='text'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#334155';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';text-align:justify;line-height:1.9;border-radius:'+rad(st.radius)+'px;"><span style="font-size:15px;line-height:1.9;color:'+color+';"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+  }
+  if(node.type==='quote'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#64748b';
+    let s='margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'; if(st.borderLeft) s+='border-left:4px solid '+(st.borderColor||'#94a3b8')+';'; s+='border-radius:'+rad(st.radius)+'px;';
+    return '<section style="'+s+'"><span style="font-size:14px;color:'+color+';font-style:italic;line-height:1.8;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+  }
+  if(node.type==='image'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const src=node.src||'';
+    if(!src) return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';text-align:center;color:#94a3b8;font-size:13px;">[未设置图片]</section>';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';text-align:center;"><img src="'+src+'" style="width:100%;border-radius:'+rad(st.radius)+'px;display:block;margin:0 auto;" alt=""></section>';
+  }
+  if(node.type==='divider'){
+    const color=st.color||'#cbd5e1';
+    return '<section style="margin:0;padding:8px 0;background-color:'+parentBg+';text-align:center;"><span style="display:inline-block;width:60%;height:1px;background-color:'+color+';"></span></section>';
+  }
+  return '';
+}
+function copyHTMLToClipboard(html,msg){
+  try{
+    const blob=new Blob([html],{type:'text/html'});
+    navigator.clipboard.write([ new ClipboardItem({'text/html':blob,'text/plain':new Blob([''],{type:'text/plain'})}) ]).then(function(){ toast(msg||'已复制','success'); showDragResult(msg||'已复制，请到微信编辑器粘贴','ok'); }).catch(function(e){ fallbackCopy(html); showDragResult('已用兼容方式复制','ok'); });
+  }catch(e){ fallbackCopy(html); showDragResult('已用兼容方式复制','ok'); }
+}
+function showDragResult(msg,kind){ const el=document.getElementById('drag-result'); el.className='dg-result '+(kind||'ok'); el.style.display='inline-block'; el.innerText=msg; setTimeout(function(){el.style.display='none';},4000); }
+function copyDragToWeChat(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); copyHTMLToClipboard(html,'已复制拖拽排版，请 Ctrl+V 粘贴到微信'); }
+function previewDrag(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); const w=window.open('','_blank'); w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:20px;margin:0;background:#f5f5f5;}</style></head><body>'+html+'<script src="/static/common_header.js"></script>
+</body></html>'); w.document.close(); }
+function exportDragHTML(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); const blob=new Blob([html],{type:'text/html'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='drag-layout.html'; a.click(); URL.revokeObjectURL(a.href); }
+
+// ===== 拖拽模板：保存 / 载入 / 管理 =====
+async function saveDragTemplate() {
+  const name = (document.getElementById('drag-tpl-name').value || '').trim();
+  if (!name) { toast('请输入模板名称', 'warning'); return; }
+  const blocks = JSON.parse(JSON.stringify(dragRoot));
+  try {
+    const r = await fetch('/api/article-templates/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, blocks: blocks, template_type: 'drag', description: '可视化拖拽模板' })
+    });
+    const d = await r.json();
+    if (!d.success) { toast(d.message || '保存失败', 'err'); return; }
+    let published = false;
+    if (currentUser && currentUser.role === 'admin' && document.getElementById('drag-publish').checked) {
+      await fetch('/api/article-templates/' + d.id + '/publish', { method: 'POST' });
+      published = true;
+    }
+    toast('模板已保存' + (published ? '并发布给所有用户' : ''), 'success');
+    document.getElementById('drag-tpl-name').value = '';
+    document.getElementById('drag-publish').checked = false;
+    if (typeof loadUserTemplates === 'function') loadUserTemplates();
+  } catch (e) {
+    toast('保存失败：' + e.message, 'err');
+  }
+}
+
+function loadDragTemplate(t) {
+  try {
+    const root = (typeof t === 'object') ? t : userTemplates.find(x => x.id === t);
+    if (!root) return;
+    dragRoot = JSON.parse(JSON.stringify(root.blocks || { id: 'root', type: 'root', style: { bg: '#f4f6f9', radius: 16, padding: 24 }, children: [] }));
+    dragSelected = null;
+    renderDragCanvas(); updateDragProps();
+    toast('已载入模板到拖拽编辑器，可继续编辑', 'success');
+  } catch (e) {
+    toast('载入失败', 'err');
+  }
+}
+
+function onTemplateClick(id) {
+  const t = userTemplates.find(x => x.id === id);
+  if (!t) return;
+  if (t.template_type === 'drag') loadDragTemplate(t);
+  else applyUserTemplate(id);
+}
+
+async function deleteUserTemplate(tid, ev) {
+  if (ev) ev.stopPropagation();
+  if (!confirm('确定删除该模板？')) return;
+  try {
+    const r = await fetch('/api/article-templates/' + tid, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.success) { toast('已删除', 'success'); loadUserTemplates(); }
+    else toast(d.message || '删除失败', 'err');
+  } catch (e) { toast('删除失败', 'err'); }
+}
+
+async function publishUserTemplate(tid, makePublic, ev) {
+  if (ev) ev.stopPropagation();
+  try {
+    const r = await fetch('/api/article-templates/' + tid + (makePublic ? '/publish' : '/unpublish'), { method: 'POST' });
+    const d = await r.json();
+    if (d.success) { toast(d.message, 'success'); loadUserTemplates(); }
+    else toast(d.message || '操作失败', 'err');
+  } catch (e) { toast('操作失败', 'err'); }
+}
+
+function loadDragExample(){
+  dragRoot={ id:'root', type:'root', style:{bg:'#0f172a',radius:16,padding:24}, children:[
+    {id:uid(),type:'heading',style:{bg:'transparent',color:'#f8fafc',radius:0,padding:10,borderLeft:true,borderColor:'#60a5fa'},text:'探索未来的科技美学',children:[]},
+    {id:uid(),type:'text',style:{bg:'transparent',color:'#cbd5e1',radius:0,padding:8},text:'这是一段正文，放在深色大框里，整体浑然一体，没有任何白缝。',children:[]},
+    {id:uid(),type:'box',style:{bg:'#1e293b',radius:12,padding:16},children:[
+      {id:uid(),type:'heading',style:{bg:'transparent',color:'#60a5fa',radius:0,padding:8,borderLeft:true,borderColor:'#60a5fa'},text:'嵌套的小框',children:[]},
+      {id:uid(),type:'text',style:{bg:'transparent',color:'#e2e8f0',radius:0,padding:8},text:'大框里面再套一个小框，小框用自己的背景色，形成层次感。',children:[]},
+      {id:uid(),type:'image',style:{bg:'transparent',radius:12,padding:0},src:'',children:[]}
+    ]},
+    {id:uid(),type:'quote',style:{bg:'transparent',color:'#94a3b8',radius:0,padding:12,borderLeft:true,borderColor:'#60a5fa'},text:'“好的排版，是让内容自己说话。”',children:[]}
+  ]};
+  dragSelected=null; renderDragCanvas(); updateDragProps();
+}
+function clearDrag(){ dragRoot={id:'root',type:'root',style:{bg:'#f4f6f9',radius:16,padding:24},children:[]}; dragSelected=null; renderDragCanvas(); updateDragProps(); }
+
+// ===== 管理员：模板列表（含发布/取消/删除） =====
+function escapeHtmlPub(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function adminTemplateCardHTML(t){
+  const borderColor = t.is_public ? '#10b981' : '#7c3aed';
+  const bgColor = t.is_public ? '#f0fdf4' : '#fff';
+  const hoverColor = t.is_public ? '#dcfce7' : '#faf5ff';
+  const icon = (t.template_type === 'drag') ? '&#129513;' : '&#9999;';
+  const authorTag = t.is_public ? '<div style="font-size:10px;color:#999;margin-top:2px;">by ' + escapeHtmlPub(t.author_name || '管理员') + '</div>' : '';
+  const typeTag = (t.template_type === 'drag') ? '<div style="font-size:10px;color:#7c3aed;margin-top:2px;">可视化拖拽</div>' : '';
+  let actions = '';
+  actions += '<button onclick="loadDragTemplate(' + t.id + ')" style="font-size:11px;padding:2px 8px;border:1px solid #c7d2fe;background:#fff;color:#534ab7;border-radius:4px;cursor:pointer;">编辑</button>';
+  if (t.is_public) {
+    actions += '<button onclick="publishUserTemplate(' + t.id + ', false, event)" style="font-size:11px;padding:2px 8px;border:1px solid #cbd5e1;background:#fff;color:#64748b;border-radius:4px;cursor:pointer;">取消发布</button>';
+  } else {
+    actions += '<button onclick="publishUserTemplate(' + t.id + ', true, event)" style="font-size:11px;padding:2px 8px;border:1px solid #6ee7b7;background:#fff;color:#047857;border-radius:4px;cursor:pointer;">发布给全员</button>';
+  }
+  actions += '<button onclick="deleteUserTemplate(' + t.id + ', event)" style="font-size:11px;padding:2px 8px;border:1px solid #fca5a5;background:#fff;color:#dc2626;border-radius:4px;cursor:pointer;">删除</button>';
+  const actionBar = '<div style="display:flex;gap:6px;justify-content:center;margin-top:10px;" onclick="event.stopPropagation()">' + actions + '</div>';
+  return '<div style="border:1px solid #ddd;border-radius:8px;padding:16px;cursor:pointer;text-align:center;transition:.2s;background:' + bgColor + ';" ' +
+    'onmouseover="this.style.borderColor=\'' + borderColor + '\';this.style.background=\'' + hoverColor + '\'" ' +
+    'onmouseout="this.style.borderColor=\'#ddd\';this.style.background=\'' + bgColor + '\'">' +
+    '<div style="font-size:24px;margin-bottom:8px;">' + icon + '</div>' +
+    '<div style="font-weight:600;font-size:13px;color:#333;">' + escapeHtmlPub(t.name) + '</div>' +
+    '<div style="font-size:11px;color:#999;margin-top:4px;">' + (t.is_public ? '已发布给所有用户' : '仅自己可见') + '</div>' +
+    authorTag + typeTag + actionBar +
+    '</div>';
+}
+
+async function loadUserTemplates() {
+  const grid = document.getElementById('admin-template-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/article-templates');
+    const d = await r.json();
+    if (d.success) {
+      userTemplates = d.templates;
+      if (userTemplates.length > 0) {
+        grid.innerHTML = userTemplates.map(t => adminTemplateCardHTML(t)).join('');
+      } else {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text3);">还没有模板，先在上方拖拽创作并保存吧。</div>';
+      }
+    } else {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:#999;">加载失败</div>';
+    }
+  } catch (e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:#999;">加载失败</div>';
+  }
+}
+
+async function init() {
+  try {
+    let r = await fetch('/api/auth/me');
+    let u = await r.json();
+    if (u.success && u.user) {
+      currentUser = u.user;
+
+    }
+  } catch(e) {}
+  await loadUserTemplates();
+}
+
+// 初始化拖拽编辑器
+renderPalette(); renderDragCanvas(); updateDragProps();
+init();
+</script>
+</body>
+</html>
