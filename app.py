@@ -10,10 +10,15 @@ import hashlib
 import json
 import time
 import re
+import random
+import urllib.parse
+import uuid
+import shutil
+import threading
 from datetime import datetime, timedelta
 from functools import wraps
 import requests
-from flask import Flask, request, jsonify, session, redirect, url_for, g
+from flask import Flask, request, jsonify, session, redirect, url_for, g, send_file
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = 'mall_secret_key_2026_change_in_production'
@@ -52,6 +57,7 @@ def get_db():
         g.db = sqlite3.connect(DATABASE)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA journal_mode=WAL")
+        g.db.execute("PRAGMA busy_timeout=5000")
         g.db.execute("PRAGMA foreign_keys=ON")
     return g.db
 
@@ -363,6 +369,28 @@ def init_db():
             FOREIGN KEY (created_by) REFERENCES users(id)
         );
 
+        CREATE TABLE IF NOT EXISTS saved_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT DEFAULT '',
+            digest TEXT DEFAULT '',
+            source TEXT DEFAULT '',
+            sections_json TEXT DEFAULT '[]',
+            images_json TEXT DEFAULT '[]',
+            formatted_html TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL DEFAULT ''
+        );
+
+        -- 初始化默认模板配色
+        INSERT OR IGNORE INTO app_config (key, value) VALUES ('template_colors', '{}');
+
         CREATE TABLE IF NOT EXISTS article_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -373,6 +401,45 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (created_by) REFERENCES users(id)
+        );
+
+        -- 微信发布：定时发布任务
+        CREATE TABLE IF NOT EXISTS scheduled_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT DEFAULT '',
+            digest TEXT DEFAULT '',
+            content TEXT DEFAULT '',
+            author TEXT DEFAULT '',
+            schedule_time TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            type TEXT DEFAULT 'single',
+            detail TEXT DEFAULT '',
+            published_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 微信发布：批量发布队列
+        CREATE TABLE IF NOT EXISTS publish_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT DEFAULT '',
+            digest TEXT DEFAULT '',
+            content TEXT DEFAULT '',
+            author TEXT DEFAULT '',
+            status TEXT DEFAULT 'queued',
+            detail TEXT DEFAULT '',
+            published_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 微信发布：发布行为日志（用于后台数据分析）
+        CREATE TABLE IF NOT EXISTS publish_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT DEFAULT CURRENT_TIMESTAMP,
+            channel TEXT DEFAULT '',
+            title TEXT DEFAULT '',
+            status TEXT DEFAULT '',
+            detail TEXT DEFAULT '',
+            type TEXT DEFAULT 'article'
         );
     """)
 
@@ -393,6 +460,12 @@ def init_db():
         # article_templates 表迁移
         "ALTER TABLE article_templates ADD COLUMN is_public INTEGER DEFAULT 0",
         "ALTER TABLE article_templates ADD COLUMN author_name TEXT DEFAULT ''",
+        "ALTER TABLE article_templates ADD COLUMN template_type TEXT DEFAULT 'style'",
+        # 微信定时/批量发布：到时动作（publish=发布 / draft=仅建草稿）+ 草稿 media_id
+        "ALTER TABLE scheduled_posts ADD COLUMN mode TEXT DEFAULT 'publish'",
+        "ALTER TABLE scheduled_posts ADD COLUMN media_id TEXT DEFAULT ''",
+        "ALTER TABLE publish_queue ADD COLUMN mode TEXT DEFAULT 'publish'",
+        "ALTER TABLE publish_queue ADD COLUMN media_id TEXT DEFAULT ''",
     ]
     for m in migrations:
         try:
@@ -452,7 +525,7 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
             if request.is_json or request.path.startswith('/api/'):
-                return jsonify({'success': False, 'message': '请先登录'}), 401
+                return jsonify({'success': False, 'message': '请先登录', 'need_login': True}), 401
             return redirect(url_for('login_page'))
         return f(*args, **kwargs)
     return decorated
@@ -487,13 +560,58 @@ def read_template(path):
 
 
 # ============================================================
+# 应用中心 - 系统注册表
+# 新增一个独立系统/网页，只需在此添加一项，工作台会自动展示
+# role: 'all' 表示所有登录用户可见，'admin' 仅管理员可见
+# ============================================================
+APP_REGISTRY = [
+    {'id': 'mall', 'name': '商城系统', 'desc': '浏览商品、购物车与订单管理', 'icon': '🛒', 'url': '/store', 'role': 'all'},
+    {'id': 'publish', 'name': 'AI创作公众号', 'desc': 'AI 生成并发布公众号文章到草稿箱', 'icon': '✍️', 'url': '/publish', 'role': 'all'},
+    {'id': 'admin', 'name': '管理后台', 'desc': '统一管理商城与发布数据', 'icon': '⚙️', 'url': '/admin', 'role': 'admin'},
+]
+
+
+# ============================================================
 # 页面路由
 # ============================================================
 
 @app.route('/')
 def index():
-    log_visit('home')
+    """5000 端口首页 = 统一登录入口（登录后直达工作台）"""
+    if 'user_id' in session:
+        return redirect(url_for('portal'))
+    return read_template('login.html')
+
+
+@app.route('/store')
+@login_required
+def store_home():
+    """商城系统首页 - 需登录后通过工作台进入"""
+    log_visit('store')
     return read_template('store/index.html')
+
+
+@app.route('/portal')
+@login_required
+def portal():
+    """应用中心 / 工作台 - 登录后选择进入哪个系统"""
+    return read_template('portal.html')
+
+
+@app.route('/api/portal/apps')
+@login_required
+def api_portal_apps():
+    """返回当前用户可见的系统列表（按角色过滤）"""
+    role = session.get('role', 'customer')
+    apps = [a for a in APP_REGISTRY if a['role'] in ('all', role)]
+    return jsonify({
+        'success': True,
+        'apps': apps,
+        'user': {
+            'display_name': session.get('display_name', ''),
+            'role': role
+        }
+    })
 
 
 @app.route('/login')
@@ -518,8 +636,20 @@ def profile_page():
 
 @app.route('/admin')
 @admin_required
-def admin_dashboard():
+def admin_portal():
+    return read_template('admin/portal.html')
+
+
+@app.route('/admin/mall')
+@admin_required
+def admin_mall_dashboard():
     return read_template('admin/dashboard.html')
+
+
+@app.route('/admin/wechat')
+@admin_required
+def admin_wechat_console():
+    return read_template('admin/wechat.html')
 
 
 @app.route('/admin/store')
@@ -570,6 +700,13 @@ def template_editor_page():
 def admin_template_editor():
     """兼容旧路径，重定向到新路径"""
     return read_template('admin/template_editor.html')
+
+
+@app.route('/admin/template-designer')
+@admin_required
+def admin_template_designer():
+    """管理员可视化拖拽创作模块（可发布模板给所有用户）"""
+    return read_template('admin/template_designer.html')
 
 
 # ============================================================
@@ -1038,15 +1175,6 @@ def api_product_status(product_id):
 # ============================================================
 # 购物车 API
 # ============================================================
-
-def login_required(f):
-    """需要登录的装饰器"""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return jsonify({'success': False, 'message': '请先登录', 'need_login': True}), 401
-        return f(*args, **kwargs)
-    return decorated
 
 
 @app.route('/api/cart', methods=['GET'])
@@ -2497,11 +2625,75 @@ def api_upload():
     return jsonify({'success': True, 'data': {'url': f'/static/uploads/{filename}'}})
 
 
+@app.route('/api/publish/upload-reference', methods=['POST'])
+@login_required
+def api_publish_upload_reference():
+    """上传 AI 生成的参考资料：图片或文档。
+
+    图片：保存到 static/uploads，返回本地文件名供生成时调用视觉接口描述。
+    文档（txt/md/json/csv/pdf）：提取文本内容返回。
+    返回: {success, data:{url, name, ftype, text, filename}}
+    """
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': '没有文件'})
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': '文件名为空'})
+
+    original = file.filename
+    ext = original.rsplit('.', 1)[-1].lower() if '.' in original else ''
+    safe_base = re.sub(r'[^A-Za-z0-9_\-]', '', original.rsplit('.', 1)[0])[:40] or 'ref'
+    filename = f"{safe_base}_{int(time.time() * 1000)}.{ext}" if ext else f"{safe_base}_{int(time.time() * 1000)}"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+    url = f'/static/uploads/{filename}'
+
+    IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']
+    DOC_EXT = ['txt', 'md', 'markdown', 'json', 'csv', 'log', 'text', 'pdf']
+
+    if ext in IMG_EXT:
+        return jsonify({'success': True, 'data': {
+            'url': url, 'name': original, 'ftype': 'image', 'text': '', 'filename': filename
+        }})
+    elif ext in DOC_EXT:
+        text = ''
+        try:
+            if ext == 'pdf':
+                try:
+                    from pypdf import PdfReader
+                    reader = PdfReader(filepath)
+                    text = '\n'.join((p.extract_text() or '') for p in reader.pages)
+                except Exception:
+                    text = ''  # PDF 解析依赖 pypdf，未安装或解析失败则跳过
+            else:
+                # 优先 UTF-8；Windows 记事本默认 GBK，失败回退 GBK，再回退忽略
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        text = f.read()
+                except (UnicodeDecodeError, UnicodeError):
+                    try:
+                        with open(filepath, 'r', encoding='gbk') as f:
+                            text = f.read()
+                    except Exception:
+                        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                            text = f.read()
+        except Exception:
+            text = ''
+        text = text[:6000]
+        return jsonify({'success': True, 'data': {
+            'url': url, 'name': original, 'ftype': 'doc', 'text': text, 'filename': filename
+        }})
+    else:
+        # 不支持的类型：仍保存并返回，但标记为未知，提示用户
+        return jsonify({'success': False, 'message': f'不支持的参考资料格式：.{ext}（仅支持图片与 txt/md/json/csv/pdf 文档）'})
+
+
 # ============================================================
 # 公众号 AI 创作发布平台
 # ============================================================
 
 @app.route('/publish')
+@login_required
 def publish_page():
     return read_template('publish.html')
 
@@ -2786,6 +2978,156 @@ def api_record_generation():
     return jsonify({'success': True, 'record_id': db.execute("SELECT last_insert_rowid()").fetchone()[0]})
 
 
+@app.route('/api/publish/my-records', methods=['GET'])
+@login_required
+def api_my_records():
+    """获取当前用户的发布记录（用于历史面板展示）"""
+    db = get_db()
+    uid = session['user_id']
+    rows = db.execute("""
+        SELECT id, action_type, title, status, draft_media_id, created_at
+        FROM generation_records WHERE user_id=? AND action_type IN ('create_draft','save_draft','ai_generate')
+        ORDER BY created_at DESC LIMIT 50
+    """, (uid,)).fetchall()
+    records = [{
+        'id': r['id'],
+        'type': r['action_type'],
+        'title': r['title'] or '',
+        'status': r['status'],
+        'draft_media_id': r['draft_media_id'] or '',
+        'created_at': r['created_at']
+    } for r in rows]
+    return jsonify({'success': True, 'records': records})
+
+
+@app.route('/api/publish/save-draft', methods=['POST'])
+@login_required
+def api_save_draft():
+    """保存草稿到服务器（含完整 sections/images/排版HTML），支持新建和更新"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': '缺少数据'})
+    db = get_db()
+    uid = session['user_id']
+    draft_id = data.get('id')
+    title = (data.get('title') or '').strip()
+    digest = (data.get('digest') or '').strip()
+    source = (data.get('source') or '').strip()
+    sections_json = json.dumps(data.get('sections', []), ensure_ascii=False)
+    images_json = json.dumps(data.get('images', []), ensure_ascii=False)
+    formatted_html = data.get('formatted_html') or ''
+
+    if draft_id:
+        # 更新已有草稿（只更新自己名下的）
+        row = db.execute('SELECT id FROM saved_drafts WHERE id=? AND user_id=?', (draft_id, uid)).fetchone()
+        if not row:
+            return jsonify({'success': False, 'message': '草稿不存在或无权修改'})
+        db.execute("""
+            UPDATE saved_drafts SET title=?, digest=?, source=?, sections_json=?, images_json=?, formatted_html=?, updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        """, (title, digest, source, sections_json, images_json, formatted_html, draft_id))
+    else:
+        cursor = db.execute("""
+            INSERT INTO saved_drafts (user_id, title, digest, source, sections_json, images_json, formatted_html)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (uid, title, digest, source, sections_json, images_json, formatted_html))
+        draft_id = cursor.lastrowid
+    db.commit()
+    return jsonify({'success': True, 'id': draft_id})
+
+
+@app.route('/api/publish/my-drafts', methods=['GET'])
+@login_required
+def api_my_drafts():
+    """获取当前用户的草稿列表（含标题和时间，不含完整内容）"""
+    db = get_db()
+    uid = session['user_id']
+    rows = db.execute("""
+        SELECT id, title, digest, source, created_at, updated_at
+        FROM saved_drafts WHERE user_id=? ORDER BY updated_at DESC
+    """, (uid,)).fetchall()
+    drafts = [{
+        'id': r['id'],
+        'title': r['title'] or '',
+        'digest': r['digest'] or '',
+        'source': r['source'] or '',
+        'created_at': r['created_at'],
+        'updated_at': r['updated_at']
+    } for r in rows]
+    return jsonify({'success': True, 'drafts': drafts})
+
+
+@app.route('/api/publish/my-drafts/<int:draft_id>', methods=['GET'])
+@login_required
+def api_get_my_draft(draft_id):
+    """获取单个草稿完整内容"""
+    db = get_db()
+    uid = session['user_id']
+    is_admin = session.get('role') == 'admin'
+    row = db.execute("""
+        SELECT * FROM saved_drafts WHERE id=?
+    """, (draft_id,)).fetchone()
+    if not row:
+        return jsonify({'success': False, 'message': '草稿不存在'})
+    if row['user_id'] != uid and not is_admin:
+        return jsonify({'success': False, 'message': '无权访问此草稿'})
+    return jsonify({
+        'success': True,
+        'draft': {
+            'id': row['id'],
+            'title': row['title'] or '',
+            'digest': row['digest'] or '',
+            'source': row['source'] or '',
+            'sections': json.loads(row['sections_json'] or '[]'),
+            'images': json.loads(row['images_json'] or '[]'),
+            'formatted_html': row['formatted_html'] or '',
+            'created_at': row['created_at'],
+            'updated_at': row['updated_at']
+        }
+    })
+
+
+@app.route('/api/publish/my-drafts/<int:draft_id>', methods=['DELETE'])
+@login_required
+def api_delete_my_draft(draft_id):
+    """删除草稿"""
+    db = get_db()
+    uid = session['user_id']
+    row = db.execute('SELECT id FROM saved_drafts WHERE id=? AND user_id=?', (draft_id, uid)).fetchone()
+    if not row:
+        return jsonify({'success': False, 'message': '草稿不存在或无权删除'})
+    db.execute('DELETE FROM saved_drafts WHERE id=?', (draft_id,))
+    db.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/template-colors', methods=['GET'])
+def api_get_template_colors():
+    """获取内置模板配色（无需登录，用于前端加载）"""
+    db = get_db()
+    row = db.execute("SELECT value FROM app_config WHERE key='template_colors'").fetchone()
+    if row and row['value']:
+        try: data = json.loads(row['value'])
+        except: data = {}
+    else:
+        data = {}
+    return jsonify({'success': True, 'colors': data})
+
+
+@app.route('/api/admin/template-colors', methods=['POST'])
+@admin_required
+def api_save_template_colors():
+    """保存内置模板配色（管理员）"""
+    data = request.get_json()
+    if not data or 'colors' not in data:
+        return jsonify({'success': False, 'message': '缺少配色数据'})
+    db = get_db()
+    db.execute("REPLACE INTO app_config (key, value) VALUES (?, ?)",
+               ('template_colors', json.dumps(data['colors'], ensure_ascii=False)))
+    db.commit()
+    return jsonify({'success': True})
+
+
 @app.route('/api/admin/generation-records', methods=['GET'])
 @admin_required
 def api_generation_records():
@@ -2952,6 +3294,10 @@ DEFAULT_DEEPSEEK_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 # Tavily 默认 API Key —— 同上，从环境变量读取
 DEFAULT_TAVILY_KEY = os.environ.get('TAVILY_API_KEY', '')
 
+# HuggingFace 视觉描述接口 Token（可选）。留空则匿名调用免费接口（有速率限制）。
+# 配置方式：项目根目录 .env 写入 HF_API_TOKEN=你的token，可显著提升稳定性。
+HF_API_TOKEN = os.environ.get('HF_API_TOKEN', '')
+
 # RSS 新闻源（无需 API key，兜底方案）
 RSS_FEEDS = [
     {"name": "IT之家", "url": "https://www.ithome.com/rss/"},
@@ -2980,18 +3326,33 @@ def _get_ai_config():
     return config
 
 
+def with_retry(fn, *args, retries=3, backoff=1.5, what='操作', **kwargs):
+    """指数退避重试：失败重试最多 retries 次，间隔 backoff*2^尝试 秒。用于抓取/生成等外部调用。"""
+    last = None
+    for i in range(retries):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            last = e
+            if i < retries - 1:
+                time.sleep(backoff * (2 ** i))
+    raise last
+
+
 def _search_news(query, config, count=5):
-    """统一搜索入口：按 search_provider 分发"""
+    """统一搜索入口：按 search_provider 分发；失败自动重试并降级到 RSS 兜底。"""
     provider = config.get('search_provider', 'tavily')
     api_key = config.get('search_api_key', '')
 
-    if provider == 'tavily' and api_key:
-        return _tavily_search(query, api_key, count)
-    elif provider == 'bing' and api_key:
-        return _bing_search_news(query, api_key, count)
-    else:
-        # 无 API key 时用 RSS 抓取兜底
-        return _rss_search(query, count)
+    try:
+        if provider == 'tavily' and api_key:
+            return with_retry(_tavily_search, query, api_key, count, retries=3, what='Tavily搜索')
+        elif provider == 'bing' and api_key:
+            return with_retry(_bing_search_news, query, api_key, count, retries=3, what='Bing搜索')
+    except Exception:
+        pass
+    # 降级：RSS 抓取兜底（无需 API key）
+    return with_retry(_rss_search, query, count, retries=2, what='RSS抓取')
 
 
 def _tavily_search(query, api_key, count=5):
@@ -3116,12 +3477,32 @@ def _clean_html(text):
     return re.sub(r'<[^>]+>', '', text)
 
 
-def _deepseek_generate(topic, news_results, style_profile, api_key):
-    """调用 DeepSeek API 生成公众号文章 HTML"""
+def _deepseek_generate(topic, news_results, style_profile, api_key,
+                       image_mode='auto', image_style='tech', max_images=4, skip_images=False,
+                       reference_text='', user_image_count=0, word_count=0, image_count=0):
+    """调用 DeepSeek API 生成公众号文章（结构化 blocks 输出）
+
+    返回 dict: {title, digest, content(纯文字HTML兜底), blocks:[...]}
+    blocks 元素:
+      {"type":"h2"/"p"/"blockquote", "text":"..."}
+      {"type":"image", "caption":"中文图注", "prompt":"English image-gen prompt"}
+
+    reference_text: 用户提供的参考资料（参考图描述 + 文档文本 + 历史案例），作为写作依据。
+    """
     # 构建新闻素材文本
     news_text = ""
     for i, news in enumerate(news_results, 1):
         news_text += f"【{i}】{news['title']}\n来源：{news['source']}\n摘要：{news['description']}\n\n"
+
+    # 是否让模型产出图片块
+    # 用户勾选了参考图作为正文图时，即使 skip_images 也要产出 image 块（位置由模型规划，内容用用户图回填）
+    # 字数 / 图片数量 由调用方通过 word_count / image_count 指定（>0 时生效）
+    force_images = (user_image_count > 0) or (image_count > 0)
+    allow_images = force_images or ((not skip_images) and image_mode in ('auto', 'gallery', 'cover_only'))
+    if user_image_count > 0:
+        max_images = max(max_images, user_image_count)
+    if image_count > 0:
+        max_images = max(max_images, image_count)
 
     system_prompt = """你是一个专业的微信公众号科技资讯编辑。请根据提供的新闻素材，生成一篇排版精美的公众号文章。
 
@@ -3131,22 +3512,74 @@ def _deepseek_generate(topic, news_results, style_profile, api_key):
 3. 正文500-1000字，语言流畅专业
 4. 严禁使用任何emoji表情符号
 5. 严禁使用「」等特殊引号，只用普通中文引号
-6. HTML格式严格只用 section + p 标签，禁止嵌套多层div
-7. 小标题用 <p style="font-size:17px;font-weight:bold;color:#2c3e50;margin:25px 0 12px 0;">标题</p>
-8. 正文用 <p style="margin-bottom:15px;">内容</p>
-9. 结尾加一段简短的编辑点评
+6. 结尾加一段简短的编辑点评
 
-请返回JSON格式：
+请按"语义段落"结构化组织文章，返回 JSON：
 {
   "title": "文章标题",
   "digest": "文章摘要",
-  "content": "完整的HTML正文"
-}"""
+  "blocks": [
+    {"type": "h2", "text": "小标题"},
+    {"type": "p", "text": "一段正文"},
+    {"type": "blockquote", "text": "引用内容"},
+    {"type": "image", "caption": "该段对应的中文图注", "prompt": "English prompt describing the visual for THIS section, no text in image"}
+  ]
+}
+block 类型只允许 h2 / p / blockquote / image 四种。
+普通正文段落用 type=p，小标题用 type=h2，引用用 type=blockquote。"""
+
+    if allow_images:
+        # 图片插入规则：按语义分段，每个相对独立的话题结束后插一张图
+        if image_mode == 'gallery':
+            system_prompt += (f"\n\n【配图模式：图集】以图片为主。每个 block 尽量是 image 类型"
+                              f"（配简短中文 caption），正文文字尽量精简。最多插入 {max_images} 张图。")
+        elif image_mode == 'cover_only':
+            system_prompt += "\n\n【配图模式：仅封面】只在文章最开头插入 1 个 image 块作为封面图，正文不再插其他图。"
+        else:
+            system_prompt += (f"\n\n【配图模式：自动】将文章按语义分成若干小节；每个相对独立的话题/小节结束后，"
+                              f"插入一个 image 块，其 prompt 用英语描述该小节的核心画面（不要出现文字），"
+                              f"caption 用中文写该图注。不要每句都配图，一张图对应一个完整话题即可。最多插入 {max_images} 张图。")
+    if user_image_count > 0:
+        system_prompt += (f"\n\n【图片来源：用户真实图片】你必须插入恰好 {user_image_count} 个 image 块，"
+                          f"这些图片由用户直接提供（你不需要、也不会生成图片，只需规划它们的位置）。"
+                          f"把这 {user_image_count} 个 image 块分散插入到不同话题小节结束后，穿插在正文不同位置，不要堆在开头或结尾；"
+                          f"每个 image 块的 caption 用中文写该图对应的图注，prompt 用英语描述该图应有的画面（仅用于备选，不实际生成）。")
+    else:
+        system_prompt += "\n\n【配图模式：纯文字 / 用户已提供图片】不要输出任何 image 块，只输出 h2 / p / blockquote 文字块。"
+
+    if image_count > 0:
+        system_prompt += (f"\n\n【图片数量控制】你必须插入恰好 {image_count} 个 image 块，"
+                          f"caption 用中文写图注，prompt 用英语描述该图应有的画面（不要出现文字），"
+                          f"把它们分散插入到不同话题小节结束后，不要堆在开头或结尾。")
+
+    system_prompt += """
+
+最后请再用 blocks 拼出一段完整 HTML 正文放入 content 字段（仅文字，section + p 标签，禁止多层 div），用于兜底。
+
+content 文字块示例：
+小标题 <p style="font-size:17px;font-weight:bold;color:#2c3e50;margin:25px 0 12px 0;">标题</p>
+正文 <p style="margin-bottom:15px;">内容</p>"""
 
     if style_profile:
         system_prompt += f"\n\n参考排版风格：{json.dumps(style_profile, ensure_ascii=False)}"
 
-    user_prompt = f"主题方向：{topic}\n\n新闻素材：\n{news_text}\n\n请生成公众号文章。"
+    if reference_text:
+        system_prompt += ("\n\n【参考资料】用户额外提供了参考素材（可能是参考图片的画面描述、参考文档内容、以往案例文章，或参考网页文章）。"
+                          "请充分理解这些参考资料的主题、风格与要点，使生成文章在主题契合度、行文风格、专业度上与之呼应；"
+                          "若参考资料中包含【参考网页文章】及其【图片位置要求】，你必须严格参照该文的行文风格"
+                          "（小标题用法、语气、段落节奏）并在对应小节/话题结束后按其所要求的图片位置插入 image 块；"
+                          "但必须基于真实新闻素材写作，不得编造参考资料与新闻中均无依据的事实。")
+        user_prompt = f"主题方向：{topic}\n\n新闻素材：\n{news_text}\n\n参考资料：\n{reference_text}\n\n请生成公众号文章。"
+    else:
+        user_prompt = f"主题方向：{topic}\n\n新闻素材：\n{news_text}\n\n请生成公众号文章。"
+
+    # 字数控制：按输入字数调整正文字数要求与输出 token 上限
+    if word_count and word_count > 0:
+        system_prompt = system_prompt.replace(
+            '正文500-1000字', '正文约 %d 字（控制在 %d±15%% 范围内）' % (word_count, word_count))
+        max_tokens = max(4096, min(8000, int(word_count) * 2 + 1500))
+    else:
+        max_tokens = 4096
 
     headers = {
         'Authorization': f'Bearer {api_key}',
@@ -3159,7 +3592,7 @@ def _deepseek_generate(topic, news_results, style_profile, api_key):
             {'role': 'user', 'content': user_prompt}
         ],
         'temperature': 0.7,
-        'max_tokens': 4096,
+        'max_tokens': max_tokens,
         'response_format': {'type': 'json_object'}
     }
 
@@ -3170,8 +3603,441 @@ def _deepseek_generate(topic, news_results, style_profile, api_key):
         error_msg = data.get('error', {}).get('message', resp.text[:200]) if isinstance(data, dict) else str(data)[:200]
         raise Exception(f"DeepSeek 生成失败: {error_msg}")
 
-    result_text = data['choices'][0]['message']['content']
-    return json.loads(result_text)
+    result = json.loads(data['choices'][0]['message']['content'])
+
+    # 兜底：若模型没返回 blocks，尝试从 content 解析为单一 p 块
+    blocks = result.get('blocks')
+    if not isinstance(blocks, list) or not blocks:
+        content = result.get('content', '')
+        blocks = [{'type': 'p', 'text': content}] if content else []
+
+    # 组装 content（仅文字块，图片块交给前端/后端后续注入）
+    html = '<section style="font-size:15px;color:#3f3f3f;line-height:1.8;">\n'
+    for b in blocks:
+        t = b.get('type')
+        txt = (b.get('text') or '').strip()
+        if t == 'h2':
+            html += f'<p style="font-size:17px;font-weight:bold;color:#2c3e50;margin:25px 0 12px 0;">{txt}</p>\n'
+        elif t == 'blockquote':
+            html += f'<blockquote style="border-left:3px solid #534ab7;padding:8px 12px;margin:12px 0;background:#f8f9fa;color:#666;border-radius:0 6px 6px 0;">{txt}</blockquote>\n'
+        elif t == 'image':
+            continue  # 图片块不进兜底 content
+        else:
+            if txt:
+                html += f'<p style="margin-bottom:15px;">{txt}</p>\n'
+    html += '</section>'
+    result['content'] = result.get('content') or html
+    result['blocks'] = blocks
+    return result
+
+
+def _fill_user_images(blocks, user_images):
+    """把用户勾选的真实图片回填进 image 块：按顺序填充；数量不匹配时增减 image 块。
+
+    - user_images: 有序的真实图片 URL 列表（用户勾选的参考图）
+    - 返回处理后的 blocks（image 块带 resolved_url 字段，前端据此直接渲染，不再调用生图接口）
+    """
+    if not user_images:
+        return blocks
+    blocks = list(blocks or [])
+    image_idxs = [i for i, b in enumerate(blocks) if isinstance(b, dict) and b.get('type') == 'image']
+    n_need = len(user_images)
+    n_have = len(image_idxs)
+    # 1) 顺序填充已有的 image 块
+    for k, idx in enumerate(image_idxs):
+        if k < n_need:
+            blocks[idx]['resolved_url'] = user_images[k]
+    # 2) 用户图多于 image 块：在最后一个非 image 块之后追加
+    if n_need > n_have:
+        extra = user_images[n_have:]
+        last = len(blocks) - 1
+        while last >= 0 and blocks[last].get('type') == 'image':
+            last -= 1
+        insert_at = last + 1 if last >= 0 else len(blocks)
+        for url in extra:
+            blocks.insert(insert_at, {'type': 'image', 'caption': '', 'prompt': '', 'resolved_url': url})
+            insert_at += 1
+    # 3) 用户图少于 image 块：丢弃末尾多余的空 image 块
+    elif n_need < n_have:
+        drop = set(image_idxs[n_need:])
+        blocks = [b for i, b in enumerate(blocks) if i not in drop]
+    return blocks
+
+
+def _pollinations_image(prompt, image_style='tech'):
+    """调用 Pollinations 免费文生图接口，返回本地临时 PNG 路径。
+
+    Pollinations 无需 API Key，云服务器可直接 HTTP 调用。
+    """
+    style_suffix = {
+        'tech': ' tech style, blue purple gradient, clean, modern, futuristic, no text',
+        'realistic': ' realistic photo, cinematic lighting, no text',
+        'flat': ' flat illustration, minimal vector, no text',
+    }.get(image_style, ' clean composition, no text')
+    full_prompt = (prompt or 'technology abstract') + style_suffix
+    full_prompt = full_prompt[:1500]
+
+    url = 'https://image.pollinations.ai/prompt/' + urllib.parse.quote(full_prompt) \
+          + '?width=1280&height=720&nologo=true&model=flux&seed=' + str(random.randint(1, 999999))
+    resp = requests.get(url, timeout=60)
+    if resp.status_code != 200 or not resp.content:
+        raise Exception(f'Pollinations 返回异常: HTTP {resp.status_code}')
+
+    import tempfile, uuid
+    path = os.path.join(tempfile.gettempdir(), f'poll_{uuid.uuid4().hex[:8]}.png')
+    with open(path, 'wb') as f:
+        f.write(resp.content)
+    return path
+
+
+HF_CAPTION_MODEL = 'Salesforce/blip-image-captioning-base'
+
+
+def _hf_image_caption(image_bytes):
+    """用 HuggingFace 免费图像描述接口为图片生成粗略文字描述（无需 Key 即可匿名调用）。
+
+    返回图片的英文画面描述字符串；若接口不可用（401/403/429/超时/空）则优雅返回空串，
+    调用方据此跳过图片分析、仅用文字素材生成，不阻断主流程。
+    """
+    url = f'https://api-inference.huggingface.co/models/{HF_CAPTION_MODEL}'
+    headers = {'Content-Type': 'application/octet-stream'}
+    if HF_API_TOKEN:
+        headers['Authorization'] = f'Bearer {HF_API_TOKEN}'
+    try:
+        resp = requests.post(url, headers=headers, data=image_bytes, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            if isinstance(data, list) and data and isinstance(data[0], dict) and data[0].get('generated_text'):
+                return data[0]['generated_text'].strip()
+        return ''
+    except Exception:
+        return ''
+
+
+def _fetch_web_article(url, timeout=20):
+    """抓取网页文章，分析其行文风格与图片插入位置，供 DeepSeek 参照创作。
+
+    返回 dict: {url, title, summary, image_positions:[第N个p段之后...], style:{...}}
+    失败（超时/非 http/解析失败）返回 None，调用方应优雅跳过、不阻断生成。
+    """
+    try:
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin
+        if not (url.startswith('http://') or url.startswith('https://')):
+            return None
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        }
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        if resp.status_code != 200:
+            return None
+        resp.encoding = resp.apparent_encoding or 'utf-8'
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        for tag in soup(['script', 'style', 'nav', 'header', 'footer', 'aside',
+                         'noscript', 'svg', 'form', 'button', 'iframe']):
+            tag.decompose()
+
+        # 标题
+        title = ''
+        og = soup.find('meta', attrs={'property': 'og:title'}) or soup.find('meta', attrs={'name': 'og:title'})
+        if og and og.get('content'):
+            title = og['content'].strip()
+        if not title:
+            h1 = soup.find('h1')
+            if h1:
+                title = h1.get_text(strip=True)
+        if not title and soup.title:
+            title = soup.title.get_text(strip=True)
+        title = (title or '').strip()
+
+        # 主内容容器（优先 article/main，回退 body）
+        container = soup.find('article') or soup.find('main') or soup.body
+        if not container:
+            return None
+
+        para_count = 0
+        image_positions = []
+        text_parts = []
+        for el in container.descendants:
+            name = getattr(el, 'name', None)
+            if name in ('p', 'h2', 'h3'):
+                txt = el.get_text(strip=True)
+                if not txt or len(txt) < 2:
+                    continue
+                if name in ('h2', 'h3'):
+                    text_parts.append('【小标题】' + txt)
+                else:
+                    text_parts.append(txt)
+                    para_count += 1
+            elif name == 'img':
+                src = (el.get('data-src') or el.get('src') or el.get('data-original')
+                       or el.get('data-lazy-src') or '')
+                if not src or src.startswith('data:'):
+                    continue
+                if src.startswith('//'):
+                    src = 'https:' + src
+                elif src.startswith('/'):
+                    src = urljoin(url, src)
+                image_positions.append(para_count)
+
+        p_count = para_count
+        h2_count = sum(1 for t in text_parts if t.startswith('【小标题】'))
+        img_count = len(image_positions)
+        total = p_count + h2_count
+        density = (img_count / total) if total else 0
+        if density >= 0.3:
+            dens_label = '高（图文密集）'
+        elif density >= 0.1:
+            dens_label = '中（图文相间）'
+        else:
+            dens_label = '低（以文字为主）'
+        summary = ' '.join(t.replace('【小标题】', '') for t in text_parts)[:1500]
+
+        return {
+            'url': url,
+            'title': title or '(无标题)',
+            'summary': summary,
+            'image_positions': image_positions,
+            'style': {
+                'paragraph_count': p_count,
+                'subtitle_count': h2_count,
+                'image_count': img_count,
+                'image_density': dens_label,
+                'image_positions': image_positions,
+            }
+        }
+    except Exception as e:
+        app.logger.warning(f'_fetch_web_article failed for {url}: {e}')
+        return None
+
+
+def _build_reference_text(references, use_history, user_id, web_articles=None):
+    """把用户上传的参考图/文档与历史案例拼成一段文字，供 DeepSeek 参考。
+
+    图片经 HuggingFace 免费接口生成粗略画面描述；文档直接取文本；历史案例取该用户最近的生成记录。
+    """
+    parts = []
+
+    def _pos_desc(positions):
+        if not positions:
+            return '无配图'
+        items = []
+        for p in positions:
+            items.append('开头' if p == 0 else f'第{p}段之后')
+        return '、'.join(items)
+
+    # 网页参考（AI 自动打开网址分析文章风格与图片位置）
+    for wa in (web_articles or [])[:5]:
+        if not wa:
+            continue
+        s = wa.get('style', {}) or {}
+        positions = wa.get('image_positions', []) or []
+        pos_desc = _pos_desc(positions)
+        style_line = (f"风格特征：共 {s.get('paragraph_count', 0)} 个正文段、"
+                      f"{s.get('subtitle_count', 0)} 个小标题、配图 {s.get('image_count', 0)} 张"
+                      f"（密度 {s.get('image_density', '')}）；图片分别出现在 {pos_desc}。")
+        web_part = (
+            f"【参考网页文章】链接：{wa.get('url', '')}\n"
+            f"标题：《{wa.get('title', '')}》\n"
+            f"{style_line}\n"
+            f"正文摘要（请体会其行文语气、段落节奏与小标题用法）：\n{wa.get('summary', '')[:1200]}\n"
+            f"【图片位置要求】请严格参照该文的配图节奏来插入配图：在你文章对应的小节/话题结束后插入 image 块，"
+            f"使图片位置分布尽量与该文一致（即大约 {pos_desc}）。不要改变主题，只借鉴其风格与配图节奏。"
+        )
+        parts.append(web_part)
+
+    img_idx = 0
+    for ref in (references or [])[:8]:
+        ftype = ref.get('ftype')
+        if ftype == 'image':
+            fn = ref.get('filename')
+            caption = ''
+            if fn:
+                path = os.path.join(app.config['UPLOAD_FOLDER'], fn)
+                if os.path.exists(path):
+                    try:
+                        with open(path, 'rb') as f:
+                            caption = _hf_image_caption(f.read())
+                    except Exception:
+                        caption = ''
+            img_idx += 1
+            if caption:
+                parts.append(f"参考图{img_idx}（画面描述）：{caption}")
+            else:
+                parts.append(f"参考图{img_idx}：用户上传的参考图片（当前环境未能自动识别画面，请结合主题理解）。")
+        elif ftype == 'doc':
+            name = ref.get('name', '文档')
+            text = (ref.get('text') or '').strip()
+            if text:
+                parts.append(f"参考文档《{name}》：\n{text[:4000]}")
+    if use_history and user_id:
+        try:
+            db = get_db()
+            rows = db.execute(
+                "SELECT title, detail FROM generation_records WHERE user_id=? AND status='success' ORDER BY id DESC LIMIT 3",
+                (user_id,)
+            ).fetchall()
+            for i, r in enumerate(rows, 1):
+                detail = (r['detail'] or '').strip()[:1500]
+                parts.append(f"历史案例{i}（标题：{r['title']}）：\n{detail}")
+        except Exception:
+            pass
+    text = '\n\n'.join(parts).strip()
+    return text[:12000]
+
+
+@app.route('/api/publish/generate-images', methods=['POST'])
+def api_publish_generate_images():
+    """根据图片提示词逐张生成配图（Pollinations 免费接口），上传微信返回 URL。
+
+    请求体: {appid, appsecret, image_style, images:[{index, prompt}]}
+    返回: {success, results:[{index, url, preview_url}], errors:[{index, message}]}
+
+    注意：url 是微信 URL（发布草稿用），preview_url 是本服务器预览 URL（浏览器 <img> 用）。
+    微信 URL 有 Referer 防盗链，不能直接在浏览器 <img> 中显示。
+    """
+    data = request.get_json()
+    appid = (data.get('appid') or '').strip()
+    appsecret = (data.get('appsecret') or '').strip()
+    image_style = data.get('image_style', 'tech')
+    img_list = data.get('images', []) or []
+
+    if not appid or not appsecret:
+        return jsonify({'success': False, 'message': '请先配置微信 AppID 和 AppSecret'})
+    if not img_list:
+        return jsonify({'success': True, 'results': [], 'errors': []})
+
+    # 确保预览图目录存在
+    preview_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'generated_images')
+    os.makedirs(preview_dir, exist_ok=True)
+
+    try:
+        # 获取 access_token
+        token_resp = requests.get('https://api.weixin.qq.com/cgi-bin/token', params={
+            'grant_type': 'client_credential', 'appid': appid, 'secret': appsecret
+        }, timeout=15).json()
+        if 'access_token' not in token_resp:
+            return jsonify({'success': False, 'message': f'获取token失败: {token_resp.get("errmsg", token_resp)}'})
+        access_token = token_resp['access_token']
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取token失败: {str(e)}'})
+
+    results = []
+    errors = []
+    for item in img_list:
+        idx = item.get('index')
+        prompt = (item.get('prompt') or '').strip()
+        if not prompt:
+            errors.append({'index': idx, 'message': '空的图片提示词'})
+            continue
+        try:
+            # 1. Pollinations 生图 → 本地临时文件
+            local_path = _pollinations_image(prompt, image_style)
+
+            # 2. 复制一份到 static/generated_images/ 用于浏览器预览（绕过微信防盗链）
+            preview_filename = f'gen_{uuid.uuid4().hex[:12]}.png'
+            preview_path = os.path.join(preview_dir, preview_filename)
+            shutil.copy2(local_path, preview_path)
+            preview_url = f'/static/generated_images/{preview_filename}'
+
+            # 3. 上传到微信内容图（uploadimg 返回可引用 URL，仅用于发布草稿）
+            with open(local_path, 'rb') as f:
+                up = requests.post(
+                    'https://api.weixin.qq.com/cgi-bin/media/uploadimg',
+                    params={'access_token': access_token},
+                    files={'media': (os.path.basename(local_path), f, 'image/png')},
+                    timeout=60
+                ).json()
+            if 'url' not in up:
+                errors.append({'index': idx, 'message': f'微信上传失败: {up.get("errmsg", up)}'})
+                continue
+            results.append({'index': idx, 'url': up['url'], 'preview_url': preview_url})
+        except Exception as e:
+            errors.append({'index': idx, 'message': str(e)})
+
+    return jsonify({'success': True, 'results': results, 'errors': errors})
+
+
+# ===================== 本地图片上传到微信 CDN（复制/发布给公众号用） =====================
+_WX_IMG_CACHE = {}  # 本地图片路径 -> 微信 url 缓存，避免重复上传
+
+@app.route('/api/publish/upload-to-wechat', methods=['POST'])
+@login_required
+def api_publish_upload_to_wechat():
+    """把本网站（static/uploads 或 static/generated_images）的图片上传到微信内容图 CDN，
+    返回微信可引用的 url。微信公众号只认自家 CDN 图片，粘贴外链会被防盗链/抓取限制挡掉，
+    所以复制/发布前必须把本地图片换成微信 url（mmbiz.qpic.cn）。"""
+    import requests
+    from urllib.parse import urlparse
+    data = request.get_json() or {}
+    url = (data.get('url') or '').strip()
+    filename = (data.get('filename') or '').strip()
+
+    local_path = None
+    if filename:
+        p1 = os.path.join('static', 'uploads', os.path.basename(filename))
+        p2 = os.path.join('static', 'generated_images', os.path.basename(filename))
+        if os.path.exists(p1):
+            local_path = p1
+        elif os.path.exists(p2):
+            local_path = p2
+    elif url:
+        if url.startswith('http://') or url.startswith('https://'):
+            parsed = urlparse(url)
+            rel = parsed.path.lstrip('/')
+            cand = rel
+            if os.path.exists(cand):
+                local_path = cand
+        else:
+            cand = url.lstrip('/')
+            if os.path.exists(cand):
+                local_path = cand
+
+    if not local_path or not os.path.exists(local_path):
+        return jsonify({'success': False, 'message': '找不到本地图片文件: ' + str(url or filename)})
+
+    if local_path in _WX_IMG_CACHE:
+        return jsonify({'success': True, 'url': _WX_IMG_CACHE[local_path]})
+
+    # 读取微信凭据
+    db = get_db()
+    row = db.execute("SELECT value FROM store_settings WHERE key='wechat_appid'").fetchone()
+    appid = row['value'] if row else ''
+    row = db.execute("SELECT value FROM store_settings WHERE key='wechat_appsecret'").fetchone()
+    appsecret = row['value'] if row else ''
+    if not appid or not appsecret:
+        return jsonify({'success': False, 'message': '未配置微信 AppID/AppSecret'})
+
+    try:
+        token_resp = requests.get('https://api.weixin.qq.com/cgi-bin/token',
+                                  params={'grant_type': 'client_credential', 'appid': appid, 'secret': appsecret},
+                                  timeout=15).json()
+        if 'access_token' not in token_resp:
+            return jsonify({'success': False, 'message': '获取微信token失败: ' + token_resp.get('errmsg', str(token_resp))})
+        access_token = token_resp['access_token']
+
+        ext = local_path.lower()
+        if ext.endswith('.png'):
+            mime = 'image/png'
+        elif ext.endswith(('.jpg', '.jpeg')):
+            mime = 'image/jpeg'
+        elif ext.endswith('.gif'):
+            mime = 'image/gif'
+        else:
+            mime = 'image/png'
+        with open(local_path, 'rb') as f:
+            up = requests.post('https://api.weixin.qq.com/cgi-bin/media/uploadimg',
+                               params={'access_token': access_token},
+                               files={'media': (os.path.basename(local_path), f, mime)},
+                               timeout=60).json()
+        if 'url' not in up:
+            return jsonify({'success': False, 'message': '微信上传失败: ' + up.get('errmsg', str(up))})
+        _WX_IMG_CACHE[local_path] = up['url']
+        return jsonify({'success': True, 'url': up['url']})
+    except Exception as e:
+        return jsonify({'success': False, 'message': '上传异常: ' + str(e)})
 
 
 @app.route('/api/publish/ai-config', methods=['GET'])
@@ -3214,6 +4080,28 @@ def api_publish_ai_generate():
     topic = (data.get('topic') or '').strip()
     count = int(data.get('count', 5))
 
+    # 配图参数
+    image_mode = data.get('image_mode', 'auto')          # auto / none / gallery / cover_only
+    image_style = data.get('image_style', 'tech')        # tech / realistic / flat
+    max_images = int(data.get('max_images', 4))
+    has_user_images = bool(data.get('has_user_images', False))  # 用户已提供图片则不AI生图
+    # 字数 / 图片数量（>0 时生效；图片数>0 且模式为 none 时强制生图）
+    word_count = int(data.get('word_count', 0) or 0)
+    image_count = int(data.get('image_count', 0) or 0)
+    if image_count > 0 and image_mode == 'none':
+        image_mode = 'auto'
+
+    # 参考资料（上传的参考图/文档）、历史案例、参考网页
+    references = data.get('references', []) or []        # [{ftype, text, filename, name}]
+    use_history = bool(data.get('use_history', False))
+    web_urls = data.get('web_urls', []) or []
+    # 用户勾选「用作正文图」的参考图（有序的真实图片 URL）；非空时 AI 不再自动生图，改用这些图
+    selected_images = data.get('selected_images', []) or []
+    if not isinstance(selected_images, list):
+        selected_images = []
+    selected_images = [str(u).strip() for u in selected_images if str(u).strip()]
+    user_image_count = len(selected_images)
+
     if not topic:
         return jsonify({'success': False, 'message': '请输入文章主题或关键词'})
 
@@ -3228,30 +4116,171 @@ def api_publish_ai_generate():
         search_method = f"{config['search_provider'].upper()} API"
 
     try:
-        # 步骤1：搜索新闻（自动选择可用方式）
+        # 步骤1：搜索新闻（自动选择可用方式，含重试与降级）
         news_results = _search_news(topic, config, count)
+        # 降级（沉淀 Coze「素材为空自动抓科技新闻」fallback）：首次无结果时自动补抓科技新闻
         if not news_results:
-            return jsonify({'success': False, 'message': '未搜索到相关新闻，请换个关键词试试'})
+            news_results = _search_news('科技 人工智能 数码 新能源 芯片', config, count)
+        if not news_results:
+            return jsonify({'success': False, 'message': '未搜索到相关新闻，请换个关键词或配置搜索 API Key'})
 
-        # 步骤2：DeepSeek 生成文章
+        # 步骤1.4：抓取用户提供的参考网页，分析其风格与图片位置
+        web_articles = []
+        for u in (web_urls or [])[:5]:
+            u = (u or '').strip()
+            if u:
+                art = _fetch_web_article(u)
+                if art:
+                    web_articles.append(art)
+        # 步骤1.5：构建参考资料文本（参考图描述 + 文档文本 + 历史案例 + 参考网页）
+        reference_text = _build_reference_text(references, use_history, session.get('user_id'), web_articles=web_articles)
+
+        # 步骤2：DeepSeek 生成文章（结构化 blocks）
         style_profile = data.get('style_profile', None)
-        article = _deepseek_generate(topic, news_results, style_profile, deepseek_key)
+        skip_images = has_user_images or (image_mode == 'none') or bool(selected_images)
+        article = with_retry(_deepseek_generate,
+            topic, news_results, style_profile, deepseek_key,
+            image_mode=image_mode, image_style=image_style,
+            max_images=max_images, skip_images=skip_images,
+            reference_text=reference_text, user_image_count=user_image_count,
+            word_count=word_count, image_count=image_count,
+            retries=3, what='DeepSeek生成'
+        )
+        # 若用户勾选了参考图作为正文图：把真实图片回填进 image 块（不调生图接口）
+        if selected_images:
+            article['blocks'] = _fill_user_images(article.get('blocks', []), selected_images)
 
         return jsonify({
             'success': True,
             'article': {
                 'title': article.get('title', ''),
                 'digest': article.get('digest', ''),
-                'content': article.get('content', '')
+                'content': article.get('content', ''),
+                'blocks': article.get('blocks', [])
             },
             'sources': news_results,
             'stats': {
                 'news_count': len(news_results),
                 'topic': topic,
-                'search_method': search_method
+                'search_method': search_method,
+                'image_generated': (not skip_images),
+                'user_images_used': len(selected_images),
+                'reference_used': bool(reference_text),
+                'reference_count': len(references) + (1 if use_history else 0) + len(web_articles),
             }
         })
 
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+def _build_auto_schedule_content(article, image_style, appid, appsecret):
+    """把 AI 生成的 blocks 拼成微信安全写法 HTML，并把配图（Pollinations 生成）上传到微信永久素材库。
+
+    返回 (html, cover_mid)。cover_mid 为第一张图的永久素材 media_id（用作草稿封面 thumb_media_id）；
+    无图或未配置微信时 cover_mid=''（_do_publish 会回退默认封面）。
+    """
+    import wechat_scheduler as _ws
+    blocks = article.get('blocks', []) or []
+    html = '<section style="font-size:15px;color:#3f3f4f;line-height:1.8;">\n'
+    cover_mid = ''
+    has_wx = bool(appid) and bool(appsecret)
+    for b in blocks:
+        t = b.get('type')
+        if t == 'h2':
+            html += '<p style="font-size:17px;font-weight:bold;color:#2c3e50;margin:25px 0 12px 0;">%s</p>\n' % (b.get('text', '') or '').strip()
+        elif t == 'blockquote':
+            html += '<blockquote style="border-left:3px solid #534ab7;padding:8px 12px;margin:12px 0;background:#f8f9fa;color:#666;border-radius:0 6px 6px 0;">%s</blockquote>\n' % (b.get('text', '') or '').strip()
+        elif t == 'image':
+            if not has_wx:
+                continue
+            try:
+                local = _pollinations_image(b.get('prompt', ''), image_style)
+                url, mid = _ws._wx_upload_local(local, appid, appsecret)
+                if not cover_mid:
+                    cover_mid = mid
+                html += '<p style="margin:12px 0;text-align:center;"><img src="%s" style="max-width:100%%;border-radius:8px;"></p>\n' % url
+                try:
+                    os.remove(local)
+                except Exception:
+                    pass
+            except Exception:
+                continue
+        else:
+            txt = (b.get('text', '') or '').strip()
+            if txt:
+                html += '<p style="margin-bottom:15px;">%s</p>\n' % txt
+    html += '</section>'
+    if not has_wx:
+        # 未配置微信则无法上传配图，退回纯文字兜底 content
+        html = article.get('content') or html
+    return html, cover_mid
+
+
+@app.route('/api/publish/schedule-auto', methods=['POST'])
+def api_publish_schedule_auto():
+    """⚡ 全自动：输入主题+图片数量+字数，自动搜新闻→AI写稿→配图→创建定时任务。
+
+    到设定时间由调度器自动建草稿/发布（按所选 mode）。生成阶段即把配图上传到微信素材库并嵌入正文，
+    实现真正「全自动」无需人工排版。
+    """
+    import wechat_scheduler as _ws
+    data = request.get_json() or {}
+    topic = (data.get('topic') or '').strip()
+    word_count = int(data.get('word_count', 0) or 0)
+    image_count = int(data.get('image_count', 0) or 0)
+    image_style = data.get('image_style', 'tech')
+    schedule_time = (data.get('schedule_time') or '').strip()
+    mode = data.get('mode', 'publish')
+    author = (data.get('author') or '').strip()
+    if not topic:
+        return jsonify({'success': False, 'message': '请输入文章主题'})
+    if not schedule_time:
+        return jsonify({'success': False, 'message': '请选择发布时间'})
+    # datetime-local(YYYY-MM-DDTHH:MM) -> DB 格式(YYYY-MM-DD HH:MM:SS)
+    schedule_time = schedule_time.replace('T', ' ')
+    if len(schedule_time) == 16:
+        schedule_time += ':00'
+
+    config = _get_ai_config()
+    deepseek_key = config.get('deepseek_api_key', '')
+    if not deepseek_key:
+        return jsonify({'success': False, 'message': 'DeepSeek API Key 未配置'})
+
+    try:
+        news = _search_news(topic, config, 5)
+        if not news:
+            news = _search_news('科技 人工智能 数码 新能源 芯片', config, 5)
+        if not news:
+            return jsonify({'success': False, 'message': '未搜索到相关新闻，请换个关键词'})
+
+        article = with_retry(_deepseek_generate, topic, news, None, deepseek_key,
+                             image_mode='auto', image_style=image_style,
+                             max_images=max(1, image_count) if image_count > 0 else 4,
+                             skip_images=False, word_count=word_count, image_count=image_count,
+                             retries=3, what='DeepSeek生成')
+
+        # 微信配置（用于把配图上传到微信素材库）
+        row = get_db().execute("SELECT value FROM store_settings WHERE key='wechat_appid'").fetchone()
+        appid = row['value'] if row else ''
+        row = get_db().execute("SELECT value FROM store_settings WHERE key='wechat_appsecret'").fetchone()
+        appsecret = row['value'] if row else ''
+
+        content, cover_mid = _build_auto_schedule_content(article, image_style, appid, appsecret)
+        pid = _ws.create_scheduled_post(
+            article.get('title', ''), article.get('digest', ''), content, schedule_time,
+            author=author, ptype='single', mode=mode, cover_media_id=cover_mid)
+        return jsonify({
+            'success': True,
+            'id': pid,
+            'article': {
+                'title': article.get('title', ''),
+                'digest': article.get('digest', ''),
+                'content': article.get('content', ''),
+                'blocks': article.get('blocks', [])
+            },
+            'message': '已生成并创建定时任务（ID %s）' % pid
+        })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -3262,7 +4291,194 @@ def api_publish_ai_generate():
 
 
 
+# ============================================================
+# 微信发布增强：W2 外部素材抓取 / W3 移动端预览 / W1 定时批量 / W5 分析
+# ============================================================
+
+@app.route('/api/publish/fetch-materials', methods=['POST'])
+def api_publish_fetch_materials():
+    """W2：从外部抓取素材到网页。按关键词或 URL 拉取新闻/文章作为可选参考资料；
+    无搜索 API Key 时自动用 RSS 兜底（_search_news 内部已含重试+降级）。"""
+    data = request.get_json() or {}
+    query = (data.get('query') or '').strip()
+    urls = data.get('urls') or []
+    if not query and not urls:
+        return jsonify({'success': False, 'message': '请输入关键词或粘贴文章链接'})
+    config = _get_ai_config()
+    materials = []
+    try:
+        if query:
+            for it in _search_news(query, config, int(data.get('count', 8) or 8)):
+                materials.append({
+                    'title': it.get('title', ''),
+                    'url': it.get('url', ''),
+                    'source': it.get('source', ''),
+                    'description': (it.get('description') or '')[:200],
+                    'kind': 'news'
+                })
+        for u in (urls or [])[:5]:
+            u = (u or '').strip()
+            if u.startswith('http'):
+                art = _fetch_web_article(u)
+                if art:
+                    materials.append({
+                        'title': art.get('title', ''),
+                        'url': u,
+                        'source': _extract_domain(u),
+                        'description': (art.get('summary') or '')[:200],
+                        'kind': 'article'
+                    })
+    except Exception as e:
+        return jsonify({'success': False, 'message': '抓取失败: ' + str(e)})
+    return jsonify({'success': True, 'materials': materials})
+
+
+@app.route('/api/publish/preview-frame', methods=['POST'])
+def api_publish_preview_frame():
+    """W3：返回一篇「移动端自包含」的预览文档，供 iframe 内嵌模拟手机查看。
+    正文 html 已是内联样式、微信安全写法；此处仅在外层包一个 375px 容器（预览框本身非发布内容）。"""
+    data = request.get_json() or {}
+    html = data.get('html', '')
+    doc = ('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">'
+           '<meta name="viewport" content="width=device-width,initial-scale=1">'
+           '<style>html,body{margin:0;padding:0;background:#fff;}'
+           '.wx-phone{padding:14px;}</style></head>'
+           '<body><div class="wx-phone">' + html + '</div></body></html>')
+    return doc, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+
+@app.route('/api/publish/schedule-create', methods=['POST'])
+def api_publish_schedule_create():
+    """W1：创建定时发布任务。content 应为已含微信 CDN 图地址的最终 HTML。"""
+    import wechat_scheduler
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    content = data.get('content', '')
+    schedule_time = (data.get('schedule_time') or '').strip()
+    if not title or not content:
+        return jsonify({'success': False, 'message': '标题与内容不能为空'})
+    if not schedule_time:
+        return jsonify({'success': False, 'message': '请选择发布时间'})
+    pid = wechat_scheduler.create_scheduled_post(
+        title, data.get('digest', ''), content, schedule_time,
+        author=data.get('author', ''), ptype=data.get('type', 'single'),
+        mode=(data.get('mode') or 'publish'))
+    return jsonify({'success': True, 'id': pid, 'message': '定时任务已创建'})
+
+
+@app.route('/api/publish/schedule-list', methods=['GET'])
+def api_publish_schedule_list():
+    import wechat_scheduler
+    return jsonify({'success': True, 'list': wechat_scheduler.list_scheduled()})
+
+
+@app.route('/api/publish/schedule-cancel', methods=['POST'])
+def api_publish_schedule_cancel():
+    import wechat_scheduler
+    data = request.get_json() or {}
+    pid = data.get('id')
+    if pid:
+        wechat_scheduler.cancel_scheduled(pid)
+    return jsonify({'success': True})
+
+
+@app.route('/api/publish/schedule-resolve', methods=['POST'])
+def api_publish_schedule_resolve():
+    """W6：处理「发布失败但草稿已建好」的待决任务。
+
+    action:
+      'keep_draft' -> 草稿已在公众号草稿箱，仅标记为已转草稿（status='draft'）
+      'clear'      -> 删除该条任务记录（清空此条内容）
+    table: scheduled_posts（默认）或 publish_queue
+    """
+    import wechat_scheduler
+    data = request.get_json() or {}
+    pid = data.get('id')
+    action = data.get('action')
+    table = data.get('table', 'scheduled_posts')
+    if not pid or action not in ('keep_draft', 'clear'):
+        return jsonify({'success': False, 'message': '参数错误'})
+    ok, msg = wechat_scheduler.resolve_scheduled(pid, action, table)
+    return jsonify({'success': ok, 'message': msg})
+
+
+@app.route('/api/publish/batch-enqueue', methods=['POST'])
+def api_publish_batch_enqueue():
+    """W1：批量发布入队。items: [{title,digest,content,author}]"""
+    import wechat_scheduler
+    data = request.get_json() or {}
+    items = data.get('items') or []
+    if not isinstance(items, list) or not items:
+        return jsonify({'success': False, 'message': '请提交至少一个发布项'})
+    ids = wechat_scheduler.enqueue_batch(items)
+    return jsonify({'success': True, 'ids': ids, 'message': '已加入批量发布队列'})
+
+
+@app.route('/api/publish/batch-list', methods=['GET'])
+def api_publish_batch_list():
+    import wechat_scheduler
+    return jsonify({'success': True, 'list': wechat_scheduler.list_queue()})
+
+
+@app.route('/api/publish/log-event', methods=['POST'])
+def api_publish_log_event():
+    """W5：前端在「复制到微信/手动发布」时上报一次日志。"""
+    import wechat_scheduler
+    data = request.get_json() or {}
+    wechat_scheduler.log_publish(
+        data.get('channel', 'manual'), data.get('title', ''),
+        data.get('status', 'success'), data.get('detail', ''),
+        data.get('type', 'article'))
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/publish-analytics', methods=['GET'])
+def api_admin_publish_analytics():
+    import wechat_scheduler
+    return jsonify({'success': True, 'data': wechat_scheduler.get_analytics()})
+
+
+@app.route('/admin/publish-analytics')
+def admin_publish_analytics():
+    return read_template('admin/publish_analytics.html')
+
+
 # ==================== 秀米模板排版 API ====================
+def _inline_css(soup, css):
+    """把 <style> 里的 class/id/element 选择器 CSS 内联到对应元素。
+    微信发布时会整体剥掉 <style> 块，故必须把样式落到元素 inline style 上才保留。
+    跳过伪类/伪元素（:hover/::before 等微信不支持）。"""
+    import re as _re
+    if not css:
+        return
+    # 去掉 @media / @font-face / @keyframes 等块（微信不支持）
+    css = _re.sub(r'@media[^{]*\{.*?\}\s*\}', '', css, flags=_re.DOTALL)
+    css = _re.sub(r'@font-face\s*\{.*?\}', '', css, flags=_re.DOTALL)
+    for raw in css.split('}'):
+        raw = raw.strip()
+        if '{' not in raw:
+            continue
+        sel, _, decls = raw.partition('{')
+        sel = sel.strip()
+        decls = decls.strip()
+        if not sel or not decls or ':' not in decls:
+            continue
+        # 微信不支持的伪类/伪元素，跳过
+        if any(t in sel for t in (':hover', ':before', ':after', ':focus',
+                                   ':active', ':visited', ':first-child', ':nth', '::')):
+            continue
+        try:
+            els = soup.select(sel)
+        except Exception:
+            continue
+        for el in els:
+            cur = (el.get('style') or '').rstrip().rstrip(';')
+            merged = (cur + '; ' + decls).strip().strip(';')
+            merged = _re.sub(r';\s*;+', ';', merged).strip('; ')
+            if merged:
+                el['style'] = merged
+
+
 @app.route('/api/publish/apply-xiumi-template', methods=['POST'])
 def apply_xiumi_template():
     """应用秀米模板排版：解析模板HTML，将用户内容填入模板结构"""
@@ -3767,15 +4983,9 @@ def apply_xiumi_template():
                     div.decompose()
 
         # === 8. 输出最终 HTML ===
-        # 重新插入 style
-        if combined_css:
-            style_tag = soup.new_tag('style')
-            style_tag.string = combined_css
-            head = soup.find('head')
-            if head:
-                head.insert(0, style_tag)
-            else:
-                body.insert_before(style_tag)
+        # 微信会整体剥掉 <style> 块，故把 class 样式内联到元素上（不再保留 <style> 标签），
+        # 否则模板的 class 排版在公众号里会全部丢失。
+        _inline_css(soup, combined_css)
 
         result_html = str(soup)
 
@@ -3804,186 +5014,342 @@ def apply_xiumi_template():
 # 内置排版模板库
 # ============================================================
 
-def _tm_build_content(title, intro, subtitles, bodies, quotes, images, tm_prefix):
-    """通用内容构建器：根据内容列表生成对应class的HTML片段"""
-    parts = []
-    
-    # 标题
-    if title:
-        parts.append(f'<div class="{tm_prefix}-title">{title}</div>')
-    
-    # 摘要
-    if intro:
-        parts.append(f'<div class="{tm_prefix}-intro">{intro}</div>')
-    
-    # 内容流：按原始顺序交替排列小标题、正文、引用、图片
-    # 但为了简化，我们按类型分组，保持各组内部顺序
-    si, bi, qi, ii = 0, 0, 0, 0
-    # 先展示所有内容，小标题和正文穿插
-    content_blocks = []
-    
-    # 合并所有内容为一个有序列表
-    # 这里我们简单地按类型展示：小标题→正文→引用→图片
-    for st in subtitles:
-        content_blocks.append(('subtitle', st))
-    for bd in bodies:
-        content_blocks.append(('body', bd))
-    for qt in quotes:
-        content_blocks.append(('quote', qt))
-    for img in images:
-        content_blocks.append(('image', img))
-    
-    # 如果没有内容块但有标题/摘要，加个分割线
-    if content_blocks:
-        for ctype, cval in content_blocks:
-            if ctype == 'subtitle':
-                parts.append(f'<div class="{tm_prefix}-subtitle">{cval}</div>')
-            elif ctype == 'body':
-                parts.append(f'<div class="{tm_prefix}-p">{cval}</div>')
-            elif ctype == 'quote':
-                parts.append(f'<div class="{tm_prefix}-quote">{cval}</div>')
-            elif ctype == 'image':
-                parts.append(f'<img class="{tm_prefix}-img" src="{cval}" alt="">')
-    
-    return '\n'.join(parts)
+def _img_pair(val):
+    """从图片值提取 {preview, wx} 两个URL。
+    - string       -> preview=wx=该串（用户图/外部图）
+    - {src,url}    -> preview=src(浏览器预览)，wx=url(微信发布)
+    """
+    if isinstance(val, str):
+        return {'preview': val, 'wx': val}
+    if isinstance(val, dict):
+        preview = val.get('src') or val.get('url') or ''
+        wx = val.get('url') or val.get('src') or ''
+        return {'preview': preview, 'wx': wx}
+    s = str(val) if val else ''
+    return {'preview': s, 'wx': s}
 
 
-def template_clean_minimal(title, intro, subtitles, bodies, quotes, images):
-    """模板1：简约清新"""
-    content = _tm_build_content(title, intro, subtitles, bodies, quotes, images, 'tm1')
-    return f'''<div style="max-width:680px;margin:0 auto;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;color:#333;line-height:1.8;">
-<style>
-.tm1-title{{font-size:28px;font-weight:700;color:#1a1a1a;margin-bottom:12px;line-height:1.3;}}
-.tm1-intro{{font-size:14px;color:#666;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #eee;}}
-.tm1-subtitle{{font-size:18px;font-weight:600;color:#2c3e50;margin:24px 0 12px;padding-left:12px;border-left:3px solid #3498db;}}
-.tm1-p{{font-size:15px;color:#444;margin-bottom:16px;text-align:justify;}}
-.tm1-quote{{margin:20px 0;padding:16px 20px;background:#f8f9fa;border-left:4px solid #3498db;color:#555;font-style:italic;}}
-.tm1-img{{max-width:100%;border-radius:8px;margin:16px 0;display:block;}}
-</style>
-{content}
-</div>'''
+# ============================================================
+# 内置排版模板 —— 六套差异化视觉风格
+# 重要约束：微信公众号草稿编辑器会完整剥掉 <style> 与 CSS class，
+# 仅保留元素的「行内 style」。此外 paste handler 对普通段落的 style="color"
+# 较苛刻，故正文颜色统一用 <font color> 兜底；标题/引用/卡片用 <section> 行内样式。
+# 每套模板在「配色 / 标题装饰 / 引用样式 / 是否卡片化」上均不同，杜绝雷同。
+# ============================================================
+
+def _h2_section(val, cfg):
+    """小标题块。deco: bar(左侧色条) / underline(下划线) / center(居中+装饰线) / pill(色带) / plain"""
+    deco = cfg.get('deco', 'bar')
+    color = cfg.get('color', '#333')
+    accent = cfg.get('accent', color)
+    size = cfg.get('size', '18px')
+    if deco == 'bar':
+        return (f'<section style="border-left:4px solid {accent};padding:5px 0 5px 12px;'
+                f'margin:26px 0 12px;font-size:{size};font-weight:bold;line-height:1.6;color:{color};">'
+                f'{val}</section>')
+    if deco == 'underline':
+        return (f'<section style="margin:26px 0 6px;font-size:{size};font-weight:bold;line-height:1.7;'
+                f'color:{color};border-bottom:2px solid {accent};padding-bottom:8px;">{val}</section>')
+    if deco == 'center':
+        return (f'<section style="text-align:center;margin:28px 0 4px;font-size:{size};font-weight:bold;'
+                f'color:{color};line-height:1.7;">{val}</section>'
+                f'<section style="text-align:center;margin:0 0 14px;font-size:14px;letter-spacing:6px;'
+                f'color:{accent};">— · —</section>')
+    if deco == 'pill':
+        return (f'<section style="background-color:{accent};color:#ffffff;text-align:center;'
+                f'margin:26px 0 14px;padding:9px 16px;border-radius:22px;font-size:15px;font-weight:bold;'
+                f'letter-spacing:1px;line-height:1.6;">{val}</section>')
+    return (f'<section style="margin:26px 0 12px;font-size:{size};font-weight:bold;line-height:1.6;'
+            f'color:{color};">{val}</section>')
 
 
-def template_magazine(title, intro, subtitles, bodies, quotes, images):
-    """模板2：杂志风"""
-    content = _tm_build_content(title, intro, subtitles, bodies, quotes, images, 'tm2')
-    return f'''<div style="max-width:680px;margin:0 auto;font-family:Georgia,'Times New Roman',serif;background:#fff;">
-<style>
-.tm2-header{{text-align:center;padding:40px 24px 24px;background:#1a1a1a;color:#fff;}}
-.tm2-title{{font-size:32px;font-weight:700;margin-bottom:16px;line-height:1.2;}}
-.tm2-intro{{font-size:15px;color:#ccc;max-width:500px;margin:0 auto;}}
-.tm2-body{{padding:32px 24px;background:#fff;}}
-.tm2-subtitle{{font-size:22px;font-weight:700;color:#1a1a1a;margin:32px 0 16px;}}
-.tm2-p{{font-size:16px;color:#333;line-height:1.9;margin-bottom:20px;text-align:justify;}}
-.tm2-quote{{margin:28px 0;padding:20px 24px;background:#f5f5f5;border-left:4px solid #1a1a1a;font-style:italic;color:#555;}}
-.tm2-img{{max-width:100%;margin:20px 0;display:block;}}
-</style>
-<div class="tm2-header">
-  <div class="tm2-title">{title or '无标题'}</div>
-  {f'<div class="tm2-intro">{intro}</div>' if intro else ''}
-</div>
-<div class="tm2-body">
-  {_tm_build_content('', '', subtitles, bodies, quotes, images, 'tm2')}
-</div>
-</div>'''
+def _quote_section(val, cfg):
+    """引用块。deco: tint(底色+左边条) / plain(居中斜体带引号)"""
+    deco = cfg.get('deco', 'tint')
+    color = cfg.get('color', '#666')
+    bg = cfg.get('bg', '#f5f5f5')
+    accent = cfg.get('accent', color)
+    italic = 'italic' if cfg.get('italic') else 'normal'
+    if deco == 'plain':
+        return (f'<section style="text-align:center;margin:18px 0;font-style:{italic};'
+                f'color:{color};line-height:1.9;font-size:15px;">“ {val} ”</section>')
+    return (f'<section style="background-color:{bg};border-left:4px solid {accent};'
+            f'padding:14px 18px;border-radius:10px;margin:18px 0;font-style:{italic};'
+            f'color:{color};line-height:1.9;font-size:15px;">{val}</section>')
 
 
-def template_literary(title, intro, subtitles, bodies, quotes, images):
-    """模板3：文艺风"""
-    content = _tm_build_content(title, intro, subtitles, bodies, quotes, images, 'tm3')
-    return f'''<div style="max-width:680px;margin:0 auto;padding:32px 24px;font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:#faf8f5;color:#4a3f35;">
-<style>
-.tm3-title{{font-size:26px;font-weight:600;color:#5c4033;margin-bottom:16px;text-align:center;}}
-.tm3-intro{{font-size:13px;color:#8b7355;text-align:center;margin-bottom:24px;font-style:italic;}}
-.tm3-subtitle{{font-size:17px;font-weight:600;color:#6b4423;margin:28px 0 12px;}}
-.tm3-p{{font-size:15px;color:#5a4a3a;line-height:2;margin-bottom:16px;text-indent:2em;}}
-.tm3-quote{{margin:24px 0;padding:16px 20px;background:#f5f0e8;border-left:3px solid #c9a86c;color:#6b5b4f;font-style:italic;}}
-.tm3-img{{max-width:100%;border-radius:4px;margin:16px 0;display:block;box-shadow:0 2px 8px rgba(0,0,0,0.08);}}
-.tm3-divider{{text-align:center;margin:24px 0;color:#c9a86c;font-size:18px;letter-spacing:8px;}}
-</style>
-{content}
-<div class="tm3-divider">* * *</div>
-</div>'''
+def _body_section(val, cfg, extra=''):
+    color = cfg.get('color', '#333')
+    size = cfg.get('size', '15px')
+    lh = cfg.get('lh', '1.85')
+    margin = cfg.get('margin', '0 0 14px')
+    style = f'{extra}font-size:{size};line-height:{lh};margin:{margin};'
+    return f'<section style="{style}"><font color="{color}">{val}</font></section>'
 
 
-def template_business(title, intro, subtitles, bodies, quotes, images):
-    """模板4：商务风"""
-    content = _tm_build_content(title, intro, subtitles, bodies, quotes, images, 'tm4')
-    return f'''<div style="max-width:680px;margin:0 auto;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;">
-<style>
-.tm4-header{{background:linear-gradient(135deg,#1e3a5f 0%,#2c5282 100%);padding:32px 24px;color:#fff;border-radius:8px 8px 0 0;}}
-.tm4-title{{font-size:26px;font-weight:700;margin-bottom:8px;}}
-.tm4-intro{{font-size:13px;color:#a0c4e8;}}
-.tm4-body{{padding:24px;background:#fff;}}
-.tm4-subtitle{{font-size:17px;font-weight:600;color:#1e3a5f;margin:24px 0 12px;display:flex;align-items:center;}}
-.tm4-subtitle::before{{content:'';display:inline-block;width:4px;height:18px;background:#2c5282;margin-right:10px;border-radius:2px;}}
-.tm4-p{{font-size:14px;color:#4a5568;line-height:1.8;margin-bottom:14px;}}
-.tm4-quote{{margin:20px 0;padding:14px 18px;background:#edf2f7;border-left:3px solid #2c5282;color:#4a5568;}}
-.tm4-img{{max-width:100%;border-radius:6px;margin:14px 0;display:block;border:1px solid #e2e8f0;}}
-.tm4-footer{{text-align:center;padding:16px;font-size:12px;color:#a0aec0;border-top:1px solid #e2e8f0;margin-top:24px;}}
-</style>
-<div class="tm4-header">
-  <div class="tm4-title">{title or '无标题'}</div>
-  {f'<div class="tm4-intro">{intro}</div>' if intro else ''}
-</div>
-<div class="tm4-body">
-  {_tm_build_content('', '', subtitles, bodies, quotes, images, 'tm4')}
-</div>
-<div class="tm4-footer">本内容仅供阅读参考</div>
-</div>'''
+def _img_section(val, img_style, wrap=''):
+    pair = _img_pair(val)
+    if pair['preview'] or pair['wx']:
+        inner = f'<img src="{pair["preview"]}" data-wx="{pair["wx"]}" style="{img_style}" alt="">'
+        if wrap:
+            return f'<section style="{wrap}text-align:center;">{inner}</section>'
+        return f'<section style="text-align:center;margin:16px 0;">{inner}</section>'
+    return ''
 
 
-def template_card(title, intro, subtitles, bodies, quotes, images):
-    """模板5：卡片风"""
-    # 卡片风需要特殊处理：每个内容块一个卡片
-    cards = []
-    
-    # 标题卡片
-    if title:
-        header = f'<div style="font-size:22px;font-weight:700;color:#1a202c;margin-bottom:8px;">{title}</div>'
-        if intro:
-            header += f'<div style="font-size:13px;color:#718096;">{intro}</div>'
-        cards.append(f'<div style="background:#fff;border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">{header}</div>')
-    
-    # 内容卡片
-    for st in subtitles:
-        cards.append(f'<div style="background:#fff;border-radius:12px;padding:20px 24px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div style="font-size:16px;font-weight:600;color:#2d3748;margin-bottom:8px;">{st}</div></div>')
-    for bd in bodies:
-        cards.append(f'<div style="background:#fff;border-radius:12px;padding:20px 24px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div style="font-size:14px;color:#4a5568;line-height:1.7;">{bd}</div></div>')
-    for qt in quotes:
-        cards.append(f'<div style="background:#f7fafc;border-radius:12px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);border-left:3px solid #667eea;"><div style="font-size:14px;color:#4a5568;font-style:italic;">{qt}</div></div>')
-    for img in images:
-        cards.append(f'<div style="background:#fff;border-radius:12px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);"><img src="{img}" style="max-width:100%;border-radius:8px;display:block;"></div>')
-    
-    return f'''<div style="max-width:680px;margin:0 auto;padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f7fafc;">
-{chr(10).join(cards)}
-</div>'''
+def _render_body(ordered_sections, st):
+    """按原始顺序渲染正文块（图片保留在正文中的分布位置）。
+    st 字段：
+      body         -> {color,size,lh,margin} 正文
+      h2           -> {deco,color,accent,size} 小标题
+      quote        -> {deco,color,bg,accent,italic} 引用
+      img          -> img 行内 style 字符串
+      body_section -> 可选，给每段正文外加的 section 样式（如卡片背景）
+      img_wrap     -> 可选，给图片外加的 section 样式（如卡片背景）
+    """
+    body_cfg = st.get('body', {})
+    h2_cfg = st.get('h2', {})
+    quote_cfg = st.get('quote', {})
+    img_style = st.get('img', 'max-width:100%;border-radius:10px;display:block;margin:0 auto;')
+    body_extra = st.get('body_section', '')
+    img_wrap = st.get('img_wrap', '')
+    out = []
+    for s in ordered_sections:
+        t = s.get('type', 'p')
+        val = s.get('value', '')
+        if t == 'h2' and val:
+            out.append(_h2_section(val, h2_cfg))
+        elif t == 'blockquote' and val:
+            out.append(_quote_section(val, quote_cfg))
+        elif t == 'img':
+            out.append(_img_section(val, img_style, img_wrap))
+        elif val:
+            out.append(_body_section(val, body_cfg, body_extra))
+    return '\n'.join(out)
 
 
-def template_dark(title, intro, subtitles, bodies, quotes, images):
-    """模板6：深色风"""
-    content = _tm_build_content(title, intro, subtitles, bodies, quotes, images, 'tm6')
-    return f'''<div style="max-width:680px;margin:0 auto;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;">
-<style>
-.tm6-title{{font-size:28px;font-weight:700;color:#f8fafc;margin-bottom:12px;line-height:1.3;}}
-.tm6-intro{{font-size:14px;color:#94a3b8;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #1e293b;}}
-.tm6-subtitle{{font-size:18px;font-weight:600;color:#60a5fa;margin:24px 0 12px;}}
-.tm6-p{{font-size:15px;color:#cbd5e1;line-height:1.8;margin-bottom:16px;}}
-.tm6-quote{{margin:20px 0;padding:16px 20px;background:#1e293b;border-left:3px solid #60a5fa;color:#94a3b8;font-style:italic;border-radius:0 8px 8px 0;}}
-.tm6-img{{max-width:100%;border-radius:8px;margin:16px 0;display:block;border:1px solid #1e293b;}}
-</style>
-{content}
-</div>'''
+# ---------- 模板1：简约清新（薄荷绿 / 留白 / 白色底） ----------
+def template_clean_minimal(title, intro, ordered_sections):
+    st = {
+        'body': {'color': '#374151', 'size': '15px', 'lh': '1.9'},
+        'h2': {'deco': 'bar', 'color': '#0d9488', 'accent': '#14b8a6', 'size': '18px'},
+        'quote': {'deco': 'tint', 'color': '#047857', 'bg': '#ecfdf5', 'accent': '#14b8a6', 'italic': True},
+        'img': 'max-width:100%;border-radius:12px;display:block;margin:0 auto;box-shadow:0 6px 16px rgba(20,184,166,0.12);',
+    }
+    return f'<section style="background-color:#ffffff;padding:6px;">\n{_render_body(ordered_sections, st)}\n</section>'
+
+
+# ---------- 模板2：杂志风（编辑红 / 暖纸底 / 下划线标题） ----------
+def template_magazine(title, intro, ordered_sections):
+    st = {
+        'body': {'color': '#3a3a3a', 'size': '15.5px', 'lh': '1.95'},
+        'h2': {'deco': 'underline', 'color': '#1a1a1a', 'accent': '#dc2626', 'size': '20px'},
+        'quote': {'deco': 'plain', 'color': '#9a3412', 'italic': True},
+        'img': 'max-width:100%;border-radius:2px;display:block;margin:0 auto;',
+    }
+    return f'<section style="background-color:#fdfaf6;padding:6px;">\n{_render_body(ordered_sections, st)}\n</section>'
+
+
+# ---------- 模板3：文艺风（陶土橙 / 米色底 / 居中标题） ----------
+def template_literary(title, intro, ordered_sections):
+    st = {
+        'body': {'color': '#5b4a3a', 'size': '15.5px', 'lh': '2.0'},
+        'h2': {'deco': 'center', 'color': '#92400e', 'accent': '#d97706', 'size': '18px'},
+        'quote': {'deco': 'plain', 'color': '#a16207', 'italic': True},
+        'img': 'max-width:100%;border-radius:14px;display:block;margin:0 auto;',
+    }
+    return f'<section style="background-color:#fbf3e7;padding:6px;">\n{_render_body(ordered_sections, st)}\n</section>'
+
+
+# ---------- 模板4：商务风（商务蓝 / 白底 / 蓝色左条标题） ----------
+def template_business(title, intro, ordered_sections):
+    st = {
+        'body': {'color': '#374151', 'size': '15px', 'lh': '1.9'},
+        'h2': {'deco': 'bar', 'color': '#1e3a5f', 'accent': '#2563eb', 'size': '18px'},
+        'quote': {'deco': 'tint', 'color': '#1e40af', 'bg': '#eff6ff', 'accent': '#2563eb', 'italic': False},
+        'img': 'max-width:100%;border-radius:8px;display:block;margin:0 auto;',
+    }
+    return f'<section style="background-color:#ffffff;padding:6px;">\n{_render_body(ordered_sections, st)}\n</section>'
+
+
+# ---------- 模板5：卡片风（靛蓝 / 浅灰蓝底 / 段落独立卡片） ----------
+def template_card(title, intro, ordered_sections):
+    st = {
+        'body': {'color': '#374151', 'size': '15px', 'lh': '1.85'},
+        'h2': {'deco': 'bar', 'color': '#4338ca', 'accent': '#6366f1', 'size': '18px'},
+        'quote': {'deco': 'tint', 'color': '#4338ca', 'bg': '#eef2ff', 'accent': '#6366f1', 'italic': True},
+        'img': 'max-width:100%;border-radius:10px;display:block;margin:0 auto;',
+        'body_section': 'background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;',
+        'img_wrap': 'background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:8px;',
+    }
+    return f'<section style="background-color:#f5f7fb;padding:16px;">\n{_render_body(ordered_sections, st)}\n</section>'
+
+
+# ---------- 模板6：深色科技风（青蓝霓虹 / 近黑底 / 每块独立深色卡片） ----------
+# 关键：微信会剥掉最外层 section 背景，所以每块自带深色背景，保证粘贴后仍是深色风格。
+def template_dark(title, intro, ordered_sections):
+    st = {
+        'body': {'color': '#cbd5e1', 'size': '15px', 'lh': '1.9'},
+        'h2': {'deco': 'bar', 'color': '#38bdf8', 'accent': '#38bdf8', 'size': '18px'},
+        'quote': {'deco': 'tint', 'color': '#94a3b8', 'bg': '#1e293b', 'accent': '#38bdf8', 'italic': True},
+        'img': 'max-width:100%;border-radius:10px;display:block;margin:0 auto;border:1px solid #334155;',
+        'body_section': 'background-color:#111827;border:1px solid #1f2937;border-radius:12px;padding:14px 16px;',
+        'img_wrap': 'background-color:#111827;border:1px solid #1f2937;border-radius:12px;padding:8px;',
+    }
+    return f'<section style="background-color:#0f172a;padding:20px;border-radius:14px;">\n{_render_body(ordered_sections, st)}\n</section>'
+
+
+# ---------- 模板7：党政风（党建红 / 金色 / 和平鸽 + 五角星装饰） ----------
+# 微信会剥掉渐变(gradient)与伪元素(::before)，且禁止 emoji(草稿箱乱码)，
+# 故装饰一律用纯色实心底 + 内联 SVG（五角星/和平鸽），白字用 <font color>。
+def _party_star_svg(size=26):
+    # 规范五角星顶点（外接圆 r=10，中心 12,12，交替外/内半径）
+    pts = "12,2 14.35,15.24 21.51,15.09 15.80,10.76 17.88,3.91 12,8 6.12,3.91 8.20,10.76 2.49,15.09 9.65,15.24"
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+            f'<polygon points="{pts}" fill="#f6c453"/></svg>')
+
+
+def _party_dove_svg(size=30):
+    # 简化和平鸽剪影（金色），朝右飞翔姿态
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+            '<path d="M2 13c1.5-2 4-3 6.5-2.5 1.2-2.3 3.8-3.8 6.8-3.5.8-1.6 2.4-2.8 4.4-3 '
+            '.4-1.4 1.5-2.5 3-2.8-1 .8-1.6 1.9-1.7 3.1-.9.2-1.7.7-2.3 1.4-1.7-1-3.8-1.4-6-1 '
+            '-2.2.4-4 1.6-5.1 3.4-1.4-.4-2.9-.4-4.3.1-1.4.5-2.6 1.4-3.5 2.6 1-.2 2-.2 3 0z" fill="#f6c453"/></svg>')
+
+
+def template_party(title, intro, ordered_sections):
+    st = {
+        'body': {'color': '#3a2e2e', 'size': '15.5px', 'lh': '1.95'},
+        'h2': {'deco': 'bar', 'color': '#9e1b1b', 'accent': '#c8102e', 'size': '18px'},
+        'quote': {'deco': 'tint', 'color': '#9e1b1b', 'bg': '#fbeaed', 'accent': '#c8102e', 'italic': False},
+        'img': 'max-width:100%;border-radius:8px;display:block;margin:0 auto;border:3px solid #c8102e;padding:4px;background-color:#ffffff;',
+    }
+    # 顶部红色横幅：和平鸽 + 金色五角星 + 标题（微信安全的纯色 + 内联 SVG）
+    banner = (
+        '<section style="background-color:#c8102e;padding:20px 16px;margin:0 0 8px;text-align:center;border-radius:6px;">'
+        '<div style="display:flex;justify-content:center;align-items:center;gap:14px;margin-bottom:10px;">'
+        f'{_party_dove_svg(30)}{_party_star_svg(26)}{_party_dove_svg(30)}'
+        '</div>'
+        '<div style="color:#f6c453;font-size:12px;letter-spacing:3px;font-weight:bold;line-height:1.6;">党 建 学 习 · 政 策 解 读</div>'
+        '</section>'
+    )
+    return f'{banner}\n<section style="background-color:#ffffff;padding:6px;">\n{_render_body(ordered_sections, st)}\n</section>'
+
+
+# ---------- 模板8：数字一大·初心之旅（淡黄底 / 红字 / 石库门 + 红船 + 日出东方） ----------
+# 主题元素取自中共一大纪念馆：石库门（青红砖拱形门楣，一大会址）、南湖红船（红船精神）、
+# "日出东方——从石库门到天安门"、1921·兴业路76号、金色五角星。
+# 微信安全：纯色 + 行内样式 + 内联 SVG，无渐变/伪元素/emoji；每块自带淡黄底防止外层背景被剥。
+def _yida_shikumen_svg(width=150, height=96):
+    # 简化石库门：红砖门框 + 半圆拱形门楣（含放射状楣饰）+ 金色门环双扇黑门
+    return (f'<svg width="{width}" height="{height}" viewBox="0 0 150 96" xmlns="http://www.w3.org/2000/svg">'
+            # 砖墙底
+            '<rect x="0" y="10" width="150" height="86" fill="#b5533c"/>'
+            # 砖缝（横线）
+            '<rect x="0" y="26" width="150" height="2" fill="#9e3f2c"/>'
+            '<rect x="0" y="44" width="150" height="2" fill="#9e3f2c"/>'
+            '<rect x="0" y="62" width="150" height="2" fill="#9e3f2c"/>'
+            '<rect x="0" y="80" width="150" height="2" fill="#9e3f2c"/>'
+            # 门楣拱形（外圈石灰色，内圈金色放射楣饰）
+            '<path d="M35 52 A40 40 0 0 1 115 52 L115 60 L35 60 Z" fill="#e8dcc8"/>'
+            '<path d="M42 54 A33 33 0 0 1 108 54 L108 60 L42 60 Z" fill="#c8102e"/>'
+            '<path d="M75 22 L78 34 L72 34 Z" fill="#f6c453"/>'
+            '<path d="M57 27 L63 38 L58 41 Z" fill="#f6c453"/>'
+            '<path d="M93 27 L92 41 L87 38 Z" fill="#f6c453"/>'
+            # 门柱
+            '<rect x="35" y="56" width="10" height="40" fill="#e8dcc8"/>'
+            '<rect x="105" y="56" width="10" height="40" fill="#e8dcc8"/>'
+            # 双扇黑门 + 金色门环
+            '<rect x="47" y="58" width="27" height="38" fill="#2b2b2b"/>'
+            '<rect x="76" y="58" width="27" height="38" fill="#3a3a3a"/>'
+            '<circle cx="66" cy="76" r="3.5" fill="#f6c453"/>'
+            '<circle cx="84" cy="76" r="3.5" fill="#f6c453"/>'
+            '</svg>')
+
+
+def _yida_boat_svg(width=140, height=64):
+    # 简化南湖红船：单层舱体 + 弧形船底 + 水波纹
+    return (f'<svg width="{width}" height="{height}" viewBox="0 0 140 64" xmlns="http://www.w3.org/2000/svg">'
+            # 舱顶
+            '<rect x="42" y="8" width="56" height="6" rx="3" fill="#9e1b1b"/>'
+            # 舱体（含金色格窗）
+            '<rect x="46" y="14" width="48" height="18" fill="#c8102e"/>'
+            '<rect x="51" y="18" width="8" height="9" fill="#f6c453"/>'
+            '<rect x="66" y="18" width="8" height="9" fill="#f6c453"/>'
+            '<rect x="81" y="18" width="8" height="9" fill="#f6c453"/>'
+            # 船身（弧形船底）
+            '<path d="M18 34 L122 34 L106 48 L34 48 Z" fill="#8c1515"/>'
+            # 水波（三段弧线）
+            '<path d="M10 56 Q22 50 34 56 Q46 62 58 56 Q70 50 82 56 Q94 62 106 56 Q118 50 130 56" '
+            'stroke="#d98e8e" stroke-width="3" fill="none" stroke-linecap="round"/>'
+            '</svg>')
+
+
+def _yida_sun_svg(width=120, height=44):
+    # 日出东方：金色半日 + 放射光芒
+    return (f'<svg width="{width}" height="{height}" viewBox="0 0 120 44" xmlns="http://www.w3.org/2000/svg">'
+            '<path d="M40 42 A20 20 0 0 1 80 42 Z" fill="#f6c453"/>'
+            '<rect x="57" y="4" width="6" height="12" rx="3" fill="#f6c453"/>'
+            '<rect x="30" y="12" width="6" height="12" rx="3" fill="#f6c453" transform="rotate(-40 33 18)"/>'
+            '<rect x="84" y="12" width="6" height="12" rx="3" fill="#f6c453" transform="rotate(40 87 18)"/>'
+            '<rect x="12" y="30" width="6" height="12" rx="3" fill="#f6c453" transform="rotate(-72 15 36)"/>'
+            '<rect x="102" y="30" width="6" height="12" rx="3" fill="#f6c453" transform="rotate(72 105 36)"/>'
+            '</svg>')
+
+
+def template_yida(title, intro, ordered_sections):
+    st = {
+        # 用户要求：字体红色（正文用可读性较好的深红）
+        'body': {'color': '#a11d1d', 'size': '15.5px', 'lh': '1.95'},
+        # 红色色带小标题（与党政风的左条区分）
+        'h2': {'deco': 'pill', 'color': '#ffffff', 'accent': '#c8102e', 'size': '16px'},
+        'quote': {'deco': 'tint', 'color': '#8c1515', 'bg': '#fdeecb', 'accent': '#c8102e', 'italic': False},
+        # 用户要求：图片方框红色
+        'img': 'max-width:100%;border-radius:4px;display:block;margin:0 auto;border:3px solid #c8102e;padding:4px;background-color:#fff9ec;',
+        # 每块自带淡黄底，粘贴到微信后淡黄背景不丢失
+        'body_section': 'background-color:#fdf6e0;border-radius:8px;padding:12px 14px;',
+        'img_wrap': 'background-color:#fdf6e0;border-radius:8px;padding:10px;',
+    }
+    # 头部：横幅图片（红色底+金星+金色大字"数字一大·初心之旅"+副标题）
+    # 用图片而非纯文本 div，避免微信粘贴时样式被剥导致标题不显示
+    banner = (
+        '<section style="margin:0 0 10px;border-radius:6px;overflow:hidden;">'
+        '<img src="/static/uploads/yida_banner.png" alt="数字一大·初心之旅"'
+        ' style="width:100%;display:block;border-radius:6px;" />'
+        '</section>'
+    )
+    # 副横幅：石库门场景（淡黄底卡片，日出东方 + 石库门）
+    shikumen = (
+        '<section style="background-color:#fdf6e0;border:2px solid #c8102e;border-radius:8px;'
+        'padding:16px 12px 14px;margin:0 0 10px;text-align:center;">'
+        f'<div>{_yida_sun_svg(120, 44)}</div>'
+        f'<div style="margin-top:2px;">{_yida_shikumen_svg(150, 96)}</div>'
+        '<div style="color:#8c1515;font-size:13px;letter-spacing:2px;margin-top:10px;font-weight:bold;line-height:1.7;">日出东方 · 从石库门到天安门</div>'
+        '</section>'
+    )
+    # 尾部：南湖红船（淡黄底卡片）
+    boat = (
+        '<section style="background-color:#fdf6e0;border:2px solid #c8102e;border-radius:8px;'
+        'padding:16px 12px 12px;margin:10px 0 0;text-align:center;">'
+        f'<div>{_yida_boat_svg(140, 64)}</div>'
+        '<div style="color:#8c1515;font-size:13px;letter-spacing:2px;margin-top:8px;font-weight:bold;line-height:1.7;">南湖红船 · 初心不改 砥砺前行</div>'
+        '<div style="color:#b5533c;font-size:11px;letter-spacing:1px;margin-top:4px;line-height:1.6;">星火初燃 · 伟大的开端</div>'
+        '</section>'
+    )
+    body = f'<section style="background-color:#fdf6e0;padding:10px;border-radius:8px;">\n{_render_body(ordered_sections, st)}\n</section>'
+    return f'{banner}\n{shikumen}\n{body}\n{boat}'
 
 
 # 模板注册表
 BUILTIN_TEMPLATES = {
-    1: {'name': '简约清新', 'category': '通用', 'func': template_clean_minimal, 'desc': '白色背景，简洁线条，适合科技与商业文章'},
-    2: {'name': '杂志风', 'category': '长文', 'func': template_magazine, 'desc': '大标题深色头图，经典杂志排版，适合深度长文'},
-    3: {'name': '文艺风', 'category': '生活', 'func': template_literary, 'desc': '暖色调米色背景，适合生活随笔与情感文章'},
-    4: {'name': '商务风', 'category': '企业', 'func': template_business, 'desc': '蓝色系渐变头图，专业商务感，适合行业分析'},
-    5: {'name': '卡片风', 'category': '现代', 'func': template_card, 'desc': '每个段落独立卡片，现代扁平设计，适合清单与资讯'},
-    6: {'name': '深色风', 'category': '科技', 'func': template_dark, 'desc': '深蓝黑背景，适合科技类文章与夜间阅读'},
+    1: {'name': '简约清新', 'category': '通用', 'func': template_clean_minimal, 'desc': '薄荷绿点缀 · 大量留白，清爽通透，适合科技与生活方式', 'accent': '#14b8a6', 'bg': '#e8f4f8'},
+    2: {'name': '杂志风', 'category': '长文', 'func': template_magazine, 'desc': '编辑红下划线标题 · 暖纸底，经典杂志感，适合深度长文', 'accent': '#dc2626', 'bg': '#fdfaf6'},
+    3: {'name': '文艺风', 'category': '生活', 'func': template_literary, 'desc': '陶土橙居中标题 · 米色底，温润文艺，适合随笔与情感', 'accent': '#d97706', 'bg': '#fbf3e7'},
+    4: {'name': '商务风', 'category': '企业', 'func': template_business, 'desc': '商务蓝左条标题 · 白底，专业克制，适合行业分析', 'accent': '#2563eb', 'bg': '#ffffff'},
+    5: {'name': '卡片风', 'category': '现代', 'func': template_card, 'desc': '靛蓝描边 · 每段独立卡片，现代扁平，适合清单与资讯', 'accent': '#6366f1', 'bg': '#f5f7fb'},
+    6: {'name': '深色科技', 'category': '科技', 'func': template_dark, 'desc': '青蓝霓虹 · 近黑底深色卡片，适合科技类与夜间阅读', 'accent': '#38bdf8', 'bg': '#0f172a'},
+    7: {'name': '党政风', 'category': '党政', 'func': template_party, 'desc': '党建红 + 金色五角星与和平鸽装饰，庄重端正，适合党建宣传与政策解读', 'accent': '#c8102e', 'bg': '#c8102e'},
+    8: {'name': '数字一大·初心之旅', 'category': '党政', 'func': template_yida, 'desc': '淡黄底红字 · 石库门/南湖红船/日出东方元素，适合党建题材与红色主题宣传', 'accent': '#c8102e', 'bg': '#fdf6e0'},
 }
 
 
@@ -3993,7 +5359,8 @@ def get_builtin_templates():
     return jsonify({
         'success': True,
         'templates': [
-            {'id': k, 'name': v['name'], 'category': v['category'], 'desc': v['desc']}
+            {'id': k, 'name': v['name'], 'category': v['category'], 'desc': v['desc'],
+             'accent': v.get('accent', '#888'), 'bg': v.get('bg', '#f0f0f0')}
             for k, v in BUILTIN_TEMPLATES.items()
         ]
     })
@@ -4016,40 +5383,32 @@ def apply_builtin_template():
         return jsonify({'success': False, 'message': f'模板ID {template_id} 不存在'})
     
     template = BUILTIN_TEMPLATES[template_id]
-    
-    # 分类用户内容
-    subtitles = []
-    bodies = []
-    quotes = []
-    content_images = []
-    
+
+    # 按原始顺序构建内容块（保留图片在正文中的分布位置）
+    ordered_sections = []
     for s in sections:
         t = s.get('type', 'p')
-        txt = s.get('text', '').strip()
-        if t == 'h2' and txt:
-            subtitles.append(txt)
-        elif t == 'p' and txt:
-            bodies.append(txt)
-        elif t == 'blockquote' and txt:
-            quotes.append(txt)
-        elif t == 'img' and txt:
-            content_images.append(txt)
-    
-    # 合并图片：sections中的img + images数组
-    all_images = content_images + [img for img in images if img not in content_images]
-    
+        val = s.get('text', '')
+        if t == 'img':
+            # 保留完整图片值（string 或 {src,url}），交给 _img_pair 处理
+            ordered_sections.append({'type': 'img', 'value': val})
+        else:
+            val = (val or '').strip() if isinstance(val, str) else val
+            if val:
+                ordered_sections.append({'type': t, 'value': val})
+
     try:
-        html = template['func'](title, digest, subtitles, bodies, quotes, all_images)
+        html = template['func'](title, digest, ordered_sections)
         return jsonify({
             'success': True,
             'html': html,
             'template_name': template['name'],
             'template_id': template_id,
             'stats': {
-                'subtitles': len(subtitles),
-                'bodies': len(bodies),
-                'quotes': len(quotes),
-                'images': len(all_images)
+                'subtitles': sum(1 for s in ordered_sections if s['type'] == 'h2'),
+                'bodies': sum(1 for s in ordered_sections if s['type'] == 'p'),
+                'quotes': sum(1 for s in ordered_sections if s['type'] == 'blockquote'),
+                'images': sum(1 for s in ordered_sections if s['type'] == 'img')
             }
         })
     except Exception as e:
@@ -4061,6 +5420,24 @@ def apply_builtin_template():
 @admin_required
 def admin_generation_records():
     return read_template('admin/generation_records.html')
+
+
+@app.route('/download-wechat-extension')
+@login_required
+def download_wechat_extension():
+    """动态把 wechat_extension 目录打包成 zip 供用户下载，本地加载到浏览器即可用。"""
+    import io, zipfile
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wechat_extension')
+    if not os.path.isdir(base):
+        return jsonify({'success': False, 'message': '扩展目录不存在'}), 404
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for root, dirs, files in os.walk(base):
+            for f in files:
+                fp = os.path.join(root, f)
+                z.write(fp, os.path.relpath(fp, base))
+    buf.seek(0)
+    return send_file(buf, mimetype='application/zip', as_attachment=True, download_name='wechat_paste_extension.zip')
 
 
 # ============================================================
@@ -4077,18 +5454,23 @@ def list_article_templates():
 
     if is_admin:
         rows = db.execute(
-            'SELECT id, name, description, thumbnail, created_by, author_name, is_public, created_at, updated_at '
+            'SELECT id, name, description, thumbnail, created_by, author_name, is_public, created_at, updated_at, template_type, blocks_json '
             'FROM article_templates ORDER BY is_public DESC, updated_at DESC'
         ).fetchall()
     else:
         rows = db.execute(
-            'SELECT id, name, description, thumbnail, created_by, author_name, is_public, created_at, updated_at '
+            'SELECT id, name, description, thumbnail, created_by, author_name, is_public, created_at, updated_at, template_type, blocks_json '
             'FROM article_templates WHERE created_by=? OR is_public=1 ORDER BY is_public DESC, updated_at DESC',
             (uid,)
         ).fetchall()
 
     templates = []
     for r in rows:
+        blocks = []
+        try:
+            blocks = json.loads(r['blocks_json'] or '[]')
+        except Exception:
+            blocks = []
         templates.append({
             'id': r['id'],
             'name': r['name'],
@@ -4099,6 +5481,8 @@ def list_article_templates():
             'is_public': bool(r['is_public']) if r['is_public'] is not None else False,
             'is_owner': r['created_by'] == uid,
             'can_edit': r['created_by'] == uid or is_admin,
+            'template_type': r['template_type'] or 'style',
+            'blocks': blocks,
             'created_at': r['created_at'],
             'updated_at': r['updated_at']
         })
@@ -4156,6 +5540,7 @@ def save_article_template():
     blocks_json = json.dumps(data.get('blocks', []), ensure_ascii=False)
     description = (data.get('description') or '').strip()
     thumbnail = data.get('thumbnail', '')
+    template_type = (data.get('template_type') or 'style').strip()
     tid = data.get('id')
     uid = session['user_id']
     is_admin = session.get('role') == 'admin'
@@ -4172,15 +5557,15 @@ def save_article_template():
         if existing['created_by'] != uid and not is_admin:
             return jsonify({'success': False, 'message': '无权编辑他人模板'})
         db.execute(
-            'UPDATE article_templates SET name=?, description=?, blocks_json=?, thumbnail=?, author_name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-            (name, description, blocks_json, thumbnail, author_name, tid)
+            'UPDATE article_templates SET name=?, description=?, blocks_json=?, thumbnail=?, author_name=?, template_type=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+            (name, description, blocks_json, thumbnail, author_name, template_type, tid)
         )
         db.commit()
         return jsonify({'success': True, 'message': '模板已更新', 'id': tid})
     else:
         cur = db.execute(
-            'INSERT INTO article_templates (name, description, blocks_json, thumbnail, created_by, author_name, is_public) VALUES (?, ?, ?, ?, ?, ?, 0)',
-            (name, description, blocks_json, thumbnail, uid, author_name)
+            'INSERT INTO article_templates (name, description, blocks_json, thumbnail, created_by, author_name, is_public, template_type) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
+            (name, description, blocks_json, thumbnail, uid, author_name, template_type)
         )
         db.commit()
         return jsonify({'success': True, 'message': '模板已保存', 'id': cur.lastrowid})
@@ -4244,17 +5629,25 @@ def apply_article_template(tid):
     sections = data.get('sections', [])
     images = data.get('images', [])
 
+    def _extract_url(val):
+        """从图片值中提取 URL 字符串（兼容 string 和 {src,url} 对象格式）"""
+        if isinstance(val, str):
+            return val
+        if isinstance(val, dict):
+            return val.get('url') or val.get('src') or ''
+        return str(val) if val else ''
+
     try:
         blocks = json.loads(r['blocks_json'])
     except Exception:
         blocks = []
 
-    # 分类用户内容
+    # 分类用户内容（图片保留完整对象 {src,url}，交给 _img_pair 处理）
     user_titles = [title] if title else []
-    user_subtitles = [s['text'] for s in sections if s.get('type') == 'h2' and s.get('text', '').strip()]
-    user_bodies = [s['text'] for s in sections if s.get('type') == 'p' and s.get('text', '').strip()]
-    user_quotes = [s['text'] for s in sections if s.get('type') == 'blockquote' and s.get('text', '').strip()]
-    user_images = list(images)
+    user_subtitles = [s['text'] for s in sections if s.get('type') == 'h2' and (s.get('text') or '').strip()]
+    user_bodies = [s['text'] for s in sections if s.get('type') == 'p' and (s.get('text') or '').strip()]
+    user_quotes = [s['text'] for s in sections if s.get('type') == 'blockquote' and (s.get('text') or '').strip()]
+    user_images = [img for img in images if img]
     user_intro = [digest] if digest else []
 
     # 指针
@@ -4293,16 +5686,19 @@ def apply_article_template(tid):
             continue
 
         if btype == 'image':
-            img_src = take('image')
-            if not img_src:
+            raw = take('image')
+            if raw is None:
                 # 保留模板原始图片（如果有）
-                img_src = props.get('src', '')
-            if img_src:
+                pair = {'preview': props.get('src', ''), 'wx': props.get('src', '')}
+            else:
+                pair = _img_pair(raw)
+            src = pair['preview'] or pair['wx']
+            if src:
                 width = props.get('width', '100%')
                 radius = props.get('borderRadius', 8)
                 align = props.get('align', 'center')
                 margin = '0 auto' if align == 'center' else f'margin-{align}:0'
-                html_parts.append(f'<img src="{img_src}" style="max-width:{width};border-radius:{radius}px;display:block;{margin};" />')
+                html_parts.append(f'<img src="{src}" data-wx="{pair["wx"] or src}" style="max-width:{width};border-radius:{radius}px;display:block;{margin};" />')
             continue
 
         # 文字类块
@@ -4380,6 +5776,12 @@ def apply_article_template(tid):
 
 if __name__ == '__main__':
     init_db()
+    # 启动微信公众号定时/批量发布内置调度器（后台守护线程，每30秒扫描到期任务）
+    try:
+        import wechat_scheduler
+        wechat_scheduler.init_scheduler(app)
+    except Exception as e:
+        print('[warn] 调度器启动失败:', e)
     print("=" * 50)
     print("  百货商城系统已启动")
     print("  访问地址: http://0.0.0.0:5000")
