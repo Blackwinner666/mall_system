@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "公众号一键粘贴助手",
+  "version": "1.0.0",
+  "description": "把剪贴板里的富样式文章一键粘贴到微信公众号编辑器，保留背景/边框/圆角（免去手动 Ctrl+V）。无需上架、无需付费。",
+  "permissions": ["clipboardRead", "storage", "activeTab"],
+  "host_permissions": ["https://mp.weixin.qq.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "公众号一键粘贴助手"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mp.weixin.qq.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
