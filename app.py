@@ -5744,7 +5744,8 @@ def admin_preview_builtin_template():
 @app.route('/admin/builtin-templates')
 @admin_required
 def admin_builtin_templates():
-    return read_template('admin/builtin_templates.html')
+    # 内置模板管理已并入「模板制作」(可视化拖拽设计器)，此处重定向过去
+    return redirect('/admin/template-designer')
 
 
 @app.route('/admin/generation-records')
