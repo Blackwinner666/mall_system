@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 - 系统选择</title>
+<style>
+:root {
+  --primary: #534ab7; --primary-light: #eeedfe; --primary-dark: #3c3489;
+  --bg: #f5f6fa; --card: #fff; --text: #1a1a2e; --text2: #555; --text3: #999;
+  --border: #e8e8e8; --radius: 12px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.header { background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+.header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 60px; }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-logo { width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg,#534ab7,#7b6cf7); display: flex; align-items: center; justify-content: center; color:#fff; font-weight:700; font-size:18px; }
+.header-title { font-size: 17px; font-weight: 600; }
+.header-sub { font-size: 12px; color: var(--primary); padding: 2px 9px; background: var(--primary-light); border-radius: 4px; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.user-box { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.user-name { font-weight: 600; color: var(--text); }
+.role-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--primary-light); color: var(--primary); }
+.logout-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: #fff; color: var(--text2); transition: all .15s; }
+.logout-btn:hover { border-color: var(--primary); color: var(--primary); }
+.link-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: #fff; color: var(--text2); text-decoration:none; transition: all .15s; }
+.link-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 60px; }
+.welcome { margin-bottom: 32px; }
+.welcome h1 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.welcome p { font-size: 14px; color: var(--text3); }
+.section-title { font-size: 15px; font-weight: 600; color: var(--text2); margin: 28px 0 16px; display: flex; align-items: center; gap: 8px; }
+.section-title::before { content: ''; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; }
+
+.app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.app-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 30px 26px; cursor: pointer; transition: all .2s ease; position: relative; overflow: hidden;
+}
+.app-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(83,74,183,.12); border-color: var(--primary); }
+.app-icon {
+  width: 60px; height: 60px; border-radius: 16px; background: var(--primary-light);
+  display: flex; align-items: center; justify-content: center; font-size: 30px; margin-bottom: 18px;
+}
+.app-name { font-size: 19px; font-weight: 600; margin-bottom: 8px; }
+.app-desc { font-size: 13px; color: var(--text3); line-height: 1.7; min-height: 46px; }
+.app-meta { margin-top: 14px; font-size: 12px; color: var(--text2); background: #f8f9fc; border-radius: 8px; padding: 10px 12px; }
+.app-meta span { display: inline-block; margin-right: 12px; }
+.app-enter { margin-top: 16px; font-size: 13px; color: var(--primary); font-weight: 500; display: flex; align-items: center; gap: 4px; }
+.app-card:hover .app-enter { gap: 8px; }
+.loading { text-align: center; color: var(--text3); padding: 60px 0; font-size: 14px; }
+.footer { text-align: center; color: var(--text3); font-size: 12px; padding: 30px 0; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-logo">M</div>
+      <div class="header-title">管理后台</div>
+      <div class="header-sub">系统选择</div>
+    </div>
+    <div class="header-right">
+      <a href="/portal" class="link-btn">工作台</a>
+      <div class="user-box"><span data-user-slot></span></div>
+      <button class="logout-btn" onclick="doLogout()">退出登录</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="welcome">
+    <h1>请选择要管理的系统</h1>
+    <p>你是管理员，可分别进入「商城管理系统」或「公众号管理系统」进行统一管理。</p>
+  </div>
+
+  <div class="section-title">管理系统</div>
+  <div class="app-grid">
+    <div class="app-card" onclick="location.href='/admin/mall'">
+      <div class="app-icon">🛒</div>
+      <div class="app-name">商城管理系统</div>
+      <div class="app-desc">管理店铺、商品、订单、售后、客户与商城设置等商城日常运营。</div>
+      <div class="app-meta"><span>📊 数据概览</span><span>📦 商品</span><span>🧾 订单</span><span>⚙ 设置</span></div>
+      <div class="app-enter">进入商城管理 →</div>
+    </div>
+
+    <div class="app-card" onclick="location.href='/admin/wechat'">
+      <div class="app-icon">📢</div>
+      <div class="app-name">公众号管理系统</div>
+      <div class="app-desc">管理 AI 创作的公众号文章、模板与生成记录，统一运营公众号内容。</div>
+      <div class="app-meta"><span>✍ 文章发布</span><span>🎨 模板</span><span>📚 生成记录</span></div>
+      <div class="app-enter">进入公众号管理 →</div>
+    </div>
+  </div>
+
+  <div class="footer">管理后台 · 选择系统后可随时在右上角切换</div>
+</div>
+
+<script>
+async function init() {
+  try {
+    let r = await fetch('/api/auth/me');
+    let u = await r.json();
+
+  } catch(e) {}
+}
+function doLogout() {
+  fetch('/api/auth/logout', {method:'POST'}).then(() => location.href='/login');
+}
+init();
+</script>
+<script src="/static/common_header.js"></script>
+</body>
+</html>
