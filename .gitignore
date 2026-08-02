@@ -29,6 +29,7 @@ Thumbs.db
 
 # Uploaded media (large binary files)
 static/uploads/
+static/generated_images/
 
 # Server-specific temp copies
 app_server.py
