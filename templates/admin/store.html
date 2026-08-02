@@ -89,7 +89,7 @@ td{color:#333}
   <div class="main">
     <div class="topbar">
       <div class="breadcrumb">店铺管理</div>
-      <div class="user-info"><span id="displayName"></span><button class="logout-btn" onclick="doLogout()">退出登录</button></div>
+      <div class="user-info"><span data-user-slot></span><button class="logout-btn" onclick="doLogout()">退出登录</button></div>
     </div>
     <div class="content">
       <div class="tabs" id="tabs">
@@ -159,7 +159,7 @@ function renderSidebar() {
 
 async function init(){
   let r=await fetch('/api/auth/me');let u=await r.json();
-  if(u.success)document.getElementById('displayName').textContent=u.user.display_name;
+
   r=await fetch('/api/settings');let s=await r.json();
   if(s.success)document.getElementById('storeName').textContent=s.data.store_name||'百货商城';
 }
@@ -463,5 +463,6 @@ async function deleteMember(id){
 init();
 loadStoreInfo();
 </script>
+<script src="/static/common_header.js"></script>
 </body>
 </html>
