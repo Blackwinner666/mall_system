@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>公众号AI创作发布平台 - 百货商城</title>
+<title>公众号AI创作发布平台</title>
 <style>
 :root {
   --primary: #534ab7; --primary-light: #eeedfe; --primary-dark: #3c3489;
@@ -56,6 +56,19 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
 .char-count { font-size:11px; color:var(--text3); text-align:right; margin-top:2px; }
 .char-count.warn { color:var(--danger); }
 
+/* 参考资料 */
+.ref-box { margin-top:12px; padding:12px; background:#fff; border:1px dashed #d9d4f5; border-radius:10px; }
+.ref-drop { border:1.5px dashed #c4bdf0; border-radius:8px; padding:14px; text-align:center; font-size:13px; color:var(--text3); cursor:pointer; transition:.2s; }
+.ref-drop:hover { border-color:var(--primary); color:var(--primary); background:#faf9ff; }
+.ref-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.ref-chip { display:flex; align-items:center; gap:8px; padding:6px 10px; background:#f3f1fe; border-radius:8px; font-size:12px; color:#4b4490; max-width:240px; }
+.ref-chip img { width:28px; height:28px; border-radius:6px; object-fit:cover; }
+.ref-chip .ref-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+.ref-chip .ref-del { cursor:pointer; color:#a855a0; font-weight:700; }
+.ref-chip .ref-loading { color:#999; font-size:11px; }
+.ref-chip .ref-use { display:flex; align-items:center; gap:3px; font-size:11px; color:#475569; cursor:pointer; margin-left:2px; flex:none; user-select:none; }
+.ref-chip .ref-use input { width:14px; height:14px; accent-color:var(--primary); cursor:pointer; margin:0; }
+
 /* Buttons */
 .btn { height:38px; padding:0 20px; border:none; border-radius:6px; font-size:14px; cursor:pointer; font-weight:500; transition:all .15s; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
 .btn-primary { background:var(--primary); color:#fff; }
@@ -66,6 +79,10 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
 .btn-xs { height:28px; padding:0 10px; font-size:12px; }
 .btn-danger { background:var(--danger); color:#fff; }
 .btn-danger:hover { opacity:0.9; }
+
+/* 分段切换：到时发布 / 仅建草稿 */
+.seg-btn { border:none; background:transparent; padding:8px 18px; font-size:13px; cursor:pointer; color:var(--text2); font-weight:500; transition:all .15s; }
+.seg-btn.active { background:var(--primary); color:#fff; }
 .btn-gray { background:#f5f5f5; color:var(--text2); border:1px solid var(--border); }
 .btn:disabled { opacity:0.5; cursor:not-allowed; }
 
@@ -109,6 +126,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
 .img-inline-item:hover .img-del { display:flex; }
 .img-inline-add { width:120px; height:80px; border:2px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:24px; color:var(--text3); flex-shrink:0; background:#fff; }
 .img-inline-add:hover { border-color:var(--primary); color:var(--primary); }
+.cover-slot { margin-bottom:14px; min-height:90px; display:flex; align-items:center; }
+.cover-item { position:relative; width:160px; height:90px; border-radius:8px; overflow:hidden; border:2px solid var(--primary); }
+.cover-item img { width:100%; height:100%; object-fit:cover; }
+.cover-item .img-del { position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.5); color:#fff; border:none; width:22px; height:22px; border-radius:50%; cursor:pointer; font-size:12px; }
+.cover-empty { width:100%; padding:14px; border:2px dashed var(--border); border-radius:8px; color:var(--text3); font-size:13px; text-align:center; }
 .img-url-row { display:flex; gap:8px; align-items:center; margin-top:8px; }
 
 /* Style Analysis */
@@ -191,6 +213,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
 /* Loading */
 .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg);} }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.45;transform:scale(0.7);} }
 
 /* 内置模板卡片 */
 .template-card { cursor:pointer; border-radius:10px; overflow:hidden; border:2px solid transparent; transition:all .2s; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
@@ -199,14 +222,66 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
 .template-card-name { font-size:15px; font-weight:700; margin-bottom:4px; }
 .template-card-cat { font-size:11px; opacity:0.8; }
 .template-card-desc { padding:10px 12px; font-size:12px; color:var(--text2); background:#f9fafb; border-top:1px solid var(--border); line-height:1.5; }
+.cat-btn { padding:6px 14px; border:1px solid var(--border); background:#fff; border-radius:16px; font-size:12px; color:var(--text2); cursor:pointer; transition:all .15s; }
+.cat-btn:hover { border-color:var(--primary); color:var(--primary); }
+.cat-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
 @media (max-width:768px) {
   .main-layout { flex-direction:column; }
   .sidebar { width:100%; }
   .sidebar-card { display:flex; }
   .nav-item { flex:1; justify-content:center; }
   .phone-device { width:100%; }
+
+  /* W3 桌面/手机预览切换（媒体查询外，宽屏也生效） */
+  .phone-wrapper.desktop-mode .phone-device { width:100%; max-width:100%; border-radius:0; }
+  .phone-wrapper.desktop-mode .phone-notch,
+  .phone-wrapper.desktop-mode .phone-home-bar { display:none; }
+  .phone-wrapper.desktop-mode .phone-screen { height:72vh; }
   #builtin-template-grid { grid-template-columns:repeat(2,1fr) !important; }
 }
+
+/* ===== 可视化拖拽排版 ===== */
+.dg-layout{display:grid;grid-template-columns:200px minmax(0,1fr) 290px;gap:16px;align-items:start;}
+@media(max-width:1100px){.dg-layout{grid-template-columns:1fr;}}
+.dg-palette{display:flex;flex-direction:column;gap:8px;}
+.dg-pal{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:grab;user-select:none;transition:.15s;}
+.dg-pal:hover{border-color:var(--primary);box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.dg-pal:active{cursor:grabbing;}
+.dg-pal b{font-size:13px;color:var(--text);}
+.dg-pal span{font-size:11px;color:var(--text3);}
+.dg-pal-ic{font-size:18px;line-height:1;}
+.dg-canvas{min-height:440px;border:2px dashed var(--border);border-radius:12px;background:#fafbfc;padding:14px;overflow:auto;}
+.dg-node{position:relative;margin:8px 0;border-radius:10px;}
+.dg-root{border:none;margin:0;padding:0 !important;background:transparent !important;}
+.dg-box{border:1px dashed #c7d2fe;}
+.dg-sel{outline:2px solid var(--primary);outline-offset:2px;}
+.dg-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+.dg-tag{font-size:11px;font-weight:700;color:var(--primary);background:var(--primary-light);padding:1px 8px;border-radius:4px;}
+.dg-ops{display:flex;gap:4px;}
+.dg-ops button{font-size:11px;padding:2px 6px;border:1px solid var(--border);background:#fff;border-radius:4px;cursor:pointer;color:var(--text2);}
+.dg-ops button:hover{border-color:var(--primary);color:var(--primary);}
+.dg-text{padding:5px 7px;font-size:14px;line-height:1.7;color:var(--text);white-space:pre-wrap;word-break:break-word;cursor:pointer;border-radius:5px;}
+.dg-text:hover{background:rgba(0,0,0,0.03);}
+.dg-drop{border:1.5px dashed #cbd5e1;border-radius:8px;padding:10px;text-align:center;font-size:12px;color:var(--text3);margin:8px 0;transition:.15s;}
+.dg-drop.dg-over{background:#eff6ff;border-color:var(--primary);color:var(--primary);}
+.dg-img img{max-width:100%;border-radius:6px;display:block;}
+.dg-ph{padding:16px;text-align:center;color:var(--text3);background:#f1f5f9;border-radius:6px;font-size:12px;}
+.dg-props{margin:0;}
+.dg-props .card-title{font-size:14px;}
+.dg-props .form-group{margin-bottom:12px;}
+.dg-props label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.dg-color-row{display:flex;align-items:center;gap:8px;}
+.dg-color-row input[type=color]{width:40px;height:30px;border:1px solid var(--border);border-radius:6px;padding:2px;background:#fff;}
+.dg-color-row span{font-size:11px;color:var(--text3);}
+.dg-result{margin-top:12px;font-size:13px;padding:10px 12px;border-radius:8px;}
+.dg-result.ok{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7;}
+.dg-result.err{background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;}
+
+/* W3 桌面/手机预览切换（全局，宽屏也生效） */
+.phone-wrapper.desktop-mode .phone-device { width:100%; max-width:100%; border-radius:0; }
+.phone-wrapper.desktop-mode .phone-notch,
+.phone-wrapper.desktop-mode .phone-home-bar { display:none; }
+.phone-wrapper.desktop-mode .phone-screen { height:72vh; }
 </style>
 </head>
 <body>
@@ -217,13 +292,14 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
       <div class="header-logo">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
       </div>
-      <span class="header-title">百货商城</span>
-      <span class="header-sub">公众号AI创作发布</span>
+      <span class="header-title">公众号AI创作发布</span>
+      <span class="header-sub">内容创作平台</span>
     </div>
     <div class="header-right">
-      <a href="/" class="header-btn">返回商城</a>
+      <a href="/portal" class="header-btn">工作台</a>
       <button class="header-btn" onclick="saveAll()">保存草稿</button>
       <button class="header-btn primary" onclick="doPublish()">发布到公众号</button>
+      <span data-user-slot style="margin-left:8px;"></span>
     </div>
   </div>
 </div>
@@ -239,6 +315,15 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
       </div>
       <div class="nav-item" onclick="switchTab('preview',this)">
         <span class="icon">&#128065;</span> 预览发布
+      </div>
+      <div class="nav-item" onclick="switchTab('history',this)">
+        <span class="icon">&#128214;</span> 历史记录
+      </div>
+      <div class="nav-item" onclick="switchTab('drag',this)">
+        <span class="icon">&#129513;</span> 可视化拖拽
+      </div>
+      <div class="nav-item" onclick="switchTab('schedule',this);loadScheduleList();loadBatchList();">
+        <span class="icon">&#128338;</span> 定时/批量
       </div>
     </div>
     <div style="margin-top:12px;">
@@ -262,7 +347,48 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
           <input type="text" class="form-input" id="ai-topic" placeholder="输入主题，如：AI芯片 折叠屏手机 自动驾驶" style="background:#fff;">
           <button class="btn btn-primary" id="btn-ai-generate" onclick="aiGenerate()">AI 生成文章</button>
         </div>
+        <div class="form-row" style="margin-top:10px;align-items:center;">
+          <select id="ai-image-style" class="form-input" style="max-width:170px;background:#fff;">
+            <option value="tech">配图风格：科技蓝紫</option>
+            <option value="realistic">写实摄影</option>
+            <option value="flat">扁平插画</option>
+          </select>
+          <input type="number" id="ai-max-images" class="form-input" value="4" min="0" max="10" style="max-width:110px;" title="最多生成图片数（0=纯文字）">
+          <span style="font-size:12px;color:var(--text3);">张</span>
+          <input type="number" id="ai-word-count" class="form-input" value="800" min="100" max="3000" step="100" style="max-width:120px;" title="正文字数（选填，0=默认500-1000）">
+          <span style="font-size:12px;color:var(--text3);">字</span>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin:8px 0 0;">提示：若你已在下方「封面图」区或正文中提供了图片，将优先使用你的图片，不再自动生图。</p>
+        <div class="ref-box">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">📎 参考资料（可选）：上传图片或文档，AI 将结合这些内容生成文字；图片可勾选「用作正文图」，生成时直接把该图插入文章（不再自动生图）</div>
+          <div class="ref-drop" id="ref-drop" onclick="document.getElementById('ref-file').click()">
+            点击或拖拽上传：参考图片 / 文档(.txt .md .json .csv .pdf)
+          </div>
+          <input type="file" id="ref-file" multiple accept="image/*,.txt,.md,.markdown,.json,.csv,.pdf,.log" style="display:none;" onchange="handleRefUpload(this)">
+          <div class="ref-list" id="ref-list"></div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text2);">🌐 参考网址（可选）：粘贴一篇文章链接，AI 将自动打开分析其风格与配图位置</div>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <input type="text" class="form-input" id="ai-ref-url" placeholder="https://... 文章链接">
+            <button class="btn btn-outline btn-sm" type="button" onclick="addRefWebUrl()">添加</button>
+          </div>
+          <div class="ref-list" id="ref-web-list"></div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-top:8px;cursor:pointer;">
+            <input type="checkbox" id="ai-use-history"> 参考我的历史案例（用我以往生成的文章作为风格与主题参考）
+          </label>
+        </div>
         <div id="ai-status" style="margin-top:10px;font-size:13px;color:var(--text2);display:none;"></div>
+      </div>
+
+      <!-- W2: 外部素材库 -->
+      <div class="card" style="border:1px solid #38bdf8;background:#f0f9ff;">
+        <div class="card-title" style="color:#0369a1;">&#127760; 外部素材库（W2）</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">一键从外部抓取新闻/文章作为创作素材，点「加入参考」即进入上方 AI 生成的参考网址。</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" class="form-input" id="material-query" placeholder="关键词，如：AI芯片 新能源" style="flex:1;min-width:160px;">
+          <button class="btn btn-primary btn-sm" onclick="fetchMaterials()">抓取素材</button>
+        </div>
+        <div id="material-status" style="font-size:12px;color:var(--text2);margin-top:8px;display:none;"></div>
+        <div id="material-list" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;"></div>
       </div>
 
       <div class="card">
@@ -278,22 +404,28 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
           <div class="char-count"><span id="digest-count">0</span> / 120 字节</div>
         </div>
         <div class="form-group">
+          <label class="form-label">作者（选填，将随正文一并粘贴到公众号）</label>
+          <input type="text" class="form-input" id="article-author" placeholder="请输入作者名">
+        </div>
+
+        <div class="form-group">
           <label class="form-label">原文链接（选填）</label>
           <input type="text" class="form-input" id="article-source" placeholder="https://...">
         </div>
       </div>
 
-      <!-- 配图（内联到编辑器） -->
+      <!-- 封面图（公众号首页/列表展示，仅一张） -->
       <div class="card">
-        <div class="card-title">&#128247; 配图 <span style="font-size:12px;color:var(--text3);font-weight:400;">（点击图片设为封面，支持URL添加和上传）</span></div>
-        <div class="img-inline-grid" id="img-grid"></div>
+        <div class="card-title">&#128247; 封面图 <span style="font-size:12px;color:var(--text3);font-weight:400;">（用于公众号首页/列表展示，必填，仅一张）</span></div>
+        <div id="cover-slot" class="cover-slot"></div>
         <div class="img-url-row">
-          <input type="text" class="form-input" id="img-url" placeholder="粘贴图片URL后回车添加" onkeydown="if(event.key==='Enter')addImageByURL()" style="flex:1;">
-          <button class="btn btn-outline btn-sm" onclick="addImageByURL()">添加URL</button>
+          <input type="text" class="form-input" id="cover-url" placeholder="粘贴封面图URL后回车添加" onkeydown="if(event.key==='Enter')addCoverByURL()" style="flex:1;">
+          <button class="btn btn-outline btn-sm" onclick="addCoverByURL()">添加URL</button>
           <label class="btn btn-outline btn-sm" style="cursor:pointer;">
-            上传图片
-            <input type="file" accept="image/*" multiple onchange="handleImageUpload(this)" style="display:none;">
+            上传封面
+            <input type="file" accept="image/*" onchange="handleCoverUpload(this)" style="display:none;">
           </label>
+          <button class="btn btn-outline btn-sm" id="btn-ai-cover" onclick="aiGenerateCover(this)">&#10024; AI 生成封面</button>
         </div>
       </div>
 
@@ -307,13 +439,93 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
           <button class="btn btn-sm btn-outline" onclick="addSection('img')">+ 插入图片段</button>
         </div>
         <div id="sections-container" style="margin-top:12px;"></div>
-        <div class="add-section-btn"><button class="btn btn-sm btn-outline" onclick="addSection('h2')">+ 小标题</button><button class="btn btn-sm btn-outline" onclick="addSection('p')">+ 正文</button><button class="btn btn-sm btn-outline" onclick="addSection('blockquote')">+ 引用</button><button class="btn btn-sm btn-outline" onclick="addSection('img')">+ 图片</button></div>
+        <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="copyEditToWeChat()">&#128203; 复制到微信（带标题/作者）</button>
+          <span style="font-size:12px;color:var(--text3);">复制后到公众号编辑器点插件「粘贴到公众号」，标题/作者/正文会一并填入</span>
+        </div>
         <div id="formatted-mode-hint" style="display:none;margin-top:12px;padding:14px 16px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;font-size:13px;">
           <strong style="color:#92400e;">&#9888; 当前已应用模板排版</strong>
           <span style="color:#92400e;">正文已被秀米模板样式覆盖，编辑段落不会生效。</span>
           <button class="btn btn-xs" style="margin-left:12px;background:#f59e0b;color:#fff;border:none;" onclick="clearFormattedHTML()">恢复普通编辑模式</button>
           <button class="btn btn-xs btn-outline" style="margin-left:6px;border-color:#f59e0b;color:#92400e;" onclick="switchTab('preview',document.querySelectorAll('.nav-item')[2]);refreshPreview();">去预览查看</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 5: 定时/批量发布 (W1) ==================== -->
+    <div id="tab-schedule" class="tab-content" style="display:none;">
+      <!-- ⚡ AI 全自动生成并定时发布 -->
+      <div class="card" style="border:1px solid #7c3aed;background:#f5f3ff;">
+        <div class="card-title" style="color:#6d28d9;">&#9889; AI 全自动生成并定时发布</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">只需填主题、图片数量、字数，系统自动搜新闻、AI 写稿、配图并定时发布，无需手动排版。</p>
+        <div class="form-row">
+          <input type="text" class="form-input" id="auto-topic" placeholder="输入主题，如：社区便民服务 防诈骗宣传 夏季养生" style="background:#fff;">
+          <input type="datetime-local" class="form-input" id="auto-time" style="max-width:210px;">
+        </div>
+        <div class="form-row" style="margin-top:10px;align-items:center;flex-wrap:wrap;gap:10px;">
+          <label style="font-size:13px;color:var(--text2);">图片数量
+            <input type="number" id="auto-img-count" class="form-input" value="3" min="0" max="10" style="max-width:80px;display:inline-block;">
+          </label>
+          <label style="font-size:13px;color:var(--text2);">字数
+            <input type="number" id="auto-word-count" class="form-input" value="800" min="100" max="3000" step="100" style="max-width:100px;display:inline-block;">
+          </label>
+          <select id="auto-image-style" class="form-input" style="max-width:160px;background:#fff;display:inline-block;">
+            <option value="tech">配图风格：科技蓝紫</option>
+            <option value="realistic">写实摄影</option>
+            <option value="flat">扁平插画</option>
+          </select>
+        </div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:13px;color:var(--text2);">到设定时间：</div>
+          <div class="seg" id="auto-mode-seg" style="display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <button type="button" class="seg-btn active" data-mode="publish" onclick="setAutoMode('publish',this)">发布到公众号</button>
+            <button type="button" class="seg-btn" data-mode="draft" onclick="setAutoMode('draft',this)">仅创建草稿</button>
+          </div>
+        </div>
+        <div id="auto-mode-hint" style="font-size:12px;color:var(--text3);margin-top:6px;">已认证账号到点直接发布；个人号无权限则转为草稿待你手动发。</div>
+        <button class="btn btn-primary" style="margin-top:14px;" id="btn-auto-generate" onclick="autoScheduleGenerate()">&#9889; AI 生成并创建定时任务</button>
+        <div id="auto-status" style="margin-top:10px;font-size:13px;color:var(--text2);display:none;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">&#128338; 定时发布</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">系统内置调度器每 30 秒扫描到期任务，自动创建公众号草稿。内容取当前排版（图片已转微信地址）。</p>
+        <div class="form-row">
+          <input type="text" class="form-input" id="sch-title" placeholder="文章标题">
+          <input type="datetime-local" class="form-input" id="sch-time" style="max-width:210px;">
+        </div>
+        <div class="form-row" style="margin-top:10px;">
+          <input type="text" class="form-input" id="sch-digest" placeholder="摘要（选填）">
+          <input type="text" class="form-input" id="sch-author" placeholder="作者（选填）" style="max-width:160px;">
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn btn-primary btn-sm" onclick="grabCurrentContent()">抓取当前内容</button>
+          <span style="font-size:12px;color:var(--text3);margin-left:8px;" id="sch-content-hint">点此把当前排版内容填入定时任务</span>
+        </div>
+        <textarea class="form-textarea" id="sch-content" placeholder="文章内容 HTML（点上方按钮自动抓取，或手动粘贴）" style="margin-top:10px;min-height:90px;"></textarea>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:13px;color:var(--text2);">到设定时间：</div>
+          <div class="seg" id="sch-mode-seg" style="display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <button type="button" class="seg-btn active" data-mode="publish" onclick="setSchMode('publish',this)">发布到公众号</button>
+            <button type="button" class="seg-btn" data-mode="draft" onclick="setSchMode('draft',this)">仅创建草稿</button>
+          </div>
+        </div>
+        <div id="sch-mode-hint" style="font-size:12px;color:var(--text3);margin-top:6px;">已认证账号会被直接发布；未认证/个人号将尝试发布，若失败可转为草稿。</div>
+        <button class="btn btn-primary" style="margin-top:14px;" onclick="createSchedule()">创建定时任务</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">&#128196; 已排期任务</div>
+        <div id="sch-status-bar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;"></div>
+        <div id="sch-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">&#128228; 批量发布</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">把当前内容加入批量队列，调度器按顺序自动发布（每次最多 5 条，间隔 2 秒）。</p>
+        <button class="btn btn-outline" onclick="enqueueBatch()">把当前内容加入批量队列</button>
+        <button class="btn btn-outline" style="margin-left:8px;" onclick="loadBatchList()">刷新队列</button>
+        <div id="batch-list" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"></div>
       </div>
     </div>
 
@@ -352,7 +564,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
           选择一套排版风格，系统会自动将编辑创作中的大标题、小标题、正文、引用和图片填入对应位置。
         </p>
         
-        <div id="builtin-template-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div id="builtin-cat-bar" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
+        <div id="builtin-template-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-height:440px;overflow-y:auto;padding-right:4px;">
           <!-- 模板卡片由JS动态加载 -->
           <div style="text-align:center;padding:24px;color:var(--text3);font-size:13px;">正在加载模板...</div>
         </div>
@@ -370,7 +583,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
       </div>
 
       <div class="card" style="border:1px solid #a78bfa;background:#faf5ff;">
-        <div class="card-title" style="color:#7c3aed;">&#9999; 模板排版 <a href="/template-editor" target="_blank" style="font-size:12px;font-weight:400;color:#7c3aed;text-decoration:none;">[去创建新模板]</a></div>
+        <div class="card-title" style="color:#7c3aed;">&#9999; 模板排版 <a href="javascript:void(0)" onclick="switchTab('drag', this)" style="font-size:12px;font-weight:400;color:#7c3aed;text-decoration:none;">[去可视化拖拽创作]</a></div>
         <p style="font-size:12px;color:var(--text2);margin-bottom:16px;">
           点击模板即可应用到当前文章。公共模板所有人可用，我的模板仅自己可见。
         </p>
@@ -440,6 +653,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
         <div style="text-align:center;">
           <button class="btn btn-outline btn-sm" onclick="refreshPreview()">&#128260; 刷新预览</button>
           <button class="btn btn-outline btn-sm" onclick="copyHTML()" style="margin-left:8px;">复制HTML</button>
+          <button class="btn btn-outline btn-sm" onclick="togglePreviewMode()" id="btn-preview-mode" style="margin-left:8px;">切换桌面视图</button>
         </div>
       </div>
 
@@ -454,8 +668,74 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
         </div>
         <div id="publish-result"></div>
       </div>
+
+      <div class="card" id="xiumi-card">
+        <div class="card-title">&#127912; 复制到微信（秀米兼容模式）</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">
+          <strong>复制到微信（与预览一致）</strong>：点下方「复制到微信」会把当前预览所用的排版
+          （已应用模板优先，未应用则用当前配色）连同图片一起复制到剪贴板。粘贴到公众号编辑器即可，
+          背景 / 边框 / 配色都会完整保留，图片已自动转为微信地址。
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="copyToWeChat()">&#128203; 复制到微信</button>
+          <button class="btn btn-outline" onclick="previewXiumiStyle()">&#128065; 预览秀米样式</button>
+          <a class="btn btn-outline" href="/download-wechat-extension" style="text-decoration:none;display:inline-flex;align-items:center;">&#128229; 下载浏览器插件</a>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin:10px 0 0;line-height:1.6;">
+          嫌每次手动 Ctrl+V 麻烦？点「下载浏览器插件」拿到扩展包，浏览器开「开发者模式」→「加载已解压的扩展程序」选解压后的文件夹即可。
+          之后在公众号图文编辑页点右下角浮标（或扩展弹窗按钮）自动粘贴，<strong>无需上架、无需付费</strong>。
+        </p>
+        <div id="xiumi-result" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+<div id="tab-history" class="tab-content" style="display:none;">
+  <div class="card">
+    <div class="card-header">我的历史草稿</div>
+    <div class="card-body">
+      <p style="font-size:13px;color:#666;margin:0 0 12px;">所有保存到服务器的草稿。点击「加载」恢复完整编辑状态，点击「再发草稿」直接重新创建微信公众号草稿。</p>
+      <div id="draft-list"><p style="color:#999;">正在加载...</p></div>
     </div>
   </div>
+</div>
+
+<!-- ==================== TAB 5: 可视化拖拽排版 ==================== -->
+<div id="tab-drag" class="tab-content" style="display:none;">
+  <div class="card">
+    <div class="card-title">&#129513; 可视化拖拽排版 <span style="font-size:12px;color:var(--text3);font-weight:400;">（从左侧拖元素到画布，大框可嵌套小框，每个框可单独改色 / 圆角 / 内边距）</span></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-outline btn-sm" onclick="loadDragExample()">载入示例</button>
+      <button class="btn btn-outline btn-sm" onclick="clearDrag()">清空画布</button>
+      <button class="btn btn-primary btn-sm" onclick="copyDragToWeChat()">&#128203; 复制到微信</button>
+      <button class="btn btn-outline btn-sm" onclick="previewDrag()">预览效果</button>
+      <button class="btn btn-outline btn-sm" onclick="exportDragHTML()">导出 HTML</button>
+      <span id="drag-result" class="dg-result" style="display:none;"></span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;background:#f1f5f9;border-radius:8px;padding:10px 12px;">
+      <input type="text" class="form-input" id="drag-tpl-name" placeholder="给这套排版起个名字" style="flex:1;min-width:180px;">
+      <button class="btn btn-success btn-sm" onclick="saveDragTemplate()">&#128190; 保存为我的模板</button>
+      <label id="drag-publish-wrap" style="display:none;font-size:12px;color:#047857;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="drag-publish"> 发布给所有用户
+      </label>
+    </div>
+    <div class="dg-layout">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:7px;">拖拽元素</div>
+        <div class="dg-palette" id="dg-palette"></div>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.55;">提示：把元素拖到画布虚线区即可实现大框套小框；拖动已有元素可改变位置或嵌套。</p>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:7px;">画布（文章大框）</div>
+        <div class="dg-canvas" id="drag-canvas"></div>
+      </div>
+      <div class="dg-props card" style="position:sticky;top:4px;">
+        <div class="card-title" style="font-size:13px;">属性面板</div>
+        <div id="dg-props-body"><p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑，可改背景色、文字色、圆角与内边距。</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 </div>
 
 <!-- Settings Modal -->
@@ -503,6 +783,32 @@ body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaH
 // ===== STATE =====
 let sections = [{ type: 'p', text: '' }];
 let images = [];
+let currentDraftId = null; // 服务器端草稿ID，用于更新而非重复创建
+let referenceFiles = [];   // 参考资料：[{url, name, ftype, text, filename}]
+let refWebUrls = [];      // 参考网址：用户粘贴的文章链接，AI 生成时自动打开分析风格与配图位置
+
+function addRefWebUrl(){
+  const inp = document.getElementById('ai-ref-url');
+  const u = (inp.value || '').trim();
+  if(!u){ toast('请输入网址', 'warning'); return; }
+  if(!/^https?:\/\//i.test(u)){ toast('请输入以 http(s):// 开头的网址', 'warning'); return; }
+  if(refWebUrls.indexOf(u) >= 0){ toast('该网址已添加', 'warning'); return; }
+  refWebUrls.push(u); inp.value = ''; renderRefWebList();
+}
+function removeRefWebUrl(i){
+  refWebUrls.splice(i, 1); renderRefWebList();
+}
+function renderRefWebList(){
+  const box = document.getElementById('ref-web-list');
+  if(!box) return;
+  if(!refWebUrls.length){ box.innerHTML = ''; return; }
+  box.innerHTML = refWebUrls.map((u, i) =>
+    `<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:12px;">
+       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:78%;">🌐 ${escapeHtmlPub(u)}</span>
+       <button type="button" onclick="removeRefWebUrl(${i})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:14px;flex:none;">✕</button>
+     </div>`
+  ).join('');
+}
 let currentStyleProfile = null;
 let currentTab = 'edit';
 let styleTemplates = [];
@@ -518,9 +824,10 @@ function init() {
   loadDraft();
   loadBuiltinTemplates();
   loadUserTemplates();
+  loadTemplateColors(); // 从服务器加载内置模板配色
   if (sections.length === 0) sections = [{ type: 'p', text: '' }];
   renderSections();
-  renderImages();
+  renderCover();
   updateCharCount();
 }
 init();
@@ -532,7 +839,10 @@ function switchTab(tab, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('tab-'+tab).style.display='block';
   if (el) el.classList.add('active');
+  // 切到历史记录时自动加载列表
+  if (tab === 'history') loadAllDrafts();
   if (tab === 'preview') refreshPreview();
+  if (tab === 'drag') { renderDragCanvas(); updateDragProps(); }
 }
 
 // ===== 内置排版模板 =====
@@ -543,39 +853,61 @@ let builtinResultHTML = '';
 let userTemplates = [];
 let userTemplateResultHTML = '';
 
+let builtinCurrentCat = '全部';
 async function loadBuiltinTemplates() {
   try {
     const r = await fetch('/api/publish/built-in-templates');
     const d = await r.json();
     if (!d.success) return;
     builtinTemplates = d.templates;
-    const grid = document.getElementById('builtin-template-grid');
-    grid.innerHTML = builtinTemplates.map(t => `
-      <div class="template-card" onclick="applyBuiltinTemplate(${t.id})" title="${t.desc}">
-        <div class="template-card-preview" data-tid="${t.id}">
-          <div class="template-card-name">${t.name}</div>
-          <div class="template-card-cat">${t.category}</div>
-        </div>
-        <div class="template-card-desc">${t.desc}</div>
-      </div>
-    `).join('');
-    // 给每个预览卡片加不同背景色
-    const colors = ['#e8f4f8','#1a1a1a','#faf8f5','#1e3a5f','#f7fafc','#0f172a'];
-    const textColors = ['#333','#fff','#5c4033','#fff','#333','#e2e8f0'];
-    grid.querySelectorAll('.template-card-preview').forEach((el,i)=>{
-      el.style.background = colors[i] || '#f0f0f0';
-      el.style.color = textColors[i] || '#333';
-    });
-  } catch(e) {
+    // 动态生成分类筛选条（未来新增风格只需后端注册表加 category 即可自动出现）
+    const cats = ['全部', ...Array.from(new Set(builtinTemplates.map(t => t.category)))];
+    const bar = document.getElementById('builtin-cat-bar');
+    if (bar) bar.innerHTML = cats.map(c =>
+      `<button type="button" class="cat-btn ${c === builtinCurrentCat ? 'active' : ''}" onclick="filterBuiltinCat('${c}')">${c}</button>`
+    ).join('');
+    renderBuiltinGrid();
+  } catch (e) {
     console.log('加载模板失败:', e);
   }
+}
+function filterBuiltinCat(c) {
+  builtinCurrentCat = c;
+  const bar = document.getElementById('builtin-cat-bar');
+  if (bar) bar.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.textContent === c));
+  renderBuiltinGrid();
+}
+function renderBuiltinGrid() {
+  const grid = document.getElementById('builtin-template-grid');
+  if (!grid) return;
+  const list = builtinCurrentCat === '全部'
+    ? builtinTemplates
+    : builtinTemplates.filter(t => t.category === builtinCurrentCat);
+  if (!list.length) {
+    grid.innerHTML = '<div style="padding:24px;color:var(--text3);font-size:13px;">该分类暂无模板</div>';
+    return;
+  }
+  // 每张卡片顶部用该风格的 accent 主色带，一眼区分风格；背景色由后端下发，未来无需改前端
+  grid.innerHTML = list.map(t =>
+    `<div class="template-card" onclick="applyBuiltinTemplate(${t.id})" title="${t.desc}">
+      <div class="template-card-preview" style="background:${t.accent};color:#ffffff;">
+        <div class="template-card-name">${t.name}</div>
+        <div class="template-card-cat">${t.category}</div>
+      </div>
+      <div class="template-card-desc">${t.desc}</div>
+    </div>`
+  ).join('');
 }
 
 async function applyBuiltinTemplate(templateId) {
   const status = document.getElementById('builtin-status');
   status.innerHTML = '<span class="spinner"></span> 正在排版...';
   status.style.color = 'var(--text2)';
-  
+
+  // 序列化：图片保留完整 {src:预览URL, url:微信URL} 配对
+  const payloadSections = sections.map(s => ({...s, text: (s.type==='img') ? _secPair(s) : s.text}));
+  const payloadImages = images.map(_imgPair).filter(p => p.src || p.url);
+
   try {
     const r = await fetch('/api/publish/apply-built-in-template', {
       method: 'POST',
@@ -584,8 +916,8 @@ async function applyBuiltinTemplate(templateId) {
         template_id: templateId,
         title: document.getElementById('article-title').value.trim(),
         digest: document.getElementById('article-digest').value.trim(),
-        sections: sections,
-        images: images
+        sections: payloadSections,
+        images: payloadImages
       })
     });
     const d = await r.json();
@@ -598,6 +930,8 @@ async function applyBuiltinTemplate(templateId) {
     
     builtinResultHTML = d.html;
     formattedArticleHTML = d.html;
+    xiumiColorProfile = 'template' + templateId; // 键须为 'templateN' 字符串（与 XIUMI_COLORS/XIUMI_DARK 对应），否则会回退成 template1 浅蓝且非深色
+    prefetchWxImgs(d.html); // 后台预热：提前把本地图片传微信，复制时可直接同步替换
     
     document.getElementById('builtin-result-card').style.display = 'block';
     document.getElementById('builtin-preview').innerHTML = d.html;
@@ -627,7 +961,24 @@ function useBuiltinResult() {
 
 function copyBuiltinHTML() {
   if (!builtinResultHTML) { toast('请先选择并应用一套模板', 'warning'); return; }
-  navigator.clipboard.writeText(builtinResultHTML).then(() => toast('HTML已复制到剪贴板', 'success'));
+  const title = (document.getElementById('article-title') || {}).value || '';
+  const author = (document.getElementById('article-author') || {}).value || '';
+  // 复制必须在点击手势内同步完成（HTTP 环境只有 execCommand 兜底可用），
+  // 图片微信地址靠预热缓存；缺图时先上传并提示再点一次。
+  copyWxHtmlSync(_publishTransform(builtinResultHTML), '已复制排版，请到微信粘贴（图片已转微信地址）', {title: title, author: author});
+}
+
+// ===== 内置模板配色（从服务器加载，覆盖默认 XIUMI_COLORS） =====
+async function loadTemplateColors() {
+  try {
+    const r = await fetch('/api/template-colors');
+    const d = await r.json();
+    if (d.success && d.colors) {
+      for (const key in d.colors) {
+        if (XIUMI_COLORS[key]) Object.assign(XIUMI_COLORS[key], d.colors[key]);
+      }
+    }
+  } catch(e) {}
 }
 
 // ===== 用户自定义模板 =====
@@ -636,6 +987,9 @@ async function loadUserTemplates() {
   const pubGrid = document.getElementById('public-template-grid');
   const pubSection = document.getElementById('public-template-section');
   if (!myGrid) return;
+  // 管理员才能把模板发布给所有用户
+  const pw = document.getElementById('drag-publish-wrap');
+  if (pw) pw.style.display = (currentUser && currentUser.role === 'admin') ? 'inline-flex' : 'none';
   try {
     const r = await fetch('/api/article-templates');
     const d = await r.json();
@@ -648,7 +1002,7 @@ async function loadUserTemplates() {
       if (myTemplates.length > 0) {
         myGrid.innerHTML = myTemplates.map(t => templateCardHTML(t, false)).join('');
       } else {
-        myGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text3);font-size:13px;">还没有自己的模板<br><a href="/template-editor" target="_blank" style="color:#7c3aed;text-decoration:none;font-size:12px;">点这里去创建</a></div>';
+        myGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text3);font-size:13px;">还没有自己的模板<br><a href="javascript:void(0)" onclick="switchTab(\'drag\', this)" style="color:#7c3aed;text-decoration:none;font-size:12px;">点这里去可视化拖拽创作</a></div>';
       }
 
       // 渲染公共模板
@@ -672,15 +1026,31 @@ function templateCardHTML(t, isPublic) {
   const borderColor = isPublic ? '#10b981' : '#7c3aed';
   const bgColor = isPublic ? '#f0fdf4' : '#fff';
   const hoverColor = isPublic ? '#dcfce7' : '#faf5ff';
-  const icon = isPublic ? '&#127746;' : '&#9999;';
+  // 可视化拖拽模板用专属图标，区别于传统风格模板
+  const icon = (t.template_type === 'drag') ? '&#129513;' : (isPublic ? '&#127746;' : '&#9999;');
   const authorTag = isPublic ? '<div style="font-size:10px;color:#999;margin-top:2px;">by ' + escapeHtmlPub(t.author_name || '管理员') + '</div>' : '';
-  return '<div onclick="applyUserTemplate(' + t.id + ')" style="border:1px solid #ddd;border-radius:8px;padding:16px;cursor:pointer;text-align:center;transition:.2s;background:' + bgColor + ';" ' +
+  const typeTag = (t.template_type === 'drag') ? '<div style="font-size:10px;color:#7c3aed;margin-top:2px;">可视化拖拽</div>' : '';
+  // 操作按钮（删除：创建者或管理员；发布/取消：仅管理员）
+  let actions = '';
+  if (t.can_edit) {
+    actions += '<button onclick="deleteUserTemplate(' + t.id + ', event)" style="font-size:11px;padding:2px 8px;border:1px solid #fca5a5;background:#fff;color:#dc2626;border-radius:4px;cursor:pointer;">删除</button>';
+  }
+  if (currentUser && currentUser.role === 'admin') {
+    if (t.is_public) {
+      actions += '<button onclick="publishUserTemplate(' + t.id + ', false, event)" style="font-size:11px;padding:2px 8px;border:1px solid #cbd5e1;background:#fff;color:#64748b;border-radius:4px;cursor:pointer;">取消发布</button>';
+    } else {
+      actions += '<button onclick="publishUserTemplate(' + t.id + ', true, event)" style="font-size:11px;padding:2px 8px;border:1px solid #6ee7b7;background:#fff;color:#047857;border-radius:4px;cursor:pointer;">发布给全员</button>';
+    }
+  }
+  const actionBar = actions ? '<div style="display:flex;gap:6px;justify-content:center;margin-top:10px;" onclick="event.stopPropagation()">' + actions + '</div>' : '';
+  return '<div onclick="onTemplateClick(' + t.id + ')" style="border:1px solid #ddd;border-radius:8px;padding:16px;cursor:pointer;text-align:center;transition:.2s;background:' + bgColor + ';" ' +
     'onmouseover="this.style.borderColor=\'' + borderColor + '\';this.style.background=\'' + hoverColor + '\'" ' +
     'onmouseout="this.style.borderColor=\'#ddd\';this.style.background=\'' + bgColor + '\'">' +
     '<div style="font-size:24px;margin-bottom:8px;">' + icon + '</div>' +
     '<div style="font-weight:600;font-size:13px;color:#333;">' + escapeHtmlPub(t.name) + '</div>' +
     '<div style="font-size:11px;color:#999;margin-top:4px;">' + escapeHtmlPub(t.description || '点击应用') + '</div>' +
-    authorTag +
+    authorTag + typeTag +
+    actionBar +
     '</div>';
 }
 
@@ -692,6 +1062,11 @@ async function applyUserTemplate(tid) {
   const status = document.getElementById('user-template-status');
   status.textContent = '正在应用模板...';
   status.style.color = 'var(--text2)';
+
+  // 序列化：图片保留完整 {src:预览URL, url:微信URL} 配对，后端排版时预览用src、发布用url
+  const payloadSections = sections.map(s => ({...s, text: (s.type==='img') ? _secPair(s) : s.text}));
+  const payloadImages = images.map(_imgPair).filter(p => p.src || p.url);
+
   try {
     const r = await fetch('/api/article-templates/' + tid + '/apply', {
       method: 'POST',
@@ -699,8 +1074,8 @@ async function applyUserTemplate(tid) {
       body: JSON.stringify({
         title: document.getElementById('article-title').value.trim(),
         digest: document.getElementById('article-digest').value.trim(),
-        sections: sections,
-        images: images
+        sections: payloadSections,
+        images: payloadImages
       })
     });
     const d = await r.json();
@@ -712,6 +1087,8 @@ async function applyUserTemplate(tid) {
     }
     userTemplateResultHTML = d.html;
     formattedArticleHTML = d.html;
+    xiumiColorProfile = 'template1'; // 用户模板无专属配色，复制时用浅色安全配色
+    prefetchWxImgs(d.html); // 后台预热：提前把本地图片传微信，复制时可直接同步替换
     document.getElementById('user-template-result-card').style.display = 'block';
     document.getElementById('user-template-preview').innerHTML = d.html;
     status.innerHTML = '<b>✔ 排版完成！</b> 已用模板「' + escapeHtmlPub(d.template_name) + '」填入 <b>' + d.filled_count + '</b> 个内容段。';
@@ -736,7 +1113,14 @@ function useUserTemplateResult() {
 
 function copyUserTemplateHTML() {
   if (!userTemplateResultHTML) { toast('请先应用一个模板', 'warning'); return; }
-  navigator.clipboard.writeText(userTemplateResultHTML).then(() => toast('HTML已复制到剪贴板', 'success'));
+  var r = swapLocalImgsFromCache(userTemplateResultHTML);
+  if (r.missing.length) {
+    toast('正在把 ' + r.missing.length + ' 张图片上传到微信，请稍候再点一次…', 'warning');
+    Promise.all(r.missing.map(function(s){ return uploadLocalImgToWeChat(s).catch(function(){}); }))
+      .then(function(){ toast('图片已就绪，请再点一次复制', 'success'); });
+    return;
+  }
+  copyTextSmart(r.html, 'HTML已复制到剪贴板（图片已转微信地址）');
 }
 
 function clearFormattedHTML() {
@@ -793,7 +1177,7 @@ function renderSections() {
         <span style="font-size:11px;color:var(--text3);margin-left:auto;">${typeLabel} #${i+1}</span>
       </div>
       ${s.type==='img'
-        ? `<div style="display:flex;gap:8px;align-items:center;"><input class="form-input" value="${esc(s.text||'')}" placeholder="图片URL" onchange="updateSection(${i},this.value)"/><button class="btn btn-xs btn-outline" onclick="insertImageToSection(${i})">选择图片</button></div>`
+        ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input class="form-input" value="${esc(_secSrc(s)||'')}" placeholder="图片URL" onchange="updateSection(${i},this.value)"/><button class="btn btn-xs btn-outline" onclick="insertImageToSection(${i})">选择图片</button>${_secSrc(s)?`<button class="btn btn-xs btn-outline" onclick="setCoverFromSection(${i})">设为封面</button>`:''}</div>${s.prompt?`<div style="font-size:11px;color:var(--text3);margin-top:4px;">AI 配图意图：${esc(s.prompt)}</div>`:''}`
         : `<textarea class="section-textarea" placeholder="${s.type==='h2'?'小标题':s.type==='blockquote'?'引用内容':'正文内容'}" oninput="updateSection(${i},this.value)">${esc(s.text||'')}</textarea>`}
     </div>`;
   });
@@ -860,8 +1244,6 @@ function insertImageToSection(i) {
     r.onload=e=>{
       sections[i].text=e.target.result;
       renderSections();
-      // 同时加到 images 作为封面候选
-      if(!images.length) { images.push(e.target.result); renderImages(); }
     };
     r.readAsDataURL(input.files[0]);
   };
@@ -872,34 +1254,177 @@ function setType(i,t) { sections[i].type=t; renderSections(); }
 function updateSection(i,v) { sections[i].text=v; }
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ===== IMAGES =====
-function addImageByURL() {
-  const url=document.getElementById('img-url').value.trim();
-  if(!url) return;
-  images.push(url);
-  document.getElementById('img-url').value='';
-  renderImages();
-  toast('图片已添加','success');
+// ===== 封面图（仅一张，作公众号 thumb_media_id） =====
+// images 元素：用户图片为 string(DataURL/URL)，AI生图为 {src:预览URL, url:微信URL}
+// sections[i].text 同理：用户图为 string，AI生图为 {src, url}
+function _imgSrc(img) { return (typeof img === 'string') ? img : (img && img.src || ''); }
+function _imgUrl(img) { return (typeof img === 'string') ? img : (img && img.url || ''); }
+function _secSrc(s) { const t=s.text; return (typeof t === 'string') ? t : (t && t.src || ''); }
+function _secUrl(s) { const t=s.text; return (typeof t === 'string') ? t : (t && t.url || ''); }
+// 返回 {src:预览URL, url:微信URL} 配对，供排版接口同时拿到两个URL
+function _imgPair(img) { return { src: _imgSrc(img), url: _imgUrl(img) }; }
+function _secPair(s) { return { src: _secSrc(s), url: _secUrl(s) }; }
+// 发布时把预览图 src 替换为微信 url（data-wx 中的值），并去掉 data-wx 属性
+function _publishTransform(html) {
+  return html.replace(/<img\b([^>]*)>/gi, function(tag, attrs) {
+    var m = attrs.match(/data-wx="([^"]*)"/);
+    if (!m) return tag;
+    var wx = m[1];
+    var newAttrs = attrs.replace(/src="[^"]*"/i, 'src="' + wx + '"').replace(/data-wx="[^"]*"/i, '');
+    return '<img' + newAttrs + '>';
+  });
 }
-function handleImageUpload(input) {
-  if(!input.files.length) return;
-  for(const f of input.files) {
-    const r=new FileReader();
-    r.onload=e=>{images.push(e.target.result);renderImages();};
-    r.readAsDataURL(f);
+// ============ 复制/发布前：把本地图片地址换成微信 CDN 地址 ============
+// 微信公众号只认自家 CDN（mmbiz.qpic.cn）图片，粘贴外链会被防盗链/抓取限制挡掉。
+const _wxImgCache = {};
+const _wxImgInflight = {};
+function imgIsWeChat(src) { return /mmbiz\.qpic\.cn|qpic\.cn|qlogo\.cn/i.test(src || ''); }
+async function uploadLocalImgToWeChat(src) {
+  if (imgIsWeChat(src)) return src;
+  if (_wxImgCache[src]) return _wxImgCache[src];
+  if (_wxImgInflight[src]) return _wxImgInflight[src];
+  _wxImgInflight[src] = (async function(){
+    const r = await fetch('/api/publish/upload-to-wechat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: src })
+    });
+    const d = await r.json();
+    if (d.success && d.url) { _wxImgCache[src] = d.url; return d.url; }
+    throw new Error(d.message || '上传失败');
+  })();
+  try { return await _wxImgInflight[src]; }
+  finally { delete _wxImgInflight[src]; }
+}
+// ===== 同步版：只用已缓存的微信地址替换（复制必须在点击手势内同步完成，不能等网络） =====
+function swapLocalImgsFromCache(html) {
+  var missing = [];
+  if (!html) return { html: html, missing: missing };
+  var out = html.replace(/<img\b[^>]*>/gi, function(tag) {
+    var m = tag.match(/src="([^"]*)"/i);
+    if (!m) return tag;
+    var src = m[1];
+    if (!src || imgIsWeChat(src)) return tag;
+    if (_wxImgCache[src]) return tag.replace(/src="[^"]*"/i, 'src="' + _wxImgCache[src] + '"');
+    if (missing.indexOf(src) === -1) missing.push(src);
+    return tag;
+  });
+  return { html: out, missing: missing };
+}
+// 后台预热：把 html 里所有本地图片提前上传到微信、填充缓存（不阻塞界面）
+function prefetchWxImgs(html) {
+  if (!html) return;
+  try {
+    var re = /<img\b[^>]*?src="([^"]*)"/gi, m;
+    while ((m = re.exec(html))) {
+      var s = m[1];
+      if (s && !imgIsWeChat(s) && !_wxImgCache[s]) uploadLocalImgToWeChat(s).catch(function(){});
+    }
+  } catch (e) {}
+}
+// 统一同步复制入口：缓存齐 → 立即复制（同步，保住点击手势）；缺图 → 先上传并提示再点一次
+function copyWxHtmlSync(html, msg, meta) {
+  var r = swapLocalImgsFromCache(html);
+  if (r.missing.length === 0) {
+    copyHTMLToClipboard(r.html, msg, meta);
+    return true;
   }
+  toast('正在把 ' + r.missing.length + ' 张图片上传到微信，请稍候…', 'warning');
+  Promise.all(r.missing.map(function(s){ return uploadLocalImgToWeChat(s).catch(function(){}); }))
+    .then(function(){ toast('图片已就绪，请再点一次复制按钮完成复制', 'success'); });
+  return false;
+}
+// 纯文本同步复制（HTTP 环境 navigator.clipboard 不可用时走 execCommand 兜底）
+function fallbackCopyText(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.left = '-9999px'; ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+  return ok;
+}
+function copyTextSmart(text, msg) {
+  try {
+    navigator.clipboard.writeText(text).then(function(){ toast(msg || '已复制', 'success'); })
+      .catch(function(){ if (fallbackCopyText(text)) toast(msg || '已复制', 'success'); else toast('复制失败，请手动复制', 'error'); });
+  } catch (e) {
+    if (fallbackCopyText(text)) toast(msg || '已复制', 'success'); else toast('复制失败，请手动复制', 'error');
+  }
+}
+// 把 html 里所有非微信图片 src 上传到微信并替换，返回新 html
+async function swapLocalImgsToWeChat(html) {
+  if (!html) return html;
+  try {
+    const doc = new DOMParser().parseFromString('<div id="__wxc">' + html + '</div>', 'text/html');
+    const root = doc.getElementById('__wxc');
+    const imgs = root.querySelectorAll('img');
+    for (let i = 0; i < imgs.length; i++) {
+      const img = imgs[i];
+      const src = img.getAttribute('src') || '';
+      if (!src || imgIsWeChat(src)) continue;
+      try {
+        const wx = await uploadLocalImgToWeChat(src);
+        if (wx) img.setAttribute('src', wx);
+      } catch (e) {
+        // 上传失败保留原 src，复制后该图在公众号可能不显示，但不阻断复制
+        console.warn('图片转微信失败:', src, e.message);
+      }
+    }
+    return root.innerHTML;
+  } catch (e) {
+    return html;
+  }
+}
+function renderCover() {
+  const slot=document.getElementById('cover-slot');
+  if(images.length){
+    slot.innerHTML=`<div class="cover-item"><img src="${_imgSrc(images[0])}" onerror="this.style.display='none'"><button class="img-del" onclick="removeCover()">&times;</button></div>`;
+  } else {
+    slot.innerHTML=`<div class="cover-empty">尚未设置封面图（公众号首页/列表将无缩略图）</div>`;
+  }
+}
+function addCoverByURL() {
+  const url=document.getElementById('cover-url').value.trim();
+  if(!url) return;
+  images=[url];
+  document.getElementById('cover-url').value='';
+  renderCover();
+  toast('封面图已设置','success');
+}
+function handleCoverUpload(input) {
+  if(!input.files.length) return;
+  const f=input.files[0];
+  const r=new FileReader();
+  r.onload=e=>{ images=[e.target.result]; renderCover(); };
+  r.readAsDataURL(f);
   input.value='';
 }
-function removeImage(i) { images.splice(i,1); renderImages(); }
-function setCover(i) { const item=images.splice(i,1)[0]; images.unshift(item); renderImages(); }
-function renderImages() {
-  const grid=document.getElementById('img-grid');
-  grid.innerHTML=images.map((url,i)=>`
-    <div class="img-inline-item ${i===0?'cover':''}" onclick="${i===0?'':'setCover('+i+')'}">
-      <img src="${url}" onerror="this.style.display='none'">
-      <button class="img-del" onclick="event.stopPropagation();removeImage(${i})">&times;</button>
-    </div>`).join('');
-  if(images.length<10) grid.innerHTML+=`<div class="img-inline-add" onclick="document.querySelector('label.btn-outline input[type=file]').click()">+</div>`;
+function removeCover() { images=[]; renderCover(); }
+function setCoverFromSection(i) {
+  if(sections[i] && sections[i].type==='img' && sections[i].text){
+    images=[_secSrc(sections[i])];
+    renderCover();
+    toast('已将该正文图片设为封面','success');
+  }
+}
+async function aiGenerateCover(btn) {
+  const title=document.getElementById('article-title').value.trim() || document.getElementById('ai-topic').value.trim();
+  if(!title){toast('请先填写标题或主题','warning');return;}
+  const appid=document.getElementById('config-appid').value.trim();
+  const appsecret=document.getElementById('config-appsecret').value.trim();
+  if(!appid||!appsecret){toast('生成封面需配置微信AppID/AppSecret','warning');toggleSettings();return;}
+  const imageStyle=document.getElementById('ai-image-style').value;
+  const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='生成中...';
+  try{
+    const r=await fetch('/api/publish/generate-images',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({appid,appsecret,image_style:imageStyle,images:[{index:0,prompt:'a clean professional WeChat article cover image representing: '+title+', no text, '+imageStyle+' style'}]})});
+    const d=await r.json();
+    if(d&&d.success&&d.results&&d.results.length){ images=[{src:d.results[0].preview_url, url:d.results[0].url}]; renderCover(); toast('AI 封面已生成','success'); }
+    else { toast((d&&d.message)||'封面生成失败','error'); }
+  }catch(e){ toast('生成失败:'+e.message,'error'); }
+  btn.disabled=false; btn.innerHTML=old;
 }
 
 // ===== STYLE ANALYSIS =====
@@ -975,6 +1500,7 @@ async function loadMyDefaultStyleFromLocal() {
     currentStyleProfile = data.profile;
     document.getElementById('default-style-name').value = data.name;
     showStyleResult(currentStyleProfile);
+    applyImagePrefsToForm();
     updateDefaultStyleStatus();
   } catch(e){ updateDefaultStyleStatus(); }
 }
@@ -986,6 +1512,7 @@ async function loadMyDefaultStyle() {
       currentStyleProfile = d.template.profile;
       document.getElementById('profile-name').value = d.template.name;
       showStyleResult(currentStyleProfile);
+      applyImagePrefsToForm();
       toast('已自动加载你的默认排版模板: ' + d.template.name, 'success');
     }
   } catch(e){}
@@ -996,6 +1523,7 @@ async function saveAsMyDefaultStyle() {
   if(!name){toast('请先给风格起个名字','warning');return;}
 
   // 始终保存到 localStorage
+  saveImagePrefs();  // 把配图偏好并入默认模板
   const entry = {
     name: name,
     profile: currentStyleProfile,
@@ -1109,52 +1637,197 @@ async function deleteTemplate(id) {
 }
 
 // ===== PREVIEW =====
-function generateHTML() {
-  // 如果已应用模板排版，直接返回模板HTML
-  if (formattedArticleHTML) {
-    return formattedArticleHTML;
-  }
-  // 否则从 sections 生成简单HTML
-  let html='<section style="font-size:15px;color:#3f3f3f;line-height:1.8;letter-spacing:1px;padding:10px 0;">\n';
-  sections.forEach(s=>{
+// 最基础方式：微信 API 会洗掉所有 CSS style，用 <font color="..."> + <b> 纯 HTML 属性。
+// 只有 img 的 style 经验证可以保留（border-radius 可见）。
+function _renderRichBody(resolveImg){
+  return sections.map(s=>{
     switch(s.type){
-      case 'h2':html+=`<p style="font-size:17px;font-weight:bold;color:#2c3e50;margin:25px 0 12px 0;">${s.text}</p>\n`;break;
-      case 'blockquote':html+=`<blockquote style="border-left:3px solid #534ab7;padding:8px 12px;margin:12px 0;background:#f8f9fa;color:#666;border-radius:0 6px 6px 0;">${s.text}</blockquote>\n`;break;
-      case 'img':if(s.text)html+=`<p style="text-align:center;margin:15px 0;"><img src="${s.text}" style="max-width:100%;border-radius:6px;" alt=""></p>\n`;break;
-      default:html+=`<p style="margin-bottom:15px;">${s.text}</p>\n`;
+      case 'h2':
+        if(!s.text) return '';
+        return '<p><font color="#1e5dc9"><b>'+esc(s.text)+'</b></font></p>';
+      case 'blockquote':
+        if(!s.text) return '';
+        return '<p><i><font color="#8a5a00">'+esc(s.text)+'</font></i></p>';
+      case 'img':{
+        const url = resolveImg(s);
+        if(!url) return '';
+        return '<p style="text-align:center;"><img src="'+url+'" style="max-width:100%;border-radius:8px;display:block;margin:0 auto;" alt=""></p>';
+      }
+      default:
+        if(!s.text) return '';
+        return '<p><font color="#444">'+esc(s.text)+'</font></p>';
     }
-  });
-  html+='</section>';
-  return html;
+  }).filter(Boolean).join('\n');
+}
+function getWeChatHTML() {
+  // 与预览（refreshPreview）完全一致：已应用模板 > 已提交正文 > 默认渲染
+  if (builtinResultHTML) return builtinResultHTML;
+  if (formattedArticleHTML) return formattedArticleHTML;
+  return '<section>\n' + _renderRichBody(_secUrl) + '\n</section>';
+}
+function generateHTML() {
+  // 与预览完全一致：优先已应用的模板（如党政风），其次已提交正文，最后默认渲染
+  if (builtinResultHTML) return _publishTransform(builtinResultHTML);
+  if (formattedArticleHTML) return _publishTransform(formattedArticleHTML);
+  const body = _renderRichBody(_secUrl);
+  return '<section>\n'+body+'\n</section>';
 }
 function refreshPreview() {
-  const title=document.getElementById('article-title').value||'(无标题)';
-  
-  // 如果已应用模板排版，直接显示模板内容
-  if (formattedArticleHTML) {
-    let fullHTML=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;padding:12px;margin:0;}</style></head><body>`;
-    fullHTML+=`<h2 style="font-size:18px;font-weight:bold;margin:15px 0;">`+esc(title)+`</h2>`;
-    fullHTML+=formattedArticleHTML;
-    fullHTML+=`</body></html>`;
-    document.getElementById('preview-frame').srcdoc=fullHTML;
+  // 预览永远用与"复制到微信"完全相同的自包含架构，保证所见即所得
+  var title=document.getElementById('article-title').value||'(无标题)';
+  // 已应用内置/用户模板时，直接预览其真实 HTML（=「排版结果」卡片 = 复制到微信的内容），
+  // 避免预览走另一套 XIUMI 渲染导致与排版结果不一致（如深色变浅色）。
+  if (builtinResultHTML) {
+    var isDark = !!XIUMI_DARK[xiumiColorProfile];
+    var tBg = isDark ? '#0f172a' : '#ffffff';
+    var tColor = isDark ? '#f8fafc' : '#1a1a1a';
+    var titleSection = '<section style="background-color:' + tBg + ';padding:22px 18px 18px;text-align:center;"><span style="font-size:21px;font-weight:bold;color:' + tColor + ';">' + esc(title) + '</span></section>';
+    var fullHTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f5f5f5;padding:18px;font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;}</style></head><body>' + titleSection + builtinResultHTML + '</body></html>';
+    document.getElementById('preview-frame').srcdoc = fullHTML;
     return;
   }
-  
-  let fullHTML=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;padding:12px;margin:0;}</style></head><body>`;
-  
+  var key = xiumiColorProfile;
+  var c = XIUMI_COLORS[key] || XIUMI_COLORS.template1;
+  var dark = !!XIUMI_DARK[key];
+
+  // 与 copyToWeChat / _renderXiumiBody 完全一致的画布色
+  var canvasBg = dark ? '#0f172a' : '#f4f6f9';
+  var textColor = dark ? '#e2e8f0' : '#333333';
+  var titleColor = dark ? '#f8fafc' : c.h2;
+
+  var body = _renderXiumiBody(_secSrc, key);
+  var titleSection = title ? '<section style="margin:0;padding:4px 18px 20px;background-color:' + canvasBg + ';text-align:center;"><span style="font-size:21px;font-weight:bold;color:' + titleColor + ';letter-spacing:1px;"><font color="' + titleColor + '">' + esc(title) + '</font></span></section>\n' : '';
+  var bodyHTML = '<section style="padding:24px 20px;background-color:' + canvasBg + ';color:' + textColor + ';line-height:1.8;font-family:-apple-system,BlinkMacSystemFont,PingFang SC,Microsoft YaHei,sans-serif;border-radius:16px;">' + titleSection + body + '</section>';
+
+  var fullHTML=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;padding:18px;margin:0;background:#f5f5f5;}</style></head><body>`;
   fullHTML+=`<h2 style="font-size:18px;font-weight:bold;margin:15px 0;">${esc(title)}</h2>`;
-  
-  sections.forEach(s=>{
-    switch(s.type){
-      case 'h2':fullHTML+=`<h3 style="font-size:16px;font-weight:bold;color:#2c3e50;margin:20px 0 10px;">${esc(s.text)}</h3>`;break;
-      case 'blockquote':fullHTML+=`<blockquote style="border-left:3px solid #534ab7;padding:8px 12px;margin:12px 0;background:#f8f9fa;color:#666;border-radius:0 6px 6px 0;">${esc(s.text)}</blockquote>`;break;
-      case 'img':if(s.text)fullHTML+=`<p style="text-align:center;margin:10px 0;"><img src="${s.text}" style="max-width:100%;border-radius:6px;" alt=""></p>`;break;
-      default:fullHTML+=`<p style="margin-bottom:12px;font-size:15px;line-height:1.8;">${esc(s.text)}</p>`;
-    }
-  });
-  
-  fullHTML+='</body></html>';
+  fullHTML+=bodyHTML;
+  fullHTML+=`</body></html>`;
   document.getElementById('preview-frame').srcdoc=fullHTML;
+}
+
+// ===== XIUMI 模式：生成完整样式 HTML 并复制到微信剪贴板 =====
+// 与 API 路径不同，复制粘贴到微信编辑器能保留 background/border/padding 等完整样式。
+// 每个模板的配色通过 colorMap 变量可调。
+
+// 内置模板在复制模式下的配色方案（h2 文字色必须与 bg 背景色不同，否则会"看不见"）
+// pbg = 正文卡片底色；深色模板用比外层更深的卡片，浅色模板用极浅的 tint
+const XIUMI_COLORS = {
+  template1: { h2:'#1e5dc9', bg:'#eaf4ff', p:'#333333', q:'#8a5a00', qbg:'#fff5e6', pbg:'#f5f8ff' },
+  template2: { h2:'#f8fafc', bg:'#1a1a1a', p:'#cbd5e1', q:'#94a3b8', qbg:'#262626', pbg:'#242424' },
+  template3: { h2:'#6b4423', bg:'#f3ede4', p:'#5a4a3a', q:'#7a6a55', qbg:'#efe7da', pbg:'#f7f2ec' },
+  template4: { h2:'#f8fafc', bg:'#1e3a5f', p:'#cbd5e1', q:'#93c5fd', qbg:'#1e293b', pbg:'#15263d' },
+  template5: { h2:'#2d3748', bg:'#edf2f7', p:'#4a5568', q:'#4a5568', qbg:'#f7fafc', pbg:'#f7fafc' },
+  template6: { h2:'#60a5fa', bg:'#1e293b', p:'#cbd5e1', q:'#94a3b8', qbg:'#1e293b', pbg:'#172033' },
+  template7: { h2:'#9e1b1b', bg:'#fbeaed', p:'#3a2e2e', q:'#9e1b1b', qbg:'#fbeaed', pbg:'#ffffff' },
+  template8: { h2:'#c8102e', bg:'#fdf6e0', p:'#a11d1d', q:'#8c1515', qbg:'#fdeecb', pbg:'#fdf6e0' },
+};
+// 深色系模板（外层用深色底），浅色系用白色底
+const XIUMI_DARK = { template2:true, template4:true, template6:true };
+// 当前选中的秀米模板配色（默认用 template1）
+let xiumiColorProfile = 'template6'; // 默认深色风（方便测试）
+
+function _renderXiumiBody(resolveImg, key) {
+  // ===== 每个元素自带底色的自包含架构 =====
+  //
+  // 核心原则：微信 paste handler 会打乱/展平 DOM 层级关系，
+  // 所以每个 <section> 必须自带完整的 background-color —— 不能依赖父元素继承。
+  // 即使两个相邻元素的背景色相同，也要各自显式声明。
+  //
+  // 架构：
+  //   外层大框（copyToWeChat 提供）= 画布底色
+  //   内层每个元素 = 各自的 <section> 带独立 background-color
+  //   正文段落 = 与画布同色（显式声明），文字用 <section>+<span> 保颜色
+  //   H2 / 引用 = 更深的强调色 + 左边框
+  //   图片 = 与画布同色容器包裹
+  //
+  // 所有 margin 归零，间距全靠 padding 控制。
+
+  key = key || xiumiColorProfile;
+  var c = XIUMI_COLORS[key] || XIUMI_COLORS.template1;
+  var dark = !!XIUMI_DARK[key];
+  // 画布底色：每个正文段落都用这个颜色作为自己的 background-color
+  var canvasBg = dark ? '#0f172a' : '#f4f6f9';
+
+  return sections.map(function(s, idx) {
+    switch(s.type){
+      case 'h2':
+        if(!s.text) return '';
+        // H2：强调色底条 + 左边框 + 粗体彩色字
+        return '<section style="margin:0;padding:12px 16px;background-color:' + c.bg + ';border-left:4px solid ' + c.h2 + ';line-height:1.6;">' +
+          '<span style="font-size:17px;font-weight:bold;color:' + c.h2 + ';letter-spacing:1px;">' + esc(s.text) + '</span></section>';
+      case 'blockquote':
+        if(!s.text) return '';
+        // 引用：微调底色 + 细左边框 + 斜体
+        return '<section style="margin:0;padding:12px 16px;background-color:' + c.qbg + ';border-left:3px solid ' + c.q + ';line-height:1.8;">' +
+          '<span style="font-size:14px;color:' + c.q + ';font-style:italic;"><font color="' + c.q + '">' + esc(s.text) + '</font></span></section>';
+      case 'img': {
+        var url = resolveImg(s);
+        if(!url) return '';
+        // 图片：与画布同色容器，上下 padding 分隔
+        return '<section style="margin:0;padding:16px 0;background-color:' + canvasBg + ';text-align:center;">' +
+          '<img src="' + url + '" style="width:100%;border-radius:12px;display:block;margin:0 auto;" alt=""></section>';
+      }
+      default:
+        if(!s.text) return '';
+        // 正文：显式 background-color = 画布色（不依赖继承！）
+        // <section> + 内层 <span> 双重保颜色过微信清洗
+        var pt = (idx === 0 || sections[idx-1] && sections[idx-1].type === 'h2') ? '18px' : '12px';
+        var pb = '12px';
+        return '<section style="margin:0;padding:' + pt + ' 18px ' + pb + ';background-color:' + canvasBg + ';text-align:justify;line-height:1.9;">' +
+          '<span style="font-size:15px;line-height:1.9;color:' + c.p + ';"><font color="' + c.p + '">' + esc(s.text) + '</font></span></section>';
+    }
+  }).filter(Boolean).join('\n');
+}
+
+function copyToWeChat() {
+  // 与预览完全一致：优先已应用模板（如党政风）。复制必须同步执行（点击手势内），
+  // 图片微信地址用预热好的缓存替换；缺图先上传并提示再点一次。
+  const title = document.getElementById('article-title').value || '';
+  const author = (document.getElementById('article-author') || {}).value || '';
+  var ok = copyWxHtmlSync(getWeChatHTML(), '已复制到微信（与预览一致，图片已转微信地址）', {title: title, author: author});
+  if (ok) {
+    document.getElementById('xiumi-result').innerHTML = '<div class="result-box success"><strong>已复制到剪贴板！</strong><br>请打开微信公众号编辑器，按 Ctrl+V 粘贴。<br>复制内容与左侧预览完全一致（已应用模板优先，图片已转微信地址）。</div>';
+  } else {
+    document.getElementById('xiumi-result').innerHTML = '<div class="result-box error"><strong>图片正在上传到微信…</strong><br>上传完成后请再点一次「复制到微信」。</div>';
+  }
+}
+function fallbackCopy(html) {
+  var div = document.createElement('div');
+  div.contentEditable = true;
+  div.innerHTML = html;
+  div.style.position = 'fixed'; div.style.left = '-9999px'; div.style.top = '0';
+  document.body.appendChild(div);
+  var range = document.createRange();
+  range.selectNodeContents(div);
+  var sel = window.getSelection();
+  sel.removeAllRanges(); sel.addRange(range);
+  var ok = document.execCommand('copy');
+  document.body.removeChild(div);
+  if(ok) {
+    document.getElementById('xiumi-result').innerHTML = '<div class="result-box success"><strong>已复制到剪贴板！</strong></div>';
+    toast('已复制，请到微信编辑器粘贴','success');
+  } else {
+    document.getElementById('xiumi-result').innerHTML = '<div class="result-box error">复制失败，请手动选中后 Ctrl+C 复制。</div>';
+    toast('复制失败','error');
+  }
+}
+function previewXiumiStyle() {
+  // 新窗口预览：与 copyToWeChat 完全一致的自包含架构
+  var key = xiumiColorProfile;
+  var c = XIUMI_COLORS[key] || XIUMI_COLORS.template1;
+  var dark = !!XIUMI_DARK[key];
+  var title = document.getElementById('article-title').value || '(无标题)';
+  var body = _renderXiumiBody(_secSrc, key);
+  var canvasBg = dark ? '#0f172a' : '#f4f6f9';
+  var textColor = dark ? '#e2e8f0' : '#333333';
+  var titleColor = dark ? '#f8fafc' : c.h2;
+  var titleSection = title ? '<section style="margin:0;padding:4px 18px 20px;background-color:' + canvasBg + ';text-align:center;"><span style="font-size:21px;font-weight:bold;color:' + titleColor + ';letter-spacing:1px;"><font color="' + titleColor + '">' + esc(title) + '</font></span></section>\n' : '';
+  var fhtml = '<section style="padding:24px 20px;background-color:' + canvasBg + ';color:' + textColor + ';line-height:1.8;border-radius:16px;">\n' +
+    titleSection + body + '\n</section>';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:20px;margin:0;background:#f5f5f5;}</style></head><body>' + fhtml + '</body></html>');
+  w.document.close();
 }
 
 // ===== PUBLISH =====
@@ -1179,15 +1852,16 @@ async function doCreateDraft(doPublish) {
   if(byteLen(title)>64){toast('标题超过64字节','warning');return;}
   if(digest&&byteLen(digest)>120){toast('摘要超120字节','warning');return;}
   
-  const content=generateHTML();
+  const content=await swapLocalImgsToWeChat(generateHTML());
   document.getElementById('publish-result').innerHTML='';
   const btn=document.getElementById('btn-publish');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 发布中...';
   
   try {
+    const effectiveImages = images.length ? images.map(_imgUrl).filter(Boolean) : sections.filter(s=>s.type==='img' && s.text).map(_secUrl).filter(Boolean).slice(0,1);
     const r=await fetch('/api/publish/create-draft',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({appid,appsecret,images:images,article:{title,digest,content,author:'',content_source_url:source}})
+      body:JSON.stringify({appid,appsecret,images:effectiveImages,article:{title,digest,content,author:'',content_source_url:source}})
     });
     const d=await r.json();
     btn.disabled=false; btn.textContent='创建公众号草稿并尝试发布';
@@ -1199,10 +1873,14 @@ async function doCreateDraft(doPublish) {
       rd.innerHTML=`<div class="result-box success"><strong>草稿创建成功</strong><br>Draft ID: <code>${d.draft_media_id}</code><br>${d.publish_status==='published'?'已自动发布':d.publish_status&&d.publish_status.startsWith('auto_publish_failed')?'自动发布失败，请前往公众号后台手动发布':'草稿已创建'}</div>`;
       toast('草稿创建成功！','success');
       recordAction('create_draft',title,d.success?'success':'draft_only',d.draft_media_id);
+      logPublishEvent('draft', title);
+      // 自动保存到历史草稿
+      await saveAll();
     } else {
       rd.innerHTML=`<div class="result-box ${d.code===40164?'warning':'error'}"><strong>创建失败</strong><br>${d.message}${d.code===40164?'<br>IP不在白名单，请添加服务器IP':''}${d.code===48001?'<br>未认证公众号无发布权限':''}</div>`;
       toast(d.message,'error');
       recordAction('create_draft',title,'failed');
+      logPublishEvent('draft', title);
     }
   } catch(e){
     btn.disabled=false; btn.textContent='创建公众号草稿并尝试发布';
@@ -1216,15 +1894,39 @@ function doPublish() {
 }
 
 // ===== SAVE =====
-function saveAll() {
+async function saveAll() {
+  // 本地备份
   localStorage.setItem('wx_publish_draft',JSON.stringify({
     title:document.getElementById('article-title').value,
     digest:document.getElementById('article-digest').value,
     source:document.getElementById('article-source').value,
     sections, images, formattedArticleHTML
   }));
-  toast('草稿已保存到本地浏览器','success');
-  recordAction('save_draft',document.getElementById('article-title').value||'(无标题)','success');
+  // 保存到服务器
+  try {
+    const r=await fetch('/api/publish/save-draft',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        id:currentDraftId,
+        title:document.getElementById('article-title').value,
+        digest:document.getElementById('article-digest').value,
+        source:document.getElementById('article-source').value,
+        sections, images,
+        formatted_html: formattedArticleHTML
+      })
+    });
+    const d=await r.json();
+    if(d.success){
+      currentDraftId=d.id;
+      toast('草稿已保存到服务器','success');
+      recordAction('save_draft',document.getElementById('article-title').value||'(无标题)','success');
+    } else {
+      toast('服务器保存失败:'+d.message,'error');
+    }
+  } catch(e){
+    toast('本地已保存（网络异常）','warning');
+    recordAction('save_draft',document.getElementById('article-title').value||'(无标题)','local_only');
+  }
 }
 function loadDraft() {
   try{
@@ -1237,14 +1939,129 @@ function loadDraft() {
     images=d.images||[];
     formattedArticleHTML=d.formattedArticleHTML||'';
     renderSections();
-    renderImages();
+    renderCover();
     updateCharCount();
   } catch(e){}
 }
 
+// ===== 历史记录（服务器持久化草稿 + 过往发布记录） =====
+async function loadAllDrafts() {
+  const list = document.getElementById('draft-list');
+  list.innerHTML = '<p style="color:#999;">正在加载...</p>';
+  try {
+    // 同时获取保存的草稿和发布记录
+    const [r1, r2] = await Promise.all([
+      fetch('/api/publish/my-drafts'),
+      fetch('/api/publish/my-records')
+    ]);
+    const d1 = await r1.json();
+    const d2 = await r2.json();
+    const drafts = (d1.success ? d1.drafts : []) || [];
+    const records = (d2.success ? d2.records : []) || [];
+    
+    let html = '';
+    
+    // 草稿区
+    if (drafts.length) {
+      html += '<div style="font-size:12px;font-weight:bold;color:#999;margin:8px 0 4px;">已保存的草稿</div>';
+      html += drafts.map(function(dr){
+        const date = new Date(dr.updated_at).toLocaleString('zh-CN');
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;">' +
+          '<div style="flex:1;">' +
+            '<div style="font-weight:600;font-size:14px;">'+esc(dr.title||'(无标题)')+'</div>' +
+            '<div style="font-size:11px;color:#999;">'+date+'</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+            '<button class="btn btn-xs btn-outline" onclick="loadDraftFromHistory('+dr.id+')">&#128194; 加载</button>' +
+            '<button class="btn btn-xs btn-primary" onclick="recreateDraftFromHistory('+dr.id+')">&#128640; 再发草稿</button>' +
+            '<button class="btn btn-xs btn-outline" onclick="deleteDraft('+dr.id+')" style="color:#e74c3c;">&#128465; 删除</button>' +
+          '</div></div>';
+      }).join('');
+    }
+    
+    // 发布记录区
+    const pubRecords = records.filter(function(r){ return r.type === 'create_draft' && r.status === 'success'; });
+    if (pubRecords.length) {
+      html += '<div style="font-size:12px;font-weight:bold;color:#999;margin:12px 0 4px;">&#9989; 已发布的记录（只读，草稿内容需重新保存后编辑）</div>';
+      html += pubRecords.map(function(r){
+        const date = new Date(r.created_at).toLocaleString('zh-CN');
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;">' +
+          '<div style="flex:1;">' +
+            '<div style="font-weight:600;font-size:14px;">'+esc(r.title||'(无标题)')+'</div>' +
+            '<div style="font-size:11px;color:#999;">'+date+' | Draft: '+esc(r.draft_media_id||'-')+'</div>' +
+          '</div>' +
+          '<div style="color:#bbb;font-size:12px;">已发布</div></div>';
+      }).join('');
+    }
+    
+    if (!html) {
+      html = '<p style="color:#999;">还没有记录。生成+发布文章后，这里会自动保存历史。</p>';
+    }
+    list.innerHTML = html;
+  } catch(e) {
+    list.innerHTML = '<p style="color:#e74c3c;">加载失败: '+esc(e.message)+'</p>';
+  }
+}
+async function loadDraftFromHistory(id) {
+  try {
+    const r=await fetch('/api/publish/my-drafts/'+id);
+    const d=await r.json();
+    if (!d.success) { toast(d.message,'error'); return; }
+    const dr=d.draft;
+    document.getElementById('article-title').value=dr.title;
+    document.getElementById('article-digest').value=dr.digest;
+    document.getElementById('article-source').value=dr.source;
+    sections=dr.sections||[{type:'p',text:''}];
+    images=dr.images||[];
+    formattedArticleHTML=dr.formatted_html||'';
+    currentDraftId=dr.id;
+    renderSections();
+    renderCover();
+    updateCharCount();
+    // 跳转到编辑标签
+    switchTab('edit', document.querySelectorAll('.nav-item')[0]);
+    toast('草稿已加载到编辑器','success');
+  } catch(e) { toast('加载失败: '+e.message,'error'); }
+}
+async function deleteDraft(id) {
+  if (!confirm('确定删除此草稿？')) return;
+  try {
+    const r=await fetch('/api/publish/my-drafts/'+id, {method:'DELETE'});
+    const d=await r.json();
+    if (d.success) { toast('已删除','success'); loadAllDrafts(); }
+    else toast(d.message,'error');
+  } catch(e) { toast('删除失败','error'); }
+}
+async function recreateDraftFromHistory(id) {
+  // 先加载草稿到编辑器
+  const r=await fetch('/api/publish/my-drafts/'+id);
+  const d=await r.json();
+  if (!d.success) { toast(d.message,'error'); return; }
+  const dr=d.draft;
+  document.getElementById('article-title').value=dr.title;
+  document.getElementById('article-digest').value=dr.digest;
+  document.getElementById('article-source').value=dr.source;
+  sections=dr.sections||[{type:'p',text:''}];
+  images=dr.images||[];
+  formattedArticleHTML=dr.formatted_html||'';
+  currentDraftId=dr.id;
+  renderSections(); renderCover(); updateCharCount();
+  // 跳转到预览并触发发布
+  switchTab('preview', document.querySelectorAll('.nav-item')[2]);
+  toast('正在从历史记录重新创建微信公众号草稿...','info');
+  setTimeout(function(){ createDraft(); }, 800);
+}
+
 // ===== ACTIONS =====
 function copyHTML() {
-  navigator.clipboard.writeText(generateHTML()).then(()=>toast('HTML已复制','success'));
+  var r = swapLocalImgsFromCache(generateHTML());
+  if (r.missing.length) {
+    toast('正在把 ' + r.missing.length + ' 张图片上传到微信，请稍候再点一次…', 'warning');
+    Promise.all(r.missing.map(function(s){ return uploadLocalImgToWeChat(s).catch(function(){}); }))
+      .then(function(){ toast('图片已就绪，请再点一次复制', 'success'); });
+    return;
+  }
+  copyTextSmart(r.html, 'HTML已复制（图片已转微信地址）');
 }
 async function recordAction(actionType,title,status,draftMediaId) {
   try {
@@ -1324,29 +2141,153 @@ async function loadAiConfigFromServer() {
 }
 
 // ===== AI GENERATE =====
+// ===== 参考资料上传 =====
+async function handleRefUpload(input){
+  const files = Array.from(input.files || []);
+  input.value = '';
+  for(const f of files){
+    const item = { url:'', name:f.name, ftype:(f.type.startsWith('image/')?'image':'doc'), text:'', filename:'', loading:true };
+    referenceFiles.push(item);
+    renderRefList();
+    try{
+      const fd = new FormData();
+      fd.append('file', f);
+      const r = await fetch('/api/publish/upload-reference', { method:'POST', body:fd });
+      const d = await r.json();
+      if(d.success && d.data){
+        item.url = d.data.url; item.filename = d.data.filename; item.text = d.data.text || '';
+        item.ftype = d.data.ftype || item.ftype;
+      } else {
+        item.error = d.message || '上传失败';
+      }
+    }catch(e){ item.error = '上传失败:'+e.message; }
+    item.loading = false;
+    renderRefList();
+  }
+}
+function removeRef(idx){
+  referenceFiles.splice(idx, 1);
+  renderRefList();
+}
+function renderRefList(){
+  const box = document.getElementById('ref-list');
+  if(!box) return;
+  if(!referenceFiles.length){ box.innerHTML=''; return; }
+  box.innerHTML = referenceFiles.map((r,i)=>{
+    const thumb = r.ftype==='image' ? `<img src="${r.url}" alt="">` : '<span style="font-size:18px;">📄</span>';
+    const label = r.loading ? '<span class="ref-loading">分析中…</span>' : (r.error ? `<span style="color:#dc2626;">${r.error}</span>` : r.name);
+    const useChk = r.ftype==='image'
+      ? `<label class="ref-use" title="勾选后把这张图作为正文配图，AI 将不再自动生图，直接用这张图插入文章"><input type="checkbox" ${r.useInArticle?'checked':''} onchange="toggleRefUse(${i}, this.checked)"> 用作正文图</label>`
+      : '';
+    return `<div class="ref-chip">${thumb}<span class="ref-name" title="${r.name}">${label}</span>${useChk}<span class="ref-del" onclick="removeRef(${i})">×</span></div>`;
+  }).join('');
+}
+function toggleRefUse(i, v){
+  if(referenceFiles[i]) referenceFiles[i].useInArticle = v;
+}
+// 支持拖拽到 drop 区
+document.addEventListener('DOMContentLoaded', ()=>{
+  const drop = document.getElementById('ref-drop');
+  if(drop){
+    drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.style.borderColor='var(--primary)'; });
+    drop.addEventListener('dragleave', e=>{ drop.style.borderColor=''; });
+    drop.addEventListener('drop', e=>{ e.preventDefault(); drop.style.borderColor=''; handleRefUpload({ files: e.dataTransfer.files }); });
+  }
+  // 定时/批量列表自动刷新（10秒一次），避免发布中状态长时间不变
+  if(!window._schAutoRefresh){
+    window._schAutoRefresh = setInterval(function(){
+      if(document.getElementById('sch-list')) loadScheduleList();
+      if(document.getElementById('batch-list')) loadBatchList();
+    }, 10000);
+  }
+});
+
 async function aiGenerate(){
   const topic=document.getElementById('ai-topic').value.trim();
   if(!topic){toast('请输入文章主题','warning');return;}
+  const imageStyle=document.getElementById('ai-image-style').value;
+  const maxImages=Math.max(0, Math.min(10, parseInt(document.getElementById('ai-max-images').value)||4));
+  const wordCount=Math.max(0, parseInt(document.getElementById('ai-word-count').value)||0);
+  // 用户勾选「用作正文图」的参考图（有序真实 URL）——这些作为文章配图来源，优先于已有的内联/封面图
+  const insertImages = referenceFiles.filter(r=>r.ftype==='image' && r.useInArticle && !r.error && r.url).map(r=>r.url);
+  // 用户是否已提供图片（封面图区 或 正文图片段）→ 若有则优先用用户的图，不调 AI 生图
+  // 注意：一旦勾选了参考图作为正文图，则以这些图为准，不再走「已有内联图合并」分支
+  const hasUserImages = (images.length>0 || sections.some(s=>s.type==='img' && s.text)) && insertImages.length===0;
+  const refPayload = referenceFiles.filter(r=>!r.error).map(r=>({ftype:r.ftype,text:r.text,name:r.name,filename:r.filename}));
+  const webUrls = refWebUrls.slice();
+  const useHistory = document.getElementById('ai-use-history').checked;
   const btn=document.getElementById('btn-ai-generate');
   const status=document.getElementById('ai-status');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 生成中...';
-  status.style.display='block';status.innerHTML='正在搜索新闻...';
+  status.style.display='block';
+  const refTotal = refPayload.length + (useHistory ? 1 : 0) + webUrls.length;
+  status.innerHTML = '正在搜索新闻' + (refTotal ? '，并分析 ' + refTotal + ' 项参考资料（含网址将自动打开分析）' : '') + '...';
   try{
     const r=await fetch('/api/publish/ai-generate',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({topic:topic,count:5,style_profile:currentStyleProfile})
+      body:JSON.stringify({
+        topic:topic,count:5,style_profile:currentStyleProfile,
+        image_mode: insertImages.length>0 ? 'auto' : (hasUserImages ? 'none' : 'auto'),
+        image_style: imageStyle, max_images: maxImages,
+        word_count: wordCount, image_count: maxImages,
+        has_user_images: hasUserImages,
+        references: refPayload, use_history: useHistory, web_urls: webUrls,
+        selected_images: insertImages
+      })
     });
     const d=await r.json();
     if(!d.success){toast(d.message,'error');status.style.display='none';btn.disabled=false;btn.textContent='AI 生成文章';return;}
-    // 填入编辑器
+    // 填入标题/摘要
     document.getElementById('article-title').value=d.article.title||'';
     document.getElementById('article-digest').value=d.article.digest||'';
     updateCharCount();
-    // 解析 HTML 为 sections
-    parseContentToSections(d.article.content||'');
-    renderSections();
-    // 来源
-    status.innerHTML='生成完成！（搜索方式: '+d.stats.search_method+'）来源新闻：'+d.sources.map(s=>s.title).join(' / ').substring(0,200);
+    const blocks=d.article.blocks||[];
+    if(insertImages.length>0){
+      // 用户勾选了参考图作为正文图：image 块已由后端用真实图回填（resolved_url），直接渲染，跳过生图
+      if(blocks.length){ parseBlocksToSections(blocks); }
+      else { parseContentToSections(d.article.content||''); }
+      const genImgs = sections.filter(s=>s.type==='img' && s.text);
+      images = genImgs.length ? [{src:_secSrc(genImgs[0]), url:_secUrl(genImgs[0])}] : [];
+      status.innerHTML='已按你的勾选，把 '+insertImages.length+' 张参考图作为正文配图插入（AI 未自动生图）。来源：'+d.sources.map(s=>s.title).join(' / ').substring(0,200);
+    } else if(hasUserImages){
+      // 用户已提供图片：保留其图片位置，仅用 AI 文字刷新/填充正文
+      mergeUserImagesWithText(blocks);
+      status.innerHTML='检测到你已提供图片，已直接使用你的图片，未自动生图。来源：'+d.sources.map(s=>s.title).join(' / ').substring(0,200);
+    } else {
+      // 无用户图片：解析全部块（含图片占位），再按提示词生成配图
+      if(blocks.length){ parseBlocksToSections(blocks); }
+      else { parseContentToSections(d.article.content||''); }
+      const imgPrompts=[];
+      sections.forEach((s,i)=>{ if(s.type==='img' && s.prompt) imgPrompts.push({index:i, prompt:s.prompt}); });
+      if(imgPrompts.length){
+        status.innerHTML='文字完成，正在生成 '+imgPrompts.length+' 张配图（Pollinations 免费）...';
+        const r2=await fetch('/api/publish/generate-images',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            appid:document.getElementById('config-appid').value,
+            appsecret:document.getElementById('config-appsecret').value,
+            image_style:imageStyle, images:imgPrompts
+          })
+        });
+        const d2=await r2.json();
+        let okCount=0, failCount=0;
+        if(d2 && d2.success){
+          d2.results.forEach(res=>{ if(sections[res.index]) sections[res.index].text={src:res.preview_url, url:res.url}; });
+          okCount=d2.results.length||0;
+          failCount=(d2.errors&&d2.errors.length)||0;
+        } else if(d2 && d2.message){ failCount=imgPrompts.length; toast(d2.message,'error'); }
+        // 用生成结果按顺序重建配图区（第一张作封面，用预览URL显示）
+        const genImgs = sections.filter(s=>s.type==='img' && s.text);
+        images = genImgs.length ? [{src:_secSrc(genImgs[0]), url:_secUrl(genImgs[0])}] : [];
+        let msg='生成完成！（搜索：'+d.stats.search_method+'）已生成 '+okCount+' 张配图。';
+        if(failCount) msg+=' 有'+failCount+'张生成失败已跳过。';
+        status.innerHTML=msg+' 来源：'+d.sources.map(s=>s.title).join(' / ').substring(0,160);
+      } else {
+        status.innerHTML='生成完成！（搜索：'+d.stats.search_method+'）本文未插入配图。来源：'+d.sources.map(s=>s.title).join(' / ').substring(0,160);
+      }
+    }
+    renderSections(); renderCover();
+    if(d.stats && d.stats.reference_used){ status.innerHTML += ' 已结合 '+(d.stats.reference_count||0)+' 项参考资料生成。'; }
     status.style.color='var(--success)';
     toast('AI 文章生成成功！请审核后发布','success');
     recordAction('ai_generate',d.article.title,'success');
@@ -1357,19 +2298,88 @@ async function aiGenerate(){
   btn.disabled=false;btn.textContent='AI 生成文章';
 }
 
-function parseContentToSections(html){
-  // 简单解析 HTML 为编辑器的 section 格式
+let autoMode='publish';
+function setAutoMode(m, btn){
+  autoMode=m;
+  document.querySelectorAll('#auto-mode-seg .seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+async function autoScheduleGenerate(){
+  const topic=document.getElementById('auto-topic').value.trim();
+  if(!topic){toast('请输入文章主题','warning');return;}
+  const time=document.getElementById('auto-time').value;
+  if(!time){toast('请选择发布时间','warning');return;}
+  const imageCount=Math.max(0, Math.min(10, parseInt(document.getElementById('auto-img-count').value)||3));
+  const wordCount=Math.max(0, parseInt(document.getElementById('auto-word-count').value)||0);
+  const imageStyle=document.getElementById('auto-image-style').value;
+  const btn=document.getElementById('btn-auto-generate');
+  const status=document.getElementById('auto-status');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 生成中（AI写稿+配图，请稍候）...';
+  status.style.display='block'; status.style.color='var(--text2)';
+  status.innerHTML='正在搜索新闻并生成文章…';
+  try{
+    const r=await fetch('/api/publish/schedule-auto',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({topic:topic, word_count:wordCount, image_count:imageCount, image_style:imageStyle, schedule_time:time.replace('T',' ')+':00', mode:autoMode})});
+    const d=await r.json();
+    if(!d.success){toast(d.message,'error');status.style.display='none';btn.disabled=false;btn.textContent='⚡ AI 生成并创建定时任务';return;}
+    // 填回编辑器供预览
+    document.getElementById('article-title').value=d.article.title||'';
+    document.getElementById('article-digest').value=d.article.digest||'';
+    if(d.article.blocks && d.article.blocks.length) parseBlocksToSections(d.article.blocks);
+    else parseContentToSections(d.article.content||'');
+    renderSections(); renderCover(); updateCharCount();
+    status.style.color='var(--success)';
+    status.innerHTML='已生成并创建定时任务（ID '+d.id+'）！内容已填入上方编辑器，可在「定时/批量」页查看进度。';
+    toast('已生成并创建定时任务','success');
+    loadScheduleList();
+  }catch(e){
+    toast('生成失败:'+e.message,'error');
+    status.style.display='none';
+  }
+  btn.disabled=false;btn.textContent='⚡ AI 生成并创建定时任务';
+}
+
+// 解析结构化 blocks（图片块先占位，prompt 记录生图意图）
+function parseBlocksToSections(blocks){
   sections=[];
-  // 去除 section 外层标签
+  (blocks||[]).forEach(b=>{
+    const t=b.type; const txt=(b.text||'').trim();
+    if(t==='image'){
+      if(b.resolved_url){ sections.push({type:'img', text:b.resolved_url, prompt:'', caption:b.caption||''}); }
+      else { sections.push({type:'img', text:'', prompt:b.prompt||'', caption:b.caption||''}); }
+    }
+    else if(t==='h2'){ sections.push({type:'h2', text:txt}); }
+    else if(t==='blockquote'){ sections.push({type:'blockquote', text:txt}); }
+    else { if(txt) sections.push({type:'p', text:txt}); }
+  });
+  if(!sections.length) sections.push({type:'p',text:''});
+}
+
+// 用户已提供图片：保留其图片段位置，用 AI 文字填充其余位置
+function mergeUserImagesWithText(blocks){
+  const orig=sections.slice();
+  const textSections=(blocks||[]).filter(b=>b.type!=='image').map(b=>({type:b.type, text:(b.text||'').trim()}));
+  const inlineImgs=orig.filter(s=>s.type==='img' && s.text);
+  if(!inlineImgs.length){ sections = textSections.length?textSections:[{type:'p',text:''}]; return; }
+  let ti=0; const merged=[];
+  for(const o of orig){
+    if(o.type==='img' && o.text){ merged.push(o); }
+    else { if(ti<textSections.length){ merged.push(textSections[ti]); ti++; } }
+  }
+  while(ti<textSections.length){ merged.push(textSections[ti]); ti++; }
+  sections = merged.length?merged:[{type:'p',text:''}];
+}
+
+function parseContentToSections(html){
+  // 简单解析 HTML 为编辑器的 section 格式（兜底）
+  sections=[];
   let inner=html.replace(/<section[^>]*>/gi,'').replace(/<\/section>/gi,'');
-  // 匹配各种段落
   const parts=inner.split(/(<p[^>]*>.*?<\/p>)/gi);
   for(const part of parts){
     if(!part.trim()) continue;
     if(/<p\b/i.test(part)){
       const text=part.replace(/<p[^>]*>/gi,'').replace(/<\/p>/gi,'').trim();
       if(!text) continue;
-      // 判断是否为标题（加粗或字号大）
       if(/font-size\s*:\s*(1[789]|2[0-9])px/gi.test(part)||/font-weight\s*:\s*bold/gi.test(part)){
         sections.push({type:'h2',text:text});
       }else{
@@ -1380,12 +2390,566 @@ function parseContentToSections(html){
   if(!sections.length) sections.push({type:'p',text:''});
 }
 
+// ===== 配图偏好（随默认模板记忆） =====
+function getImagePrefs(){
+  try{ return JSON.parse(localStorage.getItem('my_image_prefs')||'{}'); }catch(e){ return {}; }
+}
+function applyImagePrefsToForm(){
+  // 默认模板里的偏好优先
+  if(currentStyleProfile && currentStyleProfile.image_style) document.getElementById('ai-image-style').value=currentStyleProfile.image_style;
+  else if(getImagePrefs().image_style) document.getElementById('ai-image-style').value=getImagePrefs().image_style;
+  if(currentStyleProfile && currentStyleProfile.max_images) document.getElementById('ai-max-images').value=currentStyleProfile.max_images;
+  else if(getImagePrefs().max_images) document.getElementById('ai-max-images').value=getImagePrefs().max_images;
+}
+function saveImagePrefs(){
+  const p={image_style:document.getElementById('ai-image-style').value, max_images:document.getElementById('ai-max-images').value};
+  localStorage.setItem('my_image_prefs', JSON.stringify(p));
+  if(currentStyleProfile){ currentStyleProfile.image_style=p.image_style; currentStyleProfile.max_images=p.max_images; }
+}
+
 // ===== TOAST =====
 function toast(msg,type) {
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='toast '+(type||'')+' show';
   setTimeout(()=>t.classList.remove('show'),3000);
 }
+
+// ===== 通用确认弹窗（取消定时任务等） =====
+var _confirmCb=null;
+function showConfirm(text, cb){
+  var t=document.getElementById('confirm-text');
+  if(t) t.textContent=text||'确认是否确定取消，不可恢复';
+  _confirmCb=cb;
+  var m=document.getElementById('confirm-modal'); if(m) m.style.display='flex';
+}
+function hideConfirm(){
+  var m=document.getElementById('confirm-modal'); if(m) m.style.display='none';
+  _confirmCb=null;
+}
+function confirmOk(){
+  var cb=_confirmCb; hideConfirm(); if(cb) cb();
+}
+
+// 页面加载：预填配图偏好
+document.addEventListener('DOMContentLoaded', applyImagePrefsToForm);
+
+// ===== 可视化拖拽排版 =====
+let dragRoot = { id:'root', type:'root', style:{bg:'#f4f6f9', radius:16, padding:24}, children:[] };
+let dragSelected = null;
+let dragIdSeq = 1;
+const DRAG_PALETTE = [
+  {type:'box',     ic:'▦', label:'大框 / 小框', desc:'可嵌套的容器'},
+  {type:'heading', ic:'H', label:'标题',       desc:'粗体大标题'},
+  {type:'text',    ic:'¶', label:'正文',       desc:'普通段落'},
+  {type:'quote',   ic:'❝', label:'引用',       desc:'斜体引用块'},
+  {type:'image',   ic:'▣', label:'图片',       desc:'插入图片'},
+  {type:'divider', ic:'—', label:'分割线',     desc:'分隔线'},
+];
+function uid(){ return 'd'+(dragIdSeq++); }
+function typeLabel(t){ return ({root:'画布根',box:'大框/小框',heading:'标题',text:'正文',quote:'引用',image:'图片',divider:'分割线'})[t]||t; }
+function pad(v){ return Math.max(0, parseInt(v)||0); }
+function rad(v){ return Math.max(0, parseInt(v)||0); }
+function isDark(hex){
+  hex=(hex||'').replace('#',''); if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+  if(hex.length!==6) return false;
+  const r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+  return (0.299*r+0.587*g+0.114*b) < 140;
+}
+function newDragBlock(type){
+  const id=uid(); const base={id,type,children:[]};
+  if(type==='box') base.style={bg:'#eef2f7',radius:12,padding:16};
+  else if(type==='heading') base.style={bg:'transparent',color:'#1e293b',radius:0,padding:10,borderLeft:true,borderColor:'#3b82f6'};
+  else if(type==='text') base.style={bg:'transparent',color:'#334155',radius:0,padding:8};
+  else if(type==='quote') base.style={bg:'transparent',color:'#64748b',radius:0,padding:12,borderLeft:true,borderColor:'#94a3b8'};
+  else if(type==='image') base.style={bg:'transparent',radius:12,padding:0};
+  else if(type==='divider') base.style={color:'#cbd5e1'};
+  if(['heading','text','quote'].includes(type)) base.text={heading:'小标题文字',text:'在这里输入正文内容……',quote:'“引用内容……”'}[type];
+  return base;
+}
+function findNode(node,id){ if(node.id===id) return node; if(node.children){ for(const c of node.children){ const r=findNode(c,id); if(r) return r; } } return null; }
+function findParent(arr,id,parent){ for(const n of arr){ if(n.id===id) return parent; if(n.children){ const r=findParent(n.children,id,n); if(r) return r; } } return null; }
+function cutNode(id){ function rec(a){ for(let i=0;i<a.length;i++){ if(a[i].id===id) return a.splice(i,1)[0]; if(a[i].children){ const r=rec(a[i].children); if(r) return r; } } return null; } return rec(dragRoot.children); }
+function isDescendant(node,id){ if(!node.children) return false; for(const c of node.children){ if(c.id===id) return true; if(isDescendant(c,id)) return true; } return false; }
+
+function renderPalette(){
+  document.getElementById('dg-palette').innerHTML = DRAG_PALETTE.map(function(p){
+    return '<div class="dg-pal" draggable="true" ondragstart="palDragStart(event,\'' + p.type + '\')">' +
+      '<div style="display:flex;align-items:center;gap:8px;"><span class="dg-pal-ic">' + p.ic + '</span><b>' + p.label + '</b></div>' +
+      '<span>' + p.desc + '</span></div>';
+  }).join('');
+}
+function palDragStart(e,type){ e.dataTransfer.setData('text/plain', JSON.stringify({kind:'new',type:type})); e.dataTransfer.effectAllowed='copy'; }
+function nodeDragStart(e,id){ e.dataTransfer.setData('text/plain', JSON.stringify({kind:'move',id:id})); e.dataTransfer.effectAllowed='move'; }
+
+function renderDragNode(node){
+  if(node.type==='root'){
+    return '<div class="dg-node dg-root" data-id="root">' +
+      '<div class="dg-drop" data-drop="root" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="onDrop(event,\'root\')">＋ 拖入此处添加元素（大框 / 文字 / 图片 …）</div>' +
+      (node.children||[]).map(renderDragNode).join('') +
+    '</div>';
+  }
+  const st=node.style||{};
+  const isBox=(node.type==='box');
+  const bg = (st.bg==='transparent'||!st.bg) ? (node._parentBg||'rgba(0,0,0,0.03)') : st.bg;
+  let h='<div class="dg-node'+(isBox?' dg-box':'')+(dragSelected===node.id?' dg-sel':'')+'" data-id="'+node.id+'" draggable="true" ondragstart="nodeDragStart(event,\''+node.id+'\')" style="background:'+bg+';border-radius:'+rad(st.radius)+'px;padding:'+pad(st.padding)+'px;'+(st.borderLeft?'border-left:4px solid '+(st.borderColor||'#3b82f6')+';':'')+'">';
+  h+='<div class="dg-head"><span class="dg-tag">'+typeLabel(node.type)+'</span>'+
+     '<span class="dg-ops"><button onclick="selectDrag(\''+node.id+'\')">编辑</button>'+
+     '<button onclick="moveDrag(\''+node.id+'\',-1)">↑</button>'+
+     '<button onclick="moveDrag(\''+node.id+'\',1)">↓</button>'+
+     '<button onclick="removeDrag(\''+node.id+'\')">✕</button></span></div>';
+  if(node.type==='box'){
+    h+='<div class="dg-drop" data-drop="'+node.id+'" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="onDrop(event,\''+node.id+'\')">＋ 拖入此处嵌套子元素（大框套小框）</div>';
+    h+=(node.children||[]).map(renderDragNode).join('');
+  } else if(node.type==='image'){
+    h+='<div class="dg-img" onclick="selectDrag(\''+node.id+'\')">'+(node.src?'<img src="'+node.src+'" style="max-width:100%;border-radius:6px;">':'<div class="dg-ph">点击右侧属性填写图片URL</div>')+'</div>';
+  } else if(node.type==='divider'){
+    h+='<hr style="border:none;border-top:1px solid '+(st.color||'#cbd5e1')+';margin:4px 0;">';
+  } else {
+    h+='<div class="dg-text" onclick="selectDrag(\''+node.id+'\')">'+esc(node.text||'')+'</div>';
+  }
+  h+='</div>';
+  return h;
+}
+function renderDragCanvas(){
+  (function tag(n,pb){ n._parentBg=pb; const bg=(n.style&&n.style.bg&&n.style.bg!=='transparent')?n.style.bg:pb; (n.children||[]).forEach(function(c){tag(c,bg);}); })(dragRoot, dragRoot.style.bg||'#f4f6f9');
+  const el=document.getElementById('drag-canvas');
+  el.style.background = dragRoot.style.bg||'#f4f6f9';
+  el.innerHTML=renderDragNode(dragRoot);
+}
+function dragOver(e){ e.preventDefault(); const z=e.currentTarget; if(z.classList.contains('dg-drop')) z.classList.add('dg-over'); }
+function dragLeave(e){ const z=e.currentTarget; z.classList.remove('dg-over'); }
+function onDrop(e,targetId){
+  e.preventDefault(); const z=e.currentTarget; z.classList.remove('dg-over');
+  let data; try{ data=JSON.parse(e.dataTransfer.getData('text/plain')); }catch(_){ return; }
+  const container = targetId==='root'?dragRoot:findNode(dragRoot,targetId);
+  if(!container || (container.type!=='root' && container.type!=='box')) return;
+  if(data.kind==='new'){ container.children=container.children||[]; container.children.push(newDragBlock(data.type)); }
+  else if(data.kind==='move'){
+    if(data.id===targetId) return;
+    if(container.type!=='root' && isDescendant(container,data.id)){ toast('不能拖入自身或子框','warning'); return; }
+    const n=cutNode(data.id); if(n){ container.children=container.children||[]; container.children.push(n); }
+  }
+  renderDragCanvas(); updateDragProps();
+}
+function selectDrag(id){ dragSelected=id; renderDragCanvas(); updateDragProps(); }
+function moveDrag(id,dir){
+  function rec(a){ for(let i=0;i<a.length;i++){ if(a[i].id===id){ const ni=i+dir; if(ni<0||ni>=a.length) return true; const t=a[i]; a[i]=a[ni]; a[ni]=t; return true; } if(a[i].children && rec(a[i].children)) return true; } return false; }
+  rec(dragRoot.children); renderDragCanvas();
+}
+function removeDrag(id){ cutNode(id); if(dragSelected===id) dragSelected=null; renderDragCanvas(); updateDragProps(); }
+
+function setDragStyle(id,key,val){
+  const n=findNode(dragRoot,id); if(!n) return; n.style=n.style||{};
+  n.style[key] = (key==='radius'||key==='padding')?parseInt(val):val;
+  renderDragCanvas();
+}
+function setDragBgTransparent(id,checked){
+  const n=findNode(dragRoot,id); if(!n) return; n.style=n.style||{};
+  n.style.bg = checked ? 'transparent' : (n.style.bg && n.style.bg!=='transparent' ? n.style.bg : '#eef2f7');
+  renderDragCanvas(); updateDragProps();
+}
+function setDragText(id,val){ const n=findNode(dragRoot,id); if(!n) return; n.text=val; renderDragCanvas(); }
+
+function updateDragProps(){
+  const body=document.getElementById('dg-props-body');
+  if(!dragSelected){ body.innerHTML='<p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑，可改背景色、文字色、圆角与内边距。</p>'; return; }
+  const node=findNode(dragRoot,dragSelected);
+  if(!node){ body.innerHTML='<p style="font-size:12px;color:var(--text3);">点击画布中的元素进行编辑。</p>'; return; }
+  const st=node.style||{}; const isBox=(node.type==='box'||node.type==='root'); const hasText=['heading','text','quote'].includes(node.type);
+  let h='<div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px;">'+typeLabel(node.type)+'</div>';
+  if(isBox){
+    h+='<div class="form-group"><label>背景色</label><div class="dg-color-row"><input type="color" value="'+(st.bg||'#eef2f7')+'" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.bg||'')+'</span></div></div>';
+  } else if(hasText||node.type==='image'){
+    const transparent = !st.bg || st.bg==='transparent';
+    h+='<div class="form-group"><label><input type="checkbox" '+(transparent?'checked':'')+' onchange="setDragBgTransparent(\''+node.id+'\',this.checked)"> 背景随父框（透明）</label>';
+    if(!transparent){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+st.bg+'" oninput="setDragStyle(\''+node.id+'\',\'bg\',this.value);this.nextElementSibling.innerText=this.value"><span>'+st.bg+'</span></div>'; }
+    h+='</div>';
+  }
+  if(hasText){
+    h+='<div class="form-group"><label>文字色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#334155')+'" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value);this.nextElementSibling.innerText=this.value"><span>'+(st.color||'')+'</span></div></div>';
+    h+='<div class="form-group"><label>文字内容</label><textarea class="form-textarea" style="min-height:70px;" oninput="setDragText(\''+node.id+'\',this.value)">'+esc(node.text||'')+'</textarea></div>';
+    h+='<div class="form-group"><label><input type="checkbox" '+(st.borderLeft?'checked':'')+' onchange="setDragStyle(\''+node.id+'\',\'borderLeft\',this.checked)"> 左边框装饰</label>';
+    if(st.borderLeft){ h+='<div class="dg-color-row" style="margin-top:6px;"><input type="color" value="'+(st.borderColor||'#3b82f6')+'" oninput="setDragStyle(\''+node.id+'\',\'borderColor\',this.value)"><span>边框色</span></div>'; }
+    h+='</div>';
+  }
+  if(node.type==='image'){ h+='<div class="form-group"><label>图片 URL</label><input type="text" class="form-input" value="'+(node.src||'')+'" placeholder="https://..." oninput="setDragStyle(\''+node.id+'\',\'src\',this.value)"></div>'; }
+  if(node.type==='divider'){ h+='<div class="form-group"><label>分割线颜色</label><div class="dg-color-row"><input type="color" value="'+(st.color||'#cbd5e1')+'" oninput="setDragStyle(\''+node.id+'\',\'color\',this.value)"></div></div>'; }
+  if(node.type!=='root'){
+    h+='<div class="form-group"><label>圆角 <span id="dg-rad-v">'+rad(st.radius)+'</span> px</label><input type="range" min="0" max="32" value="'+rad(st.radius)+'" oninput="setDragStyle(\''+node.id+'\',\'radius\',this.value);document.getElementById(\'dg-rad-v\').innerText=this.value"></div>';
+    h+='<div class="form-group"><label>内边距 <span id="dg-pad-v">'+pad(st.padding)+'</span> px</label><input type="range" min="0" max="48" value="'+pad(st.padding)+'" oninput="setDragStyle(\''+node.id+'\',\'padding\',this.value);document.getElementById(\'dg-pad-v\').innerText=this.value"></div>';
+  }
+  h+='<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;color:#dc2626;border-color:#fca5a5;" onclick="removeDrag(\''+node.id+'\')">删除此元素</button>';
+  body.innerHTML=h;
+}
+
+function renderDragToHTML(node, parentBg, title){
+  const st=node.style||{};
+  if(node.type==='root'){
+    const bg=st.bg||'#f4f6f9';
+    let inner='';
+    if(title){ const tc=isDark(bg)?'#f8fafc':'#1e293b'; inner+='<section style="margin:0;padding:4px 18px 16px;background-color:'+bg+';text-align:center;"><span style="font-size:21px;font-weight:bold;color:'+tc+';letter-spacing:1px;"><font color="'+tc+'">'+esc(title)+'</font></span></section>\n'; }
+    inner+=(node.children||[]).map(function(c){return renderDragToHTML(c,bg);}).join('\n');
+    return '<section style="background-color:'+bg+';padding:'+pad(st.padding)+'px;line-height:1.8;font-family:-apple-system,BlinkMacSystemFont,PingFang SC,Microsoft YaHei,sans-serif;border-radius:'+rad(st.radius)+'px;">\n'+inner+'\n</section>';
+  }
+  if(node.type==='box'){
+    const bg=st.bg||'#eef2f7';
+    const inner=(node.children||[]).map(function(c){return renderDragToHTML(c,bg);}).join('\n');
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';border-radius:'+rad(st.radius)+'px;">\n'+inner+'\n</section>';
+  }
+  if(node.type==='heading'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#1e293b';
+    let s='margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'; if(st.borderLeft) s+='border-left:4px solid '+(st.borderColor||'#3b82f6')+';'; s+='border-radius:'+rad(st.radius)+'px;';
+    return '<section style="'+s+'"><span style="font-size:18px;font-weight:bold;color:'+color+';letter-spacing:1px;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+  }
+  if(node.type==='text'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#334155';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';text-align:justify;line-height:1.9;border-radius:'+rad(st.radius)+'px;"><span style="font-size:15px;line-height:1.9;color:'+color+';"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+  }
+  if(node.type==='quote'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const color=st.color||'#64748b';
+    let s='margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';'; if(st.borderLeft) s+='border-left:4px solid '+(st.borderColor||'#94a3b8')+';'; s+='border-radius:'+rad(st.radius)+'px;';
+    return '<section style="'+s+'"><span style="font-size:14px;color:'+color+';font-style:italic;line-height:1.8;"><font color="'+color+'">'+esc(st.text||'')+'</font></span></section>';
+  }
+  if(node.type==='image'){
+    const bg=(st.bg==='transparent'||!st.bg)?parentBg:st.bg; const src=node.src||'';
+    if(!src) return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';text-align:center;color:#94a3b8;font-size:13px;">[未设置图片]</section>';
+    return '<section style="margin:0;padding:'+pad(st.padding)+'px;background-color:'+bg+';text-align:center;"><img src="'+src+'" style="width:100%;border-radius:'+rad(st.radius)+'px;display:block;margin:0 auto;" alt=""></section>';
+  }
+  if(node.type==='divider'){
+    const color=st.color||'#cbd5e1';
+    return '<section style="margin:0;padding:8px 0;background-color:'+parentBg+';text-align:center;"><span style="display:inline-block;width:60%;height:1px;background-color:'+color+';"></span></section>';
+  }
+  return '';
+}
+function copyHTMLToClipboard(html,msg,meta){
+  try{
+    const blob=new Blob([html],{type:'text/html'});
+    const metaBlob=new Blob([JSON.stringify({v:1, title:(meta&&meta.title)||'', author:(meta&&meta.author)||''})],{type:'text/plain'});
+    navigator.clipboard.write([ new ClipboardItem({'text/html':blob,'text/plain':metaBlob}) ]).then(function(){ toast(msg||'已复制','success'); showDragResult(msg||'已复制，请到微信编辑器粘贴','ok'); }).catch(function(e){ fallbackCopy(html); showDragResult('已用兼容方式复制（标题/作者需手动填）','ok'); });
+  }catch(e){ fallbackCopy(html); showDragResult('已用兼容方式复制','ok'); }
+}
+function showDragResult(msg,kind){ const el=document.getElementById('drag-result'); el.className='dg-result '+(kind||'ok'); el.style.display='inline-block'; el.innerText=msg; setTimeout(function(){el.style.display='none';},4000); }
+function copyDragToWeChat(){ const title=document.getElementById('article-title').value||''; const author=(document.getElementById('article-author')||{}).value||''; const html=renderDragToHTML(dragRoot,null,title); copyWxHtmlSync(html,'已复制拖拽排版，标题/作者已带上，请到微信粘贴',{title:title,author:author}); }
+function copyEditToWeChat(){ const title=document.getElementById('article-title').value||''; const author=(document.getElementById('article-author')||{}).value||''; const html=generateHTML(); copyWxHtmlSync(html,'已复制正文，标题/作者已带上，请到微信粘贴',{title:title,author:author}); logPublishEvent('manual',title); }
+
+/* ============ W2 外部素材库 ============ */
+function fetchMaterials(){
+  var q = document.getElementById('material-query').value.trim();
+  var st = document.getElementById('material-status');
+  var box = document.getElementById('material-list');
+  if(!q){ toast('请输入关键词','warning'); return; }
+  st.style.display='block'; st.textContent='抓取中...';
+  fetch('/api/publish/fetch-materials',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({query:q,count:8})})
+  .then(function(r){return r.json();}).then(function(res){
+    if(!res.success){ st.textContent=res.message; return; }
+    st.style.display='none';
+    window.__materials = res.materials || [];
+    box.innerHTML = window.__materials.map(function(m,i){
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fff;">'+
+        '<div style="font-size:13px;font-weight:600;color:#1a1a2e;">'+esc(m.title)+'</div>'+
+        '<div style="font-size:12px;color:#888;margin:4px 0;">'+esc(m.source||'')+' · '+(m.kind==='article'?'文章':'新闻')+'</div>'+
+        '<div style="font-size:12px;color:#555;max-height:36px;overflow:hidden;">'+esc(m.description||'')+'</div>'+
+        '<button class="btn btn-outline btn-xs" style="margin-top:8px;" onclick="addMaterialToRef('+i+')">加入参考</button>'+
+        '</div>';
+    }).join('');
+    if(!window.__materials.length) box.innerHTML='<div style="color:#999;font-size:13px;">未抓到素材，可换关键词或配置搜索 API Key</div>';
+  }).catch(function(e){ st.textContent='抓取失败: '+e; });
+}
+function addMaterialToRef(i){
+  var m = (window.__materials||[])[i]; if(!m||!m.url) return;
+  if(refWebUrls.indexOf(m.url)>=0){ toast('该网址已添加','warning'); return; }
+  refWebUrls.push(m.url); renderRefWebList(); toast('已加入参考网址','success');
+}
+
+/* ============ W3 桌面/手机预览切换 ============ */
+function togglePreviewMode(){
+  var w = document.querySelector('.phone-wrapper');
+  if(!w) return;
+  w.classList.toggle('desktop-mode');
+  var b = document.getElementById('btn-preview-mode');
+  b.textContent = w.classList.contains('desktop-mode') ? '切换手机视图' : '切换桌面视图';
+  refreshPreview();
+}
+
+/* ============ W1 定时/批量发布 ============ */
+function grabCurrentContent(){
+  var html = getWeChatHTML();
+  document.getElementById('sch-content').value = html;
+  var t = document.getElementById('article-title').value;
+  if(t) document.getElementById('sch-title').value = t;
+  document.getElementById('sch-content-hint').textContent = '已抓取当前内容（'+html.length+' 字符）';
+}
+var schMode='publish';
+function setSchMode(mode, btn){
+  schMode=mode;
+  var seg=document.getElementById('sch-mode-seg');
+  if(seg){ seg.querySelectorAll('.seg-btn').forEach(function(b){ b.classList.remove('active'); }); }
+  if(btn){ btn.classList.add('active'); }
+  var hint=document.getElementById('sch-mode-hint');
+  if(!hint) return;
+  if(mode==='draft'){
+    hint.textContent='到设定时间仅创建公众号草稿（不发布），之后可在公众号后台手动发布。';
+  } else {
+    hint.textContent='已认证账号会被直接发布；未认证/个人号将尝试发布，若失败可转为草稿。';
+  }
+}
+function createSchedule(){
+  var title=document.getElementById('sch-title').value.trim();
+  var content=document.getElementById('sch-content').value;
+  var time=document.getElementById('sch-time').value;
+  if(!title||!content){ toast('请先抓取/填写标题与内容','warning'); return; }
+  if(!time){ toast('请选择发布时间','warning'); return; }
+  fetch('/api/publish/schedule-create',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title:title,digest:document.getElementById('sch-digest').value,author:document.getElementById('sch-author').value,content:content,mode:schMode,schedule_time:time.replace('T',' ')+':00'})})
+  .then(function(r){return r.json();}).then(function(res){
+    if(res.success){ toast('定时任务已创建','success'); loadScheduleList(); document.getElementById('sch-content').value=''; document.getElementById('sch-title').value=''; }
+    else toast(res.message,'error');
+  });
+}
+function schStatusBadge(st){
+  var map={
+    'pending':{t:'等待发布',c:'#b45309',bg:'#fef3c7'},
+    'running':{t:'发布中',c:'#2563eb',bg:'#dbeafe',spin:true},
+    'done':{t:'已发布',c:'#15803d',bg:'#dcfce7'},
+    'draft':{t:'草稿待发',c:'#1d4ed8',bg:'#dbeafe'},
+    'failed':{t:'失败',c:'#b91c1c',bg:'#fee2e2'},
+    'needs_choice':{t:'待处理·发布失败',c:'#c2410c',bg:'#ffedd5'},
+    'cleared':{t:'已清空',c:'#6b7280',bg:'#f3f4f6'}
+  };
+  var m=map[st]||{t:st,c:'#374151',bg:'#f3f4f6'};
+  var dot = m.spin ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+m.c+';margin-right:5px;animation:pulse-dot 1.2s infinite;"></span>' : '';
+  return '<span style="display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;color:'+m.c+';background:'+m.bg+';">'+dot+m.t+'</span>';
+}
+function renderSchStatusBar(list){
+  var c={pending:0,running:0,done:0,draft:0,failed:0,cancelled:0,needs_choice:0};
+  (list||[]).forEach(function(s){ if(c[s.status]!==undefined) c[s.status]++; });
+  var box=document.getElementById('sch-status-bar');
+  if(!box) return;
+  var chip=function(label,n,color,bg,spin){
+    var dot = spin ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+color+';animation:pulse-dot 1.2s infinite;"></span>'
+                   : '<span style="width:8px;height:8px;border-radius:50%;background:'+color+';display:inline-block;"></span>';
+    return '<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;color:'+color+';background:'+bg+';">'+dot+label+' '+n+'</span>';
+  };
+  box.innerHTML =
+    chip('等待发布', c.pending, '#b45309', '#fef3c7') +
+    chip('发布中', c.running, '#2563eb', '#dbeafe', true) +
+    chip('正常/已发布', c.done, '#15803d', '#dcfce7') +
+    chip('草稿待发', c.draft, '#1d4ed8', '#dbeafe') +
+    chip('需处理', c.needs_choice, '#c2410c', '#ffedd5') +
+    chip('失败', c.failed, '#b91c1c', '#fee2e2') +
+    (c.cancelled? chip('已取消', c.cancelled, '#6b7280', '#f3f4f6') : '');
+}
+function loadScheduleList(){
+  fetch('/api/publish/schedule-list').then(function(r){return r.json();}).then(function(res){
+    renderSchStatusBar(res.list);
+    var box=document.getElementById('sch-list');
+    if(!res.list||!res.list.length){ box.innerHTML='<div style="color:#999;font-size:13px;">暂无排期任务</div>'; return; }
+    box.innerHTML = res.list.map(function(s){
+      // 已清空：仅展示灰色记录
+      if(s.status==='cleared'){
+        return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fafafa;display:flex;align-items:center;gap:10px;">'+
+          '<div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#777;">'+esc(s.title)+'</div>'+
+          '<div style="font-size:12px;color:#aaa;margin-top:4px;">'+esc(s.schedule_time)+'</div></div>'+
+          schStatusBadge(s.status)+'</div>';
+      }
+      // 发布中：已到期，调度器正在处理（上传图片、建草稿、提交发布等）
+      if(s.status==='running'){
+        var d2 = s.detail ? '<div style="font-size:12px;color:#2563eb;margin-top:4px;">'+esc(String(s.detail))+'</div>' : '';
+        return '<div style="border:1px solid #93c5fd;border-radius:8px;padding:10px 12px;background:#eff6ff;display:flex;align-items:center;gap:10px;">'+
+          '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+esc(s.title)+'</div>'+
+          '<div style="font-size:12px;color:#888;margin-top:4px;">'+esc(s.schedule_time)+'</div>'+d2+'</div>'+
+          schStatusBadge(s.status)+'</div>';
+      }
+      // 待处理：发布失败但草稿已建好，给用户「转草稿 / 清空」两个选择
+      if(s.status==='needs_choice'){
+        var d2 = s.detail ? '<div style="font-size:12px;color:#b45309;margin-top:4px;">'+esc(String(s.detail))+'</div>' : '';
+        return '<div style="border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;background:#fffbeb;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'+
+          '<div style="flex:1;min-width:220px;"><div style="font-size:13px;font-weight:600;">'+esc(s.title)+'</div>'+
+          '<div style="font-size:12px;color:#888;margin-top:4px;">'+esc(s.schedule_time)+'</div>'+d2+
+          '<div style="font-size:12px;color:#92400e;margin-top:6px;">账号无发布权限，草稿已在公众号草稿箱。请选择：</div></div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+          '<button class="btn btn-xs btn-primary" onclick="resolveSchedule('+s.id+',\'keep_draft\')">作为草稿发布至草稿箱</button>'+
+          '<button class="btn btn-xs btn-outline" style="border-color:#dc2626;color:#dc2626;" onclick="askClearSchedule('+s.id+')">清空此条内容</button>'+
+          '</div></div>';
+      }
+      var detail = '';
+      if((s.status==='failed' || s.status==='draft') && s.detail){
+        var dc = s.status==='draft' ? '#1d4ed8' : '#b91c1c';
+        var pre = s.status==='draft' ? '说明：' : '失败原因：';
+        detail = '<div style="font-size:12px;color:'+dc+';margin-top:4px;">'+pre+esc(String(s.detail))+'</div>';
+      }
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fff;display:flex;align-items:center;gap:10px;">'+
+        '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+esc(s.title)+'</div>'+
+        '<div style="font-size:12px;color:#888;margin-top:4px;">'+esc(s.schedule_time)+'</div>'+detail+'</div>'+
+        schStatusBadge(s.status)+
+        '<button class="btn btn-xs btn-danger" style="margin-left:8px;" onclick="askCancelSchedule('+s.id+')">取消</button></div>';
+    }).join('');
+  });
+}
+function resolveSchedule(id, action){
+  fetch('/api/publish/schedule-resolve',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:id,action:action,table:'scheduled_posts'})})
+    .then(function(r){return r.json();}).then(function(res){
+      if(res.success){ toast(res.message,'success'); loadScheduleList(); }
+      else toast(res.message,'error');
+    });
+}
+function askClearSchedule(id){
+  showConfirm('确认清空此条内容？草稿已在公众号草稿箱保留，此处记录将被删除且不可恢复。', function(){
+    resolveSchedule(id, 'clear');
+  });
+}
+var _confirmCancelId=null;
+function askCancelSchedule(id){
+  _confirmCancelId=id;
+  showConfirm('确认是否确定取消该定时任务？操作不可恢复。', function(){
+    if(_confirmCancelId==null) return;
+    fetch('/api/publish/schedule-cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:_confirmCancelId})})
+      .then(function(r){return r.json();}).then(function(){ _confirmCancelId=null; loadScheduleList(); toast('已取消定时任务','success'); });
+  });
+}
+function enqueueBatch(){
+  var content=getWeChatHTML();
+  var title=document.getElementById('article-title').value.trim()||'未命名文章';
+  if(!content){ toast('当前没有可发布的内容','warning'); return; }
+  fetch('/api/publish/batch-enqueue',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({items:[{title:title,digest:document.getElementById('article-digest').value,content:content,author:document.getElementById('article-author').value}]})})
+  .then(function(r){return r.json();}).then(function(res){ if(res.success){ toast('已加入批量队列','success'); loadBatchList(); } else toast(res.message,'error'); });
+}
+function loadBatchList(){
+  fetch('/api/publish/batch-list').then(function(r){return r.json();}).then(function(res){
+    var box=document.getElementById('batch-list');
+    if(!res.list||!res.list.length){ box.innerHTML='<div style="color:#999;font-size:13px;">队列为空</div>'; return; }
+    box.innerHTML = res.list.map(function(s){
+      if(s.status==='needs_choice'){
+        return '<div style="border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;background:#fffbeb;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'+
+          '<span style="font-size:13px;flex:1;min-width:160px;">'+esc(s.title)+'</span>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+          '<button class="btn btn-xs btn-primary" onclick="resolveBatch('+s.id+',\'keep_draft\')">作为草稿发布至草稿箱</button>'+
+          '<button class="btn btn-xs btn-outline" style="border-color:#dc2626;color:#dc2626;" onclick="resolveBatch('+s.id+',\'clear\')">清空此条内容</button>'+
+          '</div></div>';
+      }
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fff;display:flex;align-items:center;gap:10px;">'+
+        '<span style="font-size:13px;flex:1;">'+esc(s.title)+'</span>'+
+        schStatusBadge(s.status)+'</div>';
+    }).join('');
+  });
+}
+function resolveBatch(id, action){
+  fetch('/api/publish/schedule-resolve',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:id,action:action,table:'publish_queue'})})
+    .then(function(r){return r.json();}).then(function(res){
+      if(res.success){ toast(res.message,'success'); loadBatchList(); }
+      else toast(res.message,'error');
+    });
+}
+
+/* ============ W5 发布日志上报 ============ */
+function logPublishEvent(channel,title){
+  try{ fetch('/api/publish/log-event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:channel,title:title||'',status:'success'})}); }catch(e){}
+}
+function previewDrag(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); const w=window.open('','_blank'); w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:20px;margin:0;background:#f5f5f5;}</style></head><body>'+html+'</body></html>'); w.document.close(); }
+function exportDragHTML(){ const title=document.getElementById('article-title').value||''; const html=renderDragToHTML(dragRoot,null,title); const blob=new Blob([html],{type:'text/html'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='drag-layout.html'; a.click(); URL.revokeObjectURL(a.href); }
+// ===== 拖拽模板：保存 / 载入 / 管理 =====
+async function saveDragTemplate() {
+  const name = (document.getElementById('drag-tpl-name').value || '').trim();
+  if (!name) { toast('请输入模板名称', 'warning'); return; }
+  const blocks = JSON.parse(JSON.stringify(dragRoot));
+  try {
+    const r = await fetch('/api/article-templates/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, blocks: blocks, template_type: 'drag', description: '可视化拖拽模板' })
+    });
+    const d = await r.json();
+    if (!d.success) { toast(d.message || '保存失败', 'err'); return; }
+    let published = false;
+    if (currentUser && currentUser.role === 'admin' && document.getElementById('drag-publish').checked) {
+      await fetch('/api/article-templates/' + d.id + '/publish', { method: 'POST' });
+      published = true;
+    }
+    toast('模板已保存' + (published ? '并发布给所有用户' : ''), 'success');
+    document.getElementById('drag-tpl-name').value = '';
+    document.getElementById('drag-publish').checked = false;
+    if (typeof loadUserTemplates === 'function') loadUserTemplates();
+  } catch (e) {
+    toast('保存失败：' + e.message, 'err');
+  }
+}
+
+function loadDragTemplate(t) {
+  try {
+    const root = (typeof t === 'object') ? t : userTemplates.find(x => x.id === t);
+    if (!root) return;
+    dragRoot = JSON.parse(JSON.stringify(root.blocks || { id: 'root', type: 'root', style: { bg: '#f4f6f9', radius: 16, padding: 24 }, children: [] }));
+    dragSelected = null;
+    switchTab('drag', null);
+    renderDragCanvas(); updateDragProps();
+    toast('已载入模板到拖拽编辑器，可继续编辑', 'success');
+  } catch (e) {
+    toast('载入失败', 'err');
+  }
+}
+
+function onTemplateClick(id) {
+  const t = userTemplates.find(x => x.id === id);
+  if (!t) return;
+  if (t.template_type === 'drag') loadDragTemplate(t);
+  else applyUserTemplate(id);
+}
+
+async function deleteUserTemplate(tid, ev) {
+  if (ev) ev.stopPropagation();
+  if (!confirm('确定删除该模板？')) return;
+  try {
+    const r = await fetch('/api/article-templates/' + tid, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.success) { toast('已删除', 'success'); loadUserTemplates(); }
+    else toast(d.message || '删除失败', 'err');
+  } catch (e) { toast('删除失败', 'err'); }
+}
+
+async function publishUserTemplate(tid, makePublic, ev) {
+  if (ev) ev.stopPropagation();
+  try {
+    const r = await fetch('/api/article-templates/' + tid + (makePublic ? '/publish' : '/unpublish'), { method: 'POST' });
+    const d = await r.json();
+    if (d.success) { toast(d.message, 'success'); loadUserTemplates(); }
+    else toast(d.message || '操作失败', 'err');
+  } catch (e) { toast('操作失败', 'err'); }
+}
+
+function loadDragExample(){
+  dragRoot={ id:'root', type:'root', style:{bg:'#0f172a',radius:16,padding:24}, children:[
+    {id:uid(),type:'heading',style:{bg:'transparent',color:'#f8fafc',radius:0,padding:10,borderLeft:true,borderColor:'#60a5fa'},text:'探索未来的科技美学',children:[]},
+    {id:uid(),type:'text',style:{bg:'transparent',color:'#cbd5e1',radius:0,padding:8},text:'这是一段正文，放在深色大框里，整体浑然一体，没有任何白缝。',children:[]},
+    {id:uid(),type:'box',style:{bg:'#1e293b',radius:12,padding:16},children:[
+      {id:uid(),type:'heading',style:{bg:'transparent',color:'#60a5fa',radius:0,padding:8,borderLeft:true,borderColor:'#60a5fa'},text:'嵌套的小框',children:[]},
+      {id:uid(),type:'text',style:{bg:'transparent',color:'#e2e8f0',radius:0,padding:8},text:'大框里面再套一个小框，小框用自己的背景色，形成层次感。',children:[]},
+      {id:uid(),type:'image',style:{bg:'transparent',radius:12,padding:0},src:'',children:[]}
+    ]},
+    {id:uid(),type:'quote',style:{bg:'transparent',color:'#94a3b8',radius:0,padding:12,borderLeft:true,borderColor:'#60a5fa'},text:'“好的排版，是让内容自己说话。”',children:[]}
+  ]};
+  dragSelected=null; renderDragCanvas(); updateDragProps();
+}
+function clearDrag(){ dragRoot={id:'root',type:'root',style:{bg:'#f4f6f9',radius:16,padding:24},children:[]}; dragSelected=null; renderDragCanvas(); updateDragProps(); }
+
+// 初始化拖拽编辑器
+renderPalette(); renderDragCanvas(); updateDragProps();
 </script>
+<script src="/static/common_header.js"></script>
+
+<!-- 取消确认弹窗 -->
+<div id="confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;max-width:340px;width:90%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.2);">
+    <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:8px;">取消确认</div>
+    <div id="confirm-text" style="font-size:13px;color:#555;line-height:1.6;margin-bottom:18px;">确认是否确定取消，不可恢复</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="hideConfirm()">取消</button>
+      <button class="btn" onclick="confirmOk()" style="background:#dc2626;color:#fff;border:none;">确认取消</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
