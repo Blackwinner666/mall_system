@@ -127,10 +127,10 @@ a{color:inherit;text-decoration:none}
 <div class="header">
   <div class="header-inner">
     <div class="header-left">
-      <a href="/" class="header-logo" id="headerLogo">
+      <a href="/store" class="header-logo" id="headerLogo">
         <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
       </a>
-      <a href="/" class="header-title" id="headerTitle">百货商城</a>
+      <a href="/store" class="header-title" id="headerTitle">百货商城</a>
     </div>
     <div class="header-right" id="headerRight">
       <a href="/login" class="header-btn">登录</a>
@@ -138,7 +138,7 @@ a{color:inherit;text-decoration:none}
   </div>
 </div>
 
-<div class="breadcrumb" id="breadcrumb"><a href="/">首页</a> <span>&gt;</span> <span id="bcCategory">商品</span> <span>&gt;</span> <span id="bcName">详情</span></div>
+<div class="breadcrumb" id="breadcrumb"><a href="/store">首页</a> <span>&gt;</span> <span id="bcCategory">商品</span> <span>&gt;</span> <span id="bcName">详情</span></div>
 
 <div class="main" id="mainContent"><div class="loading">加载中...</div></div>
 
@@ -194,7 +194,7 @@ async function init() {
   const res = await fetch('/api/products/' + pid);
   const json = await res.json();
   if (!json.success) {
-    document.getElementById('mainContent').innerHTML = '<div class="not-found"><h2>商品不存在或已下架</h2><p>该商品可能已被删除或暂未上架</p><a href="/" class="btn">返回首页</a></div>';
+    document.getElementById('mainContent').innerHTML = '<div class="not-found"><h2>商品不存在或已下架</h2><p>该商品可能已被删除或暂未上架</p><a href="/store" class="btn">返回首页</a></div>';
     return;
   }
 
