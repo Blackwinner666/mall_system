@@ -63,7 +63,7 @@ th{background:#fafbfc;color:#666;font-weight:500;font-size:12px}
     <div class="topbar">
       <div class="breadcrumb">客户管理</div>
       <div class="user-info">
-        <span id="displayName">管理员</span>
+        <span data-user-slot></span>
         <button class="logout-btn" onclick="doLogout()">退出</button>
       </div>
     </div>
@@ -120,7 +120,7 @@ function renderSidebar(){
 
 async function init(){
   let r=await fetch('/api/auth/me');let u=await r.json();
-  if(u.success)document.getElementById('displayName').textContent=u.user.display_name;
+
   r=await fetch('/api/settings');let s=await r.json();
   if(s.success)document.getElementById('storeName').textContent=s.data.store_name||'百货商城';
 }
@@ -193,5 +193,6 @@ async function deleteC(id){if(!confirm('确定删除此客户？'))return;await 
 
 renderSidebar();init();loadCustomers();
 </script>
+<script src="/static/common_header.js"></script>
 </body>
 </html>
