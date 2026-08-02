@@ -69,7 +69,7 @@ tr:hover td { background:#fafafa; }
 <body>
 <div class="header">
   <h2>公众号AI创作 - 生成记录</h2>
-  <a href="/admin">返回管理后台</a>
+  <a href="/admin">返回管理后台</a><span data-user-slot style="margin-left:12px;"></span>
 </div>
 <div class="container">
   <div class="stats" id="stats"></div>
@@ -208,5 +208,6 @@ function esc(s) { if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,
 loadStats();
 loadRecords();
 </script>
+<script src="/static/common_header.js"></script>
 </body>
 </html>
